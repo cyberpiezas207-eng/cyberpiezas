@@ -1,0 +1,24 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.boutiquepos.desktop
+productName: Boutique POS Desktop
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - package.json
+asarUnpack:
+  - dist/**/*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Boutique POS Desktop
+electronVersion: 41.3.0

@@ -1,0 +1,18 @@
+# Robots.txt for Boutique POS
+# Allow all search engines to crawl and index
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Crawl-delay: 1
+
+# Specific rules for Google
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Crawl-delay: 0
+
+# Sitemap
+Sitemap: https://boutiquepos-ttscyv2e.manus.space/sitemap.xml

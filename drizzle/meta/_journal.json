@@ -1,0 +1,195 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1776145482904,
+      "tag": "0000_flaky_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1776145647180,
+      "tag": "0001_parched_iceman",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1776146779072,
+      "tag": "0002_even_multiple_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1776147751683,
+      "tag": "0003_bent_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1776177473197,
+      "tag": "0004_freezing_maverick",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776263468323,
+      "tag": "0005_blushing_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776264987971,
+      "tag": "0006_youthful_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1776265157106,
+      "tag": "0007_vengeful_karen_page",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1776265799798,
+      "tag": "0008_chief_mockingbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1776266199567,
+      "tag": "0009_abandoned_plazm",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1776384240224,
+      "tag": "0010_nasty_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1776750929316,
+      "tag": "0011_fantastic_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1776900178337,
+      "tag": "0012_harsh_korath",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1776911980089,
+      "tag": "0013_clammy_gambit",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1776913849515,
+      "tag": "0014_rich_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1776915713128,
+      "tag": "0015_thankful_synch",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1776990174856,
+      "tag": "0016_charming_impossible_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1777077023639,
+      "tag": "0017_harsh_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1777167548416,
+      "tag": "0018_dapper_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1777449465361,
+      "tag": "0019_public_maggott",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1777449804318,
+      "tag": "0020_sparkling_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1777450318944,
+      "tag": "0021_white_rocket_raccoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1777452561945,
+      "tag": "0022_nasty_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1777512706542,
+      "tag": "0023_mixed_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1777616301142,
+      "tag": "0024_flawless_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1777680548035,
+      "tag": "0025_orange_omega_sentinel",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1777690021379,
+      "tag": "0026_young_pet_avengers",
+      "breakpoints": true
+    }
+  ]
+}

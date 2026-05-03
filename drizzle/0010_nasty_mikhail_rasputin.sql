@@ -1,0 +1,3 @@
+ALTER TABLE `transferPaymentRequests` MODIFY COLUMN `planCode` enum('free','basic','professional','premium','annual') NOT NULL;--> statement-breakpoint
+ALTER TABLE `transferPaymentRequests` MODIFY COLUMN `billingType` enum('monthly','annual') NOT NULL;--> statement-breakpoint
+ALTER TABLE `users` MODIFY COLUMN `subscriptionPlan` enum('free','basic','professional','premium','annual') NOT NULL DEFAULT 'free';

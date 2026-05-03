@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.cache/
+.manus-logs/
+.env
+*.log
+uploads/
