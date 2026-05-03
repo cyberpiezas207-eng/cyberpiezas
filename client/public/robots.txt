@@ -15,4 +15,4 @@ Disallow: /admin/
 Crawl-delay: 0
 
 # Sitemap
-Sitemap: https://boutiquepos-ttscyv2e.manus.space/sitemap.xml
+Sitemap: https://cyberpiezas.com/sitemap.xml
