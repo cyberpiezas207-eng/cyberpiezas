@@ -5,6 +5,7 @@ import { serializeSaleTransferMetadata } from "@shared/saleTransferMetadata";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { eq, sql } from "drizzle-orm";
+import { sdk } from "./_core/sdk";
 
 import { notificationsRouter } from "./routers/notifications";
 import { paypalRouter } from "./routers/paypal";
