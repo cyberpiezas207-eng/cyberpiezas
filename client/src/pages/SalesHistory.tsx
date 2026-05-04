@@ -277,266 +277,229 @@ TOTAL:           $${parseFloat(sale.total).toFixed(2)}
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <section className="overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-fuchsia-50 via-white to-orange-50 shadow-sm">
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
-            <div className="space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1 text-sm font-medium text-primary">
-                <Sparkles className="h-4 w-4" />
-                Centro de ventas Boutique POS
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-primary md:text-5xl">Ventas, devoluciones y caja en un solo panel</h1>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
-                  Desde aquí revisas el historial comercial, registras devoluciones reales y dejas una bitácora clara de entradas y salidas de dinero para el mostrador.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Button className="h-auto justify-start gap-3 rounded-2xl px-4 py-4 text-left" onClick={() => setLocation("/pos")}>
-                  <ShoppingCart className="h-5 w-5" />
-                  <span>
-                    <span className="block font-semibold">Abrir POS</span>
-                    <span className="block text-xs opacity-80">Cobro rápido y operación diaria</span>
-                  </span>
-                </Button>
-                <Button variant="outline" className="h-auto justify-start gap-3 rounded-2xl px-4 py-4 text-left" onClick={() => selectedSaleId ? handleOpenReturnDialog() : toast.info("Abre primero una venta para preparar la devolución.")}>
-                  <RotateCcw className="h-5 w-5 text-primary" />
-                  <span>
-                    <span className="block font-semibold text-foreground">Devoluciones</span>
-                    <span className="block text-xs text-muted-foreground">Guardado real y devolución al inventario</span>
-                  </span>
-                </Button>
-                <Button variant="outline" className="h-auto justify-start gap-3 rounded-2xl px-4 py-4 text-left" onClick={() => { setCashForm((current) => ({ ...current, movementType: "entry" })); setIsCashDialogOpen(true); }}>
-                  <ArrowDownCircle className="h-5 w-5 text-emerald-600" />
-                  <span>
-                    <span className="block font-semibold text-foreground">Entrada de dinero</span>
-                    <span className="block text-xs text-muted-foreground">Bitácora persistente para ingresos extra</span>
-                  </span>
-                </Button>
-                <Button variant="outline" className="h-auto justify-start gap-3 rounded-2xl px-4 py-4 text-left" onClick={() => { setCashForm((current) => ({ ...current, movementType: "exit" })); setIsCashDialogOpen(true); }}>
-                  <ArrowUpCircle className="h-5 w-5 text-rose-600" />
-                  <span>
-                    <span className="block font-semibold text-foreground">Salida de dinero</span>
-                    <span className="block text-xs text-muted-foreground">Registro de gastos y retiros de caja</span>
-                  </span>
-                </Button>
-              </div>
-            </div>
+      <div className="space-y-6 p-1">
 
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-              <Card className="border-white/70 bg-white/90 shadow-none">
-                <CardHeader className="pb-2">
-                  <CardDescription>Ventas visibles</CardDescription>
-                  <CardTitle className="text-3xl text-primary">{displayedSales.length}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="border-white/70 bg-white/90 shadow-none">
-                <CardHeader className="pb-2">
-                  <CardDescription>Monto del periodo</CardDescription>
-                  <CardTitle className="text-2xl text-foreground">${summary.totalAmount.toFixed(2)}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="border-white/70 bg-white/90 shadow-none">
-                <CardHeader className="pb-2">
-                  <CardDescription>Entradas registradas</CardDescription>
-                  <CardTitle className="text-2xl text-foreground">${summary.totalCashEntries.toFixed(2)}</CardTitle>
-                </CardHeader>
-              </Card>
+        {/* ===== HEADER ===== */}
+        <div className="rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 p-6">
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Ventas</h1>
+              <p className="mt-1 text-slate-400 text-sm">Historial, devoluciones y movimientos de caja</p>
+            </div>
+            {/* Botones de acción rápida */}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setLocation("/pos")} className="bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                <ShoppingCart className="h-4 w-4" /> Abrir POS
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectedSaleId ? handleOpenReturnDialog() : toast.info("Abre primero una venta para preparar la devolución.")} className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-2">
+                <RotateCcw className="h-4 w-4" /> Devolución
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setCashForm((c) => ({ ...c, movementType: "entry" })); setIsCashDialogOpen(true); }} className="border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/10 gap-2">
+                <ArrowDownCircle className="h-4 w-4" /> Entrada
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setCashForm((c) => ({ ...c, movementType: "exit" })); setIsCashDialogOpen(true); }} className="border-rose-600/50 text-rose-400 hover:bg-rose-600/10 gap-2">
+                <ArrowUpCircle className="h-4 w-4" /> Salida
+              </Button>
             </div>
           </div>
-        </section>
 
+          {/* Stats */}
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-slate-700/40 border border-slate-600/40 p-4">
+              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Ventas visibles</p>
+              <p className="text-3xl font-bold text-purple-400">{displayedSales.length}</p>
+            </div>
+            <div className="rounded-xl bg-slate-700/40 border border-slate-600/40 p-4">
+              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Monto del periodo</p>
+              <p className="text-3xl font-bold text-white">${summary.totalAmount.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-700/40 border border-slate-600/40 p-4">
+              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Entradas de caja</p>
+              <p className="text-3xl font-bold text-emerald-400">${summary.totalCashEntries.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerta plan gratis */}
         {user?.subscriptionPlan === "free" && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-800">
+          <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-300">
+            <AlertCircle className="h-4 w-4 text-amber-400" />
+            <AlertDescription>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-sm leading-6 sm:text-base">
-                  <strong>Plan Gratis:</strong> Solo puedes ver el historial de los últimos 30 días. Actualiza tu plan para acceder a historial completo.
-                </span>
-                <Button variant="outline" size="sm" className="w-full border-amber-600 text-amber-600 hover:bg-amber-100 sm:ml-4 sm:w-auto" onClick={() => { window.location.href = "/planes-y-acceso"; }}>
-                  <ArrowRight className="mr-2 h-4 w-4" />
-                  Ver Planes
+                <span className="text-sm"><strong>Plan Gratis:</strong> Solo puedes ver el historial de los últimos 30 días.</span>
+                <Button variant="outline" size="sm" className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10" onClick={() => { window.location.href = "/planes-y-acceso"; }}>
+                  <ArrowRight className="mr-2 h-4 w-4" /> Ver Planes
                 </Button>
               </div>
             </AlertDescription>
           </Alert>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Calendar className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div>
-                  <Label htmlFor="startDate" className="font-semibold text-foreground">Fecha Inicio</Label>
-                  <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="endDate" className="font-semibold text-foreground">Fecha Fin</Label>
-                  <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="paymentMethod" className="font-semibold text-foreground">Método de Pago</Label>
-                  <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                    <SelectTrigger id="paymentMethod" className="mt-2">
-                      <SelectValue placeholder="Todos los métodos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los métodos</SelectItem>
-                      <SelectItem value="cash">Efectivo</SelectItem>
-                      <SelectItem value="card">Tarjeta</SelectItem>
-                      <SelectItem value="transfer">Transferencia</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-end">
-                  <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => setCurrentPage(1)}>
-                    Filtrar
-                  </Button>
-                </div>
+        {/* ===== FILTROS + CAJA RECIENTE ===== */}
+        <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+          {/* Filtros */}
+          <div className="rounded-2xl bg-slate-800/60 border border-slate-700/50 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="h-4 w-4 text-purple-400" />
+              <h2 className="text-white font-semibold text-sm">Filtros</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <Label htmlFor="startDate" className="text-slate-400 text-xs mb-1 block">Fecha Inicio</Label>
+                <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-slate-700/60 border-slate-600 text-white text-sm" />
               </div>
-              {dateRangeError ? <p className="mt-3 text-sm text-rose-600">{dateRangeError}</p> : null}
-            </CardContent>
-          </Card>
+              <div>
+                <Label htmlFor="endDate" className="text-slate-400 text-xs mb-1 block">Fecha Fin</Label>
+                <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-slate-700/60 border-slate-600 text-white text-sm" />
+              </div>
+              <div>
+                <Label htmlFor="paymentMethod" className="text-slate-400 text-xs mb-1 block">Método de Pago</Label>
+                <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                  <SelectTrigger id="paymentMethod" className="bg-slate-700/60 border-slate-600 text-white text-sm">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="cash">Efectivo</SelectItem>
+                    <SelectItem value="card">Tarjeta</SelectItem>
+                    <SelectItem value="transfer">Transferencia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm" onClick={() => setCurrentPage(1)}>Filtrar</Button>
+              </div>
+            </div>
+            {dateRangeError && <p className="mt-2 text-xs text-rose-400">{dateRangeError}</p>}
+          </div>
 
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Wallet className="h-5 w-5" />
-                Caja reciente
-              </CardTitle>
-              <CardDescription>Entradas y salidas registradas desde Boutique POS.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          {/* Caja reciente */}
+          <div className="rounded-2xl bg-slate-800/60 border border-slate-700/50 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Wallet className="h-4 w-4 text-purple-400" />
+              <h2 className="text-white font-semibold text-sm">Caja reciente</h2>
+            </div>
+            <div className="space-y-2">
               {cashMovements.isLoading ? (
-                <p className="text-sm text-muted-foreground">Cargando movimientos...</p>
+                <p className="text-slate-500 text-sm">Cargando...</p>
               ) : recentCashMovements.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aún no hay movimientos de caja registrados.</p>
+                <p className="text-slate-500 text-sm">Sin movimientos registrados.</p>
               ) : (
                 recentCashMovements.map((movement) => (
-                  <div key={movement.id} className="rounded-2xl border border-border bg-secondary/50 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium text-foreground">{movement.category}</p>
-                      <span className={movement.movementType === "entry" ? "text-emerald-600" : "text-rose-600"}>
-                        {movement.movementType === "entry" ? "+" : "-"}${Number(movement.amount).toFixed(2)}
-                      </span>
+                  <div key={movement.id} className="flex items-center justify-between rounded-lg bg-slate-700/40 px-3 py-2">
+                    <div>
+                      <p className="text-white text-sm font-medium">{movement.reason}</p>
+                      <p className="text-slate-500 text-xs">{format(new Date(movement.createdAt), "dd/MM HH:mm", { locale: es })}</p>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{movement.reason}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {format(new Date(movement.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
-                    </p>
+                    <span className={`text-sm font-bold ${movement.movementType === "entry" ? "text-emerald-400" : "text-rose-400"}`}>
+                      {movement.movementType === "entry" ? "+" : "-"}${Number(movement.amount).toFixed(2)}
+                    </span>
                   </div>
                 ))
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        <Card className="border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-primary">{startDate || endDate ? "Ventas por Rango de Fechas" : "Ventas del Día"}</CardTitle>
-            <CardDescription>Total: {displayedSales.length} ventas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todaySales.isLoading ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground">Cargando ventas...</p>
-              </div>
-            ) : displayedSales.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground">No hay ventas registradas</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="px-3 py-3 text-left font-semibold text-foreground sm:px-4">Número</th>
-                      <th className="px-3 py-3 text-left font-semibold text-foreground sm:px-4">Fecha</th>
-                      <th className="hidden px-3 py-3 text-left font-semibold text-foreground md:table-cell sm:px-4">Artículos</th>
-                      <th className="px-3 py-3 text-left font-semibold text-foreground sm:px-4">Método</th>
-                      <th className="px-3 py-3 text-right font-semibold text-foreground sm:px-4">Total</th>
-                      <th className="px-3 py-3 text-center font-semibold text-foreground sm:px-4">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedSales.map((sale) => (
-                      <tr key={sale.id} className="border-b border-border transition-colors hover:bg-secondary">
-                        <td className="px-3 py-3 font-semibold text-foreground sm:px-4">{sale.saleNumber}</td>
-                        <td className="px-3 py-3 text-muted-foreground sm:px-4">
-                          {format(new Date(sale.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
-                        </td>
-                        <td className="hidden px-3 py-3 text-foreground md:table-cell sm:px-4">-</td>
-                        <td className="px-3 py-3 text-foreground sm:px-4">
-                          {sale.paymentMethod === "cash" ? "Efectivo" : sale.paymentMethod === "card" ? "Tarjeta" : "Transferencia"}
-                        </td>
-                        <td className="px-3 py-3 text-right font-bold text-accent sm:px-4">${Number(sale.total).toFixed(2)}</td>
-                        <td className="px-3 py-3 text-center sm:px-4">
-                          <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-                            <Button variant="outline" size="sm" className="gap-1" onClick={() => handleViewDetails(sale.id)}>
-                              <Eye className="h-3 w-3" />
-                              Ver
-                            </Button>
-                            <Button variant="outline" size="sm" className="gap-1" onClick={() => handleExportSale(sale)}>
-                              <Download className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {/* ===== TABLA DE VENTAS ===== */}
+        <div className="rounded-2xl bg-slate-800/60 border border-slate-700/50 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/50">
+            <h2 className="text-white font-semibold">{startDate || endDate ? "Ventas por rango de fechas" : "Ventas del día"}</h2>
+            <span className="text-slate-400 text-sm">{displayedSales.length} venta{displayedSales.length !== 1 ? "s" : ""}</span>
+          </div>
 
-            {displayedSales.length > salesPageSize && (
-              <div className="mt-4 overflow-x-auto">
-                <Pagination>
-                  <PaginationContent className="flex-nowrap">
-                    <PaginationItem>
-                      <PaginationPrevious
+          {todaySales.isLoading ? (
+            <div className="py-12 text-center text-slate-500">Cargando ventas...</div>
+          ) : displayedSales.length === 0 ? (
+            <div className="py-12 text-center">
+              <ShoppingCart className="h-10 w-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500">No hay ventas registradas</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700/50">
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Número</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Fecha</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Método</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/40">
+                  {paginatedSales.map((sale) => (
+                    <tr key={sale.id} className="hover:bg-slate-700/30 transition-colors">
+                      <td className="px-5 py-4 font-semibold text-white text-sm">{sale.saleNumber}</td>
+                      <td className="px-5 py-4 text-slate-400 text-sm">{format(new Date(sale.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}</td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          sale.paymentMethod === "cash" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
+                          sale.paymentMethod === "card" ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" :
+                          "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                        }`}>
+                          {sale.paymentMethod === "cash" ? "Efectivo" : sale.paymentMethod === "card" ? "Tarjeta" : "Transferencia"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right font-bold text-white text-sm">${Number(sale.total).toFixed(2)}</td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-1 text-xs" onClick={() => handleViewDetails(sale.id)}>
+                            <Eye className="h-3 w-3" /> Ver
+                          </Button>
+                          <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700" onClick={() => handleExportSale(sale)}>
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {displayedSales.length > salesPageSize && (
+            <div className="px-5 py-4 border-t border-slate-700/50">
+              <Pagination>
+                <PaginationContent className="flex-nowrap">
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setCurrentPage((page) => Math.max(1, page - 1));
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalSalesPages }, (_, index) => index + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
                         href="#"
+                        isActive={page === currentPage}
                         onClick={(event) => {
                           event.preventDefault();
-                          setCurrentPage((page) => Math.max(1, page - 1));
+                          setCurrentPage(page);
                         }}
-                      />
+                      >
+                        {page}
+                      </PaginationLink>
                     </PaginationItem>
-                    {Array.from({ length: totalSalesPages }, (_, index) => index + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          isActive={page === currentPage}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage(page);
-                          }}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setCurrentPage((page) => Math.min(totalSalesPages, page + 1));
-                        }}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setCurrentPage((page) => Math.min(totalSalesPages, page + 1));
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </div>
 
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className="max-w-2xl max-sm:h-[90vh] max-sm:overflow-y-auto">

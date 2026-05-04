@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Plus, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
+import { Users, Plus, Edit2, Trash2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 // Datos simulados de cajeros (en producción vendrían del backend)
 const mockCajeros = [
@@ -57,6 +58,7 @@ const mockSucursales = [
 
 export default function CajerosYUsuarios() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [cajeros, setCajeros] = useState(mockCajeros);
   const [showPassword, setShowPassword] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -143,6 +145,13 @@ export default function CajerosYUsuarios() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
+          <button
+            onClick={() => setLocation("/dashboard")}
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-4 text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Regresar al dashboard
+          </button>
           <div className="flex items-center gap-3 mb-2">
             <Users className="w-8 h-8 text-primary" />
             <h1 className="text-4xl font-bold text-white">Cajeros y Usuarios</h1>

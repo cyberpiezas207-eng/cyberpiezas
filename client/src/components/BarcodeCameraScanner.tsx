@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, X } from "lucide-react";
+import { Camera, X, ScanLine } from "lucide-react";
 
 interface BarcodeCameraScannerProps {
   open: boolean;
@@ -11,80 +12,141 @@ interface BarcodeCameraScannerProps {
 
 export function BarcodeCameraScanner({ open, onClose, onDetected }: BarcodeCameraScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
+      if (readerRef.current) {
+        BrowserMultiFormatReader.releaseAllStreams();
+        readerRef.current = null;
       }
+      setError(null);
+      setScanning(false);
       return;
     }
 
-    const startCamera = async () => {
+    const startScanner = async () => {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" }
-        });
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
+        setScanning(true);
         setError(null);
-      } catch {
-        setError("No se pudo acceder a la cámara. Verifica los permisos.");
+
+        const reader = new BrowserMultiFormatReader();
+        readerRef.current = reader;
+
+        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+        if (devices.length === 0) {
+          setError("No se encontró ninguna cámara en este dispositivo.");
+          setScanning(false);
+          return;
+        }
+
+        // Preferir cámara trasera
+        const backCamera = devices.find(
+          (d) =>
+            d.label.toLowerCase().includes("back") ||
+            d.label.toLowerCase().includes("trasera") ||
+            d.label.toLowerCase().includes("environment") ||
+            d.label.toLowerCase().includes("rear")
+        );
+        const deviceId = backCamera?.deviceId ?? devices[devices.length - 1].deviceId;
+
+        if (!videoRef.current) return;
+
+        await reader.decodeFromVideoDevice(deviceId, videoRef.current, (result, err) => {
+          if (result) {
+            const code = result.getText();
+            BrowserMultiFormatReader.releaseAllStreams();
+            readerRef.current = null;
+            onDetected(code);
+            onClose();
+          } else if (err) {
+            // NotFoundException es normal mientras no hay código en el encuadre — solo logueamos otros errores
+            const msg = err instanceof Error ? err.message : String(err);
+            if (!msg.toLowerCase().includes("notfound") && !msg.toLowerCase().includes("no multiformat")) {
+              console.warn("Scanner error:", err);
+            }
+          }
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Error desconocido";
+        if (message.toLowerCase().includes("permission") || message.toLowerCase().includes("denied")) {
+          setError("Permiso de cámara denegado. Ve a Configuración del navegador y permite el acceso.");
+        } else if (message.toLowerCase().includes("notfound") || message.toLowerCase().includes("no device")) {
+          setError("No se encontró ninguna cámara disponible.");
+        } else {
+          setError(`No se pudo iniciar el escáner: ${message}`);
+        }
+        setScanning(false);
       }
     };
 
-    startCamera();
+    startScanner();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      BrowserMultiFormatReader.releaseAllStreams();
+      readerRef.current = null;
     };
-  }, [open]);
+  }, [open, onClose, onDetected]);
 
   const handleClose = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
+    BrowserMultiFormatReader.releaseAllStreams();
+    readerRef.current = null;
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-sm bg-slate-900 border-slate-700">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Camera className="h-5 w-5 text-purple-400" />
             Escanear código de barras
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4">
           {error ? (
-            <div className="text-center text-destructive p-4">{error}</div>
+            <div className="w-full rounded-lg bg-red-500/10 border border-red-500/30 p-4 text-center text-sm text-red-400">
+              {error}
+            </div>
           ) : (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full rounded-lg bg-muted"
-              style={{ maxHeight: 300 }}
-            />
+            <div className="relative w-full overflow-hidden rounded-xl bg-black">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full rounded-xl"
+                style={{ maxHeight: 280, objectFit: "cover" }}
+              />
+              {scanning && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="relative w-48 h-32">
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-purple-400 rounded-tl" />
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-purple-400 rounded-tr" />
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-purple-400 rounded-bl" />
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-purple-400 rounded-br" />
+                    <div className="absolute left-2 right-2 h-0.5 bg-purple-400/70 animate-bounce" style={{ top: "50%" }} />
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
-          <p className="text-sm text-muted-foreground text-center">
-            Apunta la cámara al código de barras del producto
-          </p>
+          <div className="flex items-center gap-2 text-slate-400 text-sm">
+            <ScanLine className="h-4 w-4 text-purple-400" />
+            {scanning && !error ? "Apunta la cámara al código de barras" : "Listo para escanear"}
+          </div>
 
-          <Button variant="outline" onClick={handleClose} className="w-full">
-            <X className="h-4 w-4 mr-2" />
-            Cerrar
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="w-full border-slate-600 text-slate-300 hover:bg-slate-700 gap-2"
+          >
+            <X className="h-4 w-4" />
+            Cancelar
           </Button>
         </div>
       </DialogContent>

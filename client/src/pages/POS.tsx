@@ -325,426 +325,276 @@ export default function POS() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Botón de retroceder */}
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2 border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Regresar
-          </Button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+
+        {/* ===== HEADER ===== */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50 bg-slate-900/80">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setLocation("/dashboard")}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-sm"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Regresar
+            </button>
+            <span className="text-slate-600">|</span>
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-purple-400" />
+              <span className="text-white font-semibold text-sm">
+                {activeBranch ? activeBranch.name : "Sin sucursal"}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setLocation("/settings/pos-hardware")}
+                className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-xs px-2 py-1 rounded border border-slate-700 hover:border-slate-500"
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                Configuración
+              </button>
+            )}
+            <button
+              onClick={() => setLocation("/sales")}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-xs px-2 py-1 rounded border border-slate-700 hover:border-slate-500"
+            >
+              <History className="h-3.5 w-3.5" />
+              Historial
+            </button>
+          </div>
         </div>
-        <section className="rounded-[2rem] border border-fuchsia-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(217,70,239,0.16),_transparent_24%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(250,245,255,0.95))] p-6 shadow-[0_30px_80px_-40px_rgba(168,85,247,0.55)]">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.24em] text-fuchsia-700/80">Operación de caja</p>
-              <h1 className="mt-2 text-4xl font-bold bg-gradient-to-r from-fuchsia-700 via-violet-700 to-cyan-700 bg-clip-text text-transparent">Punto de Venta</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Flujo rápido de venta con lector, ticket, método de pago y resumen del día. La sucursal operativa ahora se controla desde configuración para mantener una caja más limpia y segura.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
-                <Store className="h-3.5 w-3.5 text-primary" />
-                {activeBranch ? `Sucursal activa: ${activeBranch.name}` : "Sin sucursal operativa"}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
-                <WalletCards className="h-3.5 w-3.5 text-primary" />
-                Perfil: {isAdmin ? "Administrador" : "Cajero"}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
-                <ScanLine className="h-3.5 w-3.5 text-primary" />
-                Lector tipo teclado listo
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
-                <Smartphone className="h-3.5 w-3.5 text-primary" />
-                Modo táctil listo para operación desde celular
-              </span>
-            </div>
-          </div>
+        {/* ===== ÁREA PRINCIPAL: CATÁLOGO + CARRITO ===== */}
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] h-[calc(100vh-57px)]">
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <Card className="border-white/70 bg-white/75 shadow-none backdrop-blur">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-foreground">Sucursal operativa</CardTitle>
-                <CardDescription>
-                  {isAdmin
-                    ? "Se define desde Configuración para evitar cambios accidentales durante la venta."
-                    : "Los cajeros trabajan únicamente con su sucursal asignada por el administrador."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <p>
-                  {activeBranch
-                    ? `Las variantes y el checkout usarán el inventario real de ${activeBranch.name}.`
-                    : isAdmin
-                      ? "Configura una sucursal antes de vender."
-                      : "Solicita a un administrador que asigne tu sucursal."}
-                </p>
-                {isAdmin ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" className="w-full gap-2" onClick={() => setLocation("/settings/pos-hardware")}>
-                        <Settings2 className="h-4 w-4" />
-                        Abrir Configuración
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Define sucursal activa, hardware POS e impuestos sin salir del flujo administrativo.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card className="border-white/70 bg-white/75 shadow-none backdrop-blur">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-foreground">Permisos por rol</CardTitle>
-                <CardDescription>Separación clara entre caja operativa y administración.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>Administrador: define sucursal activa, hardware POS, usuarios y permisos.</p>
-                <p>Cajero: vende en su sucursal asignada, consulta ventas y opera la caja.</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-white/70 bg-white/75 shadow-none backdrop-blur">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-foreground">Atajos de operación</CardTitle>
-                <CardDescription>Diseño pensado para capturar, cobrar y revisar ventas sin salir del flujo.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>Busca por nombre, SKU o código escaneado.</p>
-                <p>Selecciona color y talla por separado antes de agregar al carrito.</p>
-                <p>Consulta el historial del día justo debajo del área de venta.</p>
-                <Button variant="outline" className="mt-2 w-full gap-2 sm:w-auto" onClick={() => setIsCameraScannerOpen(true)}>
-                  <Camera className="h-4 w-4" />
-                  Escanear con cámara del celular
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_380px]">
-          <div className="space-y-6">
-            <Card className="border-fuchsia-100 bg-white/90 shadow-[0_24px_60px_-40px_rgba(168,85,247,0.45)]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xl text-foreground">Catálogo rápido</CardTitle>
-                <CardDescription>
-                  Busca productos y agrega la variante correcta al carrito con un flujo más directo para caja.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nombre, SKU o código"
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button type="button" variant="outline" className="gap-2" onClick={() => setIsCameraScannerOpen(true)}>
-                    <Camera className="h-4 w-4" />
-                    Escanear con cámara
-                  </Button>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                    <Smartphone className="mb-2 h-4 w-4 text-primary" />
-                    Usa el celular en vertical para tocar productos y cobrar más cómodo.
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                    <Camera className="mb-2 h-4 w-4 text-primary" />
-                    La cámara puede buscar productos por código sin lector externo.
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                    <ScanLine className="mb-2 h-4 w-4 text-primary" />
-                    Si ya tienes lector tipo teclado, el POS sigue aceptándolo.
-                  </div>
-                </div>
-
-                <div className="grid gap-3">
-                  {(displayedProducts ?? []).map((product) => (
-                    <div
-                      key={product.id}
-                      className="grid gap-4 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-fuchsia-200 hover:shadow-[0_20px_40px_-30px_rgba(168,85,247,0.55)] md:grid-cols-[132px_minmax(0,1fr)_auto] md:items-center"
-                    >
-                      <div className="overflow-hidden rounded-2xl border border-fuchsia-100 bg-gradient-to-br from-white to-fuchsia-50 shadow-[0_18px_30px_-24px_rgba(168,85,247,0.55)]">
-                        {product.primaryImageUrl ? (
-                          <img src={product.primaryImageUrl} alt={product.name} loading="lazy" className="h-32 w-full object-cover transition-transform duration-300 hover:scale-[1.03]" />
-                        ) : (
-                          <div className="flex h-32 items-center justify-center px-3 text-center text-[11px] text-muted-foreground">
-                            Sin foto
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="truncate font-semibold text-foreground">{product.name}</h3>
-                          <span className="rounded-full bg-secondary px-2 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                            {product.sku}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">{product.brand}</p>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3 md:justify-end">
-                        <div className="text-right">
-                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Desde</p>
-                          <p className="text-2xl font-bold text-accent">${parseFloat(product.basePrice).toFixed(2)}</p>
-                        </div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="sm"
-                              className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-                              onClick={() => handleAddToCart({ id: product.id, name: product.name })}
-                              disabled={!activeBranch?.id}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Agregar
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{activeBranch?.id ? "Abre el selector de variante para elegir color y talla." : "Primero configura una sucursal operativa para vender."}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {(displayedProducts?.length ?? 0) === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-background/70 px-6 py-12 text-center text-sm text-muted-foreground">
-                    {emptyStateMessage}
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div>
-            <Card className="sticky top-6 border-fuchsia-100 bg-white/95 shadow-[0_24px_60px_-36px_rgba(168,85,247,0.45)] backdrop-blur">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-primary">
-                  <ShoppingCart className="h-5 w-5" />
-                  Carrito actual
-                </CardTitle>
-                <CardDescription>
-                  {cart.length} {cart.length === 1 ? "artículo" : "artículos"} en la venta
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="max-h-72 space-y-3 overflow-y-auto">
-                  {cart.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-background/70 px-4 py-10 text-center text-sm text-muted-foreground">
-                      El carrito está vacío.
-                    </div>
-                  ) : (
-                    cart.map((item, index) => (
-                      <div key={`${item.variantId}-${index}`} className="rounded-xl border border-border bg-secondary/30 p-3">
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-foreground">{item.productName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Color: {item.color} · Talla: {item.size}
-                            </p>
-                          </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => handleRemoveFromCart(index)} className="text-destructive">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Quita esta variante del carrito sin afectar el resto de la venta.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
-                          <span className="text-muted-foreground">{item.quantity} × ${item.unitPrice.toFixed(2)}</span>
-                          <span className="font-semibold text-foreground">${item.lineTotal.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="discount" className="font-semibold text-foreground">Descuento (%)</Label>
+          {/* CATÁLOGO */}
+          <div className="flex flex-col overflow-hidden">
+            {/* Barra de búsqueda */}
+            <div className="p-4 border-b border-slate-700/50 bg-slate-900/50">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
-                    id="discount"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={discount}
-                    onChange={(event) => setDiscount(event.target.value)}
-                    className="text-right"
+                    placeholder="Buscar por nombre, SKU o código..."
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    className="pl-9 bg-slate-800/60 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500"
                   />
                 </div>
-
-                <div className="space-y-3 rounded-2xl border border-border bg-secondary/20 p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Forma de cobro</p>
-                    <p className="text-xs text-muted-foreground">Selecciona cómo cobrarás esta venta: efectivo, tarjeta o transferencia.</p>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "cash" ? "default" : "outline"}
-                      className="gap-2"
-                      onClick={() => setPaymentMethod("cash")}
-                    >
-                      <Banknote className="h-4 w-4" />
-                      Efectivo
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "card" ? "default" : "outline"}
-                      className="gap-2"
-                      onClick={() => setPaymentMethod("card")}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Tarjeta
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "transfer" ? "default" : "outline"}
-                      className="gap-2"
-                      onClick={() => setPaymentMethod("transfer")}
-                    >
-                      <Landmark className="h-4 w-4" />
-                      Transferencia
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 border-t border-border pt-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-semibold text-foreground">${subtotal.toFixed(2)}</span>
-                  </div>
-                  {discountAmount > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Descuento</span>
-                      <span className="font-semibold text-accent">-${discountAmount.toFixed(2)}</span>
-                    </div>
-                  ) : null}
-                  {showTaxRow ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{taxLabel}</span>
-                      <span className="font-semibold text-foreground">${tax.toFixed(2)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between border-t border-border pt-3 text-lg">
-                    <span className="font-bold text-foreground">Total</span>
-                    <span className="text-2xl font-bold text-accent">${total.toFixed(2)}</span>
-                  </div>
-                </div>
-
                 <Button
-                  onClick={handleOpenCheckout}
-                  disabled={cart.length === 0 || !activeBranch?.id}
-                  className="w-full gap-2 py-6 text-lg font-semibold bg-accent text-accent-foreground hover:bg-accent/90"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCameraScannerOpen(true)}
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white gap-2 shrink-0"
                 >
-                  <Printer className="h-4 w-4" />
-                  Procesar venta
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Escanear</span>
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-fuchsia-200/70 bg-white/95 px-4 py-3 shadow-[0_-18px_40px_-30px_rgba(168,85,247,0.45)] backdrop-blur xl:hidden">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Venta actual</p>
-              <p className="truncate text-sm font-semibold text-foreground">
-                {cart.length} {cart.length === 1 ? "artículo" : "artículos"} · ${total.toFixed(2)}
-              </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setIsCameraScannerOpen(true)}>
-                <Camera className="h-4 w-4" />
-                Cámara
-              </Button>
+
+            {/* Lista de productos */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {(displayedProducts ?? []).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                  <ShoppingCart className="h-12 w-12 mb-3 opacity-30" />
+                  <p className="text-sm">{emptyStateMessage}</p>
+                </div>
+              ) : (
+                (displayedProducts ?? []).map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 hover:border-purple-500/40 hover:bg-slate-800/70 transition-all"
+                  >
+                    {/* Imagen */}
+                    <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700/50 border border-slate-600/40">
+                      {product.primaryImageUrl ? (
+                        <img src={product.primaryImageUrl} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">—</div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium text-sm truncate">{product.name}</p>
+                      <p className="text-slate-400 text-xs">{product.sku} · {product.brand}</p>
+                      <p className="text-purple-400 font-bold text-sm mt-0.5">${parseFloat(product.basePrice).toFixed(2)}</p>
+                    </div>
+                    {/* Botón agregar */}
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddToCart({ id: product.id, name: product.name })}
+                      disabled={!activeBranch?.id}
+                      className="bg-purple-600 hover:bg-purple-700 text-white shrink-0 gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* CARRITO */}
+          <div className="flex flex-col border-l border-slate-700/50 bg-slate-900/60 overflow-hidden">
+            {/* Header carrito */}
+            <div className="px-4 py-3 border-b border-slate-700/50">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-purple-400" />
+                <span className="text-white font-semibold text-sm">Carrito</span>
+                <span className="ml-auto text-slate-400 text-xs">{cart.length} {cart.length === 1 ? "artículo" : "artículos"}</span>
+              </div>
+            </div>
+
+            {/* Items del carrito */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {cart.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-600">
+                  <ShoppingCart className="h-10 w-10 mb-2 opacity-30" />
+                  <p className="text-xs">El carrito está vacío</p>
+                </div>
+              ) : (
+                cart.map((item, index) => (
+                  <div key={`${item.variantId}-${index}`} className="rounded-lg border border-slate-700/50 bg-slate-800/50 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white text-sm font-medium truncate">{item.productName}</p>
+                        <p className="text-slate-400 text-xs">{item.color} · {item.size}</p>
+                        <p className="text-slate-300 text-xs mt-1">{item.quantity} × ${item.unitPrice.toFixed(2)} = <span className="text-white font-semibold">${item.lineTotal.toFixed(2)}</span></p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFromCart(index)}
+                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Resumen y cobro */}
+            <div className="border-t border-slate-700/50 p-4 space-y-3 bg-slate-900/80">
+              {/* Descuento */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="discount" className="text-slate-400 text-xs shrink-0">Descuento %</Label>
+                <Input
+                  id="discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={discount}
+                  onChange={(event) => setDiscount(event.target.value)}
+                  className="bg-slate-800/60 border-slate-600 text-white text-sm text-right h-8"
+                />
+              </div>
+
+              {/* Método de pago */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  onClick={() => setPaymentMethod("cash")}
+                  className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition-all ${
+                    paymentMethod === "cash"
+                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
+                      : "border-slate-600 text-slate-400 hover:border-slate-500"
+                  }`}
+                >
+                  <Banknote className="h-4 w-4" />
+                  Efectivo
+                </button>
+                <button
+                  onClick={() => setPaymentMethod("card")}
+                  className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition-all ${
+                    paymentMethod === "card"
+                      ? "border-blue-500 bg-blue-500/15 text-blue-400"
+                      : "border-slate-600 text-slate-400 hover:border-slate-500"
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Tarjeta
+                </button>
+                <button
+                  onClick={() => setPaymentMethod("transfer")}
+                  className={`flex flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition-all ${
+                    paymentMethod === "transfer"
+                      ? "border-purple-500 bg-purple-500/15 text-purple-400"
+                      : "border-slate-600 text-slate-400 hover:border-slate-500"
+                  }`}
+                >
+                  <Landmark className="h-4 w-4" />
+                  Transfer
+                </button>
+              </div>
+
+              {/* Totales */}
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-slate-400">
+                  <span>Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Descuento</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {showTaxRow && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>{taxLabel}</span>
+                    <span>${tax.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-white font-bold text-lg pt-1 border-t border-slate-700/50">
+                  <span>Total</span>
+                  <span className="text-purple-400">${total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Botón cobrar */}
               <Button
-                type="button"
-                size="sm"
-                className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-                disabled={cart.length === 0 || !activeBranch?.id}
                 onClick={handleOpenCheckout}
+                disabled={cart.length === 0 || !activeBranch?.id}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-5 text-base gap-2 disabled:opacity-40"
               >
                 <Printer className="h-4 w-4" />
-                Cobrar
+                Cobrar ${total.toFixed(2)}
               </Button>
+
+              {!activeBranch?.id && (
+                <p className="text-xs text-amber-400 text-center">
+                  {isAdmin ? "Configura una sucursal en Configuración" : "Sin sucursal asignada"}
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        <Card className="border-fuchsia-100 bg-white/90 shadow-[0_24px_60px_-40px_rgba(168,85,247,0.35)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <History className="h-5 w-5" />
-              Historial rápido de ventas
-            </CardTitle>
-            <CardDescription>
-              Últimas operaciones del día para consultar folio, hora, método de pago y total sin salir de caja.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-6">
-            {todaySales.isLoading ? (
-              <div className="rounded-2xl border border-dashed border-border bg-background/70 px-4 py-8 text-center text-sm text-muted-foreground">
-                Cargando ventas del día...
-              </div>
-            ) : recentSales.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-background/70 px-4 py-8 text-center text-sm text-muted-foreground">
-                Aún no se registran ventas hoy.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      <th className="px-3 py-3 font-medium">Folio</th>
-                      <th className="px-3 py-3 font-medium">Hora</th>
-                      <th className="hidden px-3 py-3 font-medium sm:table-cell">Pago</th>
-                      <th className="px-3 py-3 font-medium text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentSales.map((sale) => (
-                      <tr key={sale.id} className="border-b border-border/60 last:border-b-0">
-                        <td className="px-3 py-4 font-semibold text-foreground">{sale.saleNumber}</td>
-                        <td className="px-3 py-4 text-muted-foreground">
-                          {new Date(sale.createdAt).toLocaleTimeString("es-MX", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="hidden px-3 py-4 text-muted-foreground sm:table-cell">{paymentLabel[sale.paymentMethod as "cash" | "card" | "transfer"]}</td>
-                        <td className="px-3 py-4 text-right font-semibold text-foreground">
-                          ${parseFloat(sale.total).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Barra móvil inferior */}
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-700/50 bg-slate-900/95 px-4 py-3 xl:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-slate-400 text-xs">{cart.length} artículo{cart.length !== 1 ? "s" : ""}</p>
+              <p className="text-white font-bold">${total.toFixed(2)}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setIsCameraScannerOpen(true)} className="border-slate-600 text-slate-300 gap-1">
+                <Camera className="h-4 w-4" /> Cámara
+              </Button>
+              <Button
+                size="sm"
+                disabled={cart.length === 0 || !activeBranch?.id}
+                onClick={handleOpenCheckout}
+                className="bg-purple-600 hover:bg-purple-700 text-white gap-1"
+              >
+                <Printer className="h-4 w-4" /> Cobrar
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="h-16 xl:hidden" aria-hidden="true" />
       </div>
 
       <VariantSelector
