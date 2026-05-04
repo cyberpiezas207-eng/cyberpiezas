@@ -79,6 +79,7 @@ const systems: POSSystem[] = [
 const storyChapters = [
   {
     num: "01",
+    icon: "🏠",
     title: "El inicio",
     subtitle: "Todo empezó en una cochera",
     text: "No había oficina, no había capital, no había plan de negocios. Solo había ganas de hacer algo. Empecé a vender lo que podía: cables, accesorios, lo que fuera. La cochera de mi casa fue mi primer local. Ahí aprendí que el negocio no empieza con dinero, empieza con decisión.",
@@ -87,6 +88,7 @@ const storyChapters = [
   },
   {
     num: "02",
+    icon: "🏍️",
     title: "La moto",
     subtitle: "La primera gran compra con mis propios ahorros",
     text: "Ahorré durante meses. Cada venta, cada peso que entraba, lo guardaba. No para gastar, sino para invertir. Cuando compré mi primera moto con dinero propio, entendí lo que significa construir algo desde cero. No fue un lujo: fue una herramienta, y también fue una prueba de que podía.",
@@ -95,6 +97,7 @@ const storyChapters = [
   },
   {
     num: "03",
+    icon: "💪",
     title: "Las caídas",
     subtitle: "Me estafaron. Una y otra vez.",
     text: "Hubo socios que no cumplieron. Clientes que no pagaron. Proveedores que desaparecieron. Cada estafa dejó una marca, pero también dejó una lección. Aprendí a leer a las personas, a poner límites, a no mezclar amistad con negocios. Las caídas no me detuvieron: me hicieron más cuidadoso.",
@@ -103,6 +106,7 @@ const storyChapters = [
   },
   {
     num: "04",
+    icon: "💻",
     title: "La computación",
     subtitle: "Encontré mi camino en la tecnología",
     text: "Siempre me llamó la atención cómo funcionaban las cosas por dentro. Empecé a estudiar programación, a entender sistemas, a ver el mundo como un conjunto de problemas que tienen solución. La tecnología no fue solo una carrera: fue el idioma en el que empecé a pensar. Y con ese idioma, todo cambió.",
@@ -111,6 +115,7 @@ const storyChapters = [
   },
   {
     num: "05",
+    icon: "🏪",
     title: "El problema real",
     subtitle: "Mi mamá no podía irse de su tienda",
     text: "Mi mamá tenía una tienda. Y no podía salir. Si salía, se perdía una venta. Si no estaba, nadie sabía qué había en inventario. Dependía de su presencia física para que el negocio funcionara. Eso no es libertad: es una trampa disfrazada de trabajo. Ese problema se volvió mi motivación.",
@@ -119,6 +124,7 @@ const storyChapters = [
   },
   {
     num: "06",
+    icon: "🔧",
     title: "La solución",
     subtitle: "Busqué un punto de venta. Lo encontré. Lo mejoré.",
     text: "Busqué herramientas en el mercado. Encontré opciones caras, complicadas, o diseñadas para empresas grandes. Nada para el negocio pequeño, real, mexicano. Entonces decidí construirlo yo mismo: un sistema que cualquier dueño de tienda pudiera usar sin ser técnico, sin pagar una fortuna, sin depender de nadie.",
@@ -127,6 +133,7 @@ const storyChapters = [
   },
   {
     num: "07",
+    icon: "🚀",
     title: "Hoy",
     subtitle: "CyberPiezas: constante, aunque no perfecta",
     text: "CyberPiezas no es el producto terminado. Es el resultado de años de trabajo, errores, aprendizajes y una convicción que no cambió: los negocios pequeños merecen herramientas de calidad. Seguimos construyendo, mejorando y escuchando. No somos perfectos, pero somos constantes. Y eso, en los negocios, vale más.",
@@ -177,6 +184,21 @@ export function CyberpiezasHome() {
       `Nombre: ${adqNombre}\nContacto (correo/WhatsApp): ${adqContacto}\nEmpresa / Perfil: ${adqEmpresa}\n\n¿Qué te interesa del proyecto?\n${adqInteres}`
     );
     window.location.href = `mailto:cyberpiezas207@gmail.com?subject=${subject}&body=${body}`;
+  };
+
+  // Estado formulario "Avísame" por sistema
+  const [notifyForm, setNotifyForm] = useState<string | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifySent, setNotifySent] = useState<string[]>([]);
+
+  const handleNotifySubmit = (systemName: string) => {
+    if (!notifyEmail.trim()) return;
+    const subject = encodeURIComponent(`[Cyberpiezas] Avísame cuando esté listo: ${systemName}`);
+    const body = encodeURIComponent(`Correo: ${notifyEmail}\nSistema de interés: ${systemName}`);
+    window.location.href = `mailto:cyberpiezas207@gmail.com?subject=${subject}&body=${body}`;
+    setNotifySent((prev) => [...prev, systemName]);
+    setNotifyForm(null);
+    setNotifyEmail("");
   };
 
   const handleSystemClick = (system: POSSystem) => {
@@ -299,6 +321,24 @@ export function CyberpiezasHome() {
             <p className="text-slate-400 text-sm leading-relaxed">Diseñado para negocios reales en México. Sin mensualidades exageradas, sin contratos.</p>
           </div>
         </div>
+
+        {/* Lo que incluye */}
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          {[
+            { icon: "💰", text: "Sin mensualidades infladas" },
+            { icon: "📱", text: "Funciona en celular y computadora" },
+            { icon: "💬", text: "Soporte directo del equipo" },
+            { icon: "🇲🇽", text: "Hecho en México" },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-300 text-sm font-medium"
+            >
+              <span>{item.icon}</span>
+              <span>{item.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ===== 3. PUNTOS DE VENTA ===== */}
@@ -318,17 +358,24 @@ export function CyberpiezasHome() {
                   className={`h-full overflow-hidden transition-all duration-500 ${
                     system.status === "active"
                       ? "cursor-pointer hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(139,92,246,0.4)] border-2 border-purple-500/40 hover:border-purple-400/80 bg-slate-900"
-                      : "opacity-60 border border-slate-700/50 bg-slate-900/80"
-                  }`}
-                  onClick={() => handleSystemClick(system)}
+                      : "border border-slate-700/50 bg-slate-900/80 hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(100,100,200,0.25)] hover:border-slate-500/60"
+                  } relative`}
+                  onClick={() => system.status === "active" ? handleSystemClick(system) : undefined}
                 >
+                  {/* Precio referencial — Mejora 6 */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <span className="text-xs font-bold px-2 py-1 rounded-full bg-black/40 text-white/80 backdrop-blur-sm border border-white/10">
+                      {system.status === "active" ? "Desde $249/mes" : "Desde $249/mes"}
+                    </span>
+                  </div>
+
                   <div
                     className={`h-36 bg-gradient-to-br ${system.color} relative overflow-hidden flex flex-col items-center justify-center gap-2`}
                   >
                     <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
                     <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-black/20" />
                     <span className={`text-6xl transition-transform duration-500 ${
-                      system.status === "active" ? "group-hover:scale-110 group-hover:-rotate-6" : ""
+                      system.status === "active" ? "group-hover:scale-110 group-hover:-rotate-6" : "group-hover:scale-105"
                     } drop-shadow-lg relative z-10`}>
                       {system.icon}
                     </span>
@@ -340,10 +387,20 @@ export function CyberpiezasHome() {
                       {system.status === "active" ? "✅ Disponible" : "🔜 Próximamente"}
                     </span>
                   </div>
+
                   <div className="p-6">
                     <h3 className="text-xl font-bold text-white mb-1 tracking-tight">{system.name}</h3>
-                    <p className="text-slate-400 text-sm mb-5 leading-relaxed">{system.description}</p>
-                    <div className="mb-6">
+                    <p className="text-slate-400 text-sm mb-2 leading-relaxed">{system.description}</p>
+
+                    {/* Estado de desarrollo — Mejora 4 */}
+                    {system.status === "coming-soon" && (
+                      <p className="text-xs text-amber-400/80 mb-4 font-medium">
+                        🛠️ En desarrollo · Disponible en 2–3 meses
+                      </p>
+                    )}
+
+                    {/* Features — Mejora 5: siempre visibles en coming-soon */}
+                    <div className="mb-5">
                       <div className="flex flex-wrap gap-2">
                         {system.features.map((feature, idx) => (
                           <span
@@ -360,26 +417,79 @@ export function CyberpiezasHome() {
                         ))}
                       </div>
                     </div>
-                    <Button
-                      onClick={() => handleSystemClick(system)}
-                      className={`w-full h-11 font-semibold transition-all duration-300 ${
-                        system.status === "active"
-                          ? `bg-gradient-to-r ${system.color} hover:opacity-90 hover:shadow-lg text-white text-sm`
-                          : "bg-slate-700/50 hover:bg-slate-700 cursor-not-allowed text-slate-400 text-sm"
-                      }`}
-                      disabled={system.status === "coming-soon"}
-                    >
-                      {system.status === "active" ? (
+
+                    {/* Botón principal */}
+                    {system.status === "active" ? (
+                      <Button
+                        onClick={() => handleSystemClick(system)}
+                        className={`w-full h-11 font-semibold transition-all duration-300 bg-gradient-to-r ${system.color} hover:opacity-90 hover:shadow-lg text-white text-sm`}
+                      >
                         <span className="flex items-center justify-center gap-2">
                           Acceder al sistema
                           <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                         </span>
-                      ) : (
-                        "Próximamente"
-                      )}
-                    </Button>
+                      </Button>
+                    ) : notifySent.includes(system.name) ? (
+                      <div className="w-full h-11 flex items-center justify-center rounded-md bg-green-600/20 border border-green-500/30 text-green-400 text-sm font-semibold">
+                        ✅ ¡Te avisamos cuando esté listo!
+                      </div>
+                    ) : notifyForm === system.id ? (
+                      /* Formulario inline — Mejora 3 */
+                      <div className="space-y-2">
+                        <input
+                          type="email"
+                          value={notifyEmail}
+                          onChange={(e) => setNotifyEmail(e.target.value)}
+                          placeholder="tu@correo.com"
+                          className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); handleNotifySubmit(system.name); }}
+                            disabled={!notifyEmail.trim()}
+                            className="flex-1 h-9 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold disabled:opacity-40"
+                          >
+                            Enviar
+                          </Button>
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); setNotifyForm(null); setNotifyEmail(""); }}
+                            variant="outline"
+                            className="h-9 px-3 border-slate-600 text-slate-400 hover:bg-slate-700 text-xs"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={(e) => { e.stopPropagation(); setNotifyForm(system.id); }}
+                        className="w-full h-11 font-semibold bg-slate-700 hover:bg-slate-600 text-white text-sm border border-slate-600"
+                      >
+                        🔔 Avísame cuando esté listo
+                      </Button>
+                    )}
                   </div>
                 </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Y más por venir — Mejora 8 */}
+        <div className="mt-12 text-center">
+          <p className="text-slate-500 text-sm font-semibold uppercase tracking-widest mb-6">Y más por venir</p>
+          <div className="flex flex-wrap justify-center gap-6">
+            {[
+              { icon: "🐾", label: "Veterinaria" },
+              { icon: "💇", label: "Salón de belleza" },
+              { icon: "🏋️", label: "Gimnasio" },
+              { icon: "☕", label: "Cafetería" },
+              { icon: "💊", label: "Farmacia" },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 opacity-40">
+                <span className="text-3xl grayscale">{item.icon}</span>
+                <span className="text-slate-500 text-xs font-medium">{item.label}</span>
               </div>
             ))}
           </div>
@@ -392,22 +502,61 @@ export function CyberpiezasHome() {
           <h2 className="text-4xl font-bold text-white mb-3">¿Cómo funciona?</h2>
           <p className="text-slate-400 text-lg max-w-xl mx-auto">Empieza en minutos, sin instalaciones complicadas.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">1</div>
-            <h3 className="text-white font-bold text-lg">Crea tu cuenta</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">Regístrate en menos de 2 minutos. Sin tarjeta de crédito, sin contrato.</p>
+
+        {/* Pasos con conector visual */}
+        <div className="relative max-w-4xl mx-auto">
+          {/* Línea conectora — Mejora 9 (solo desktop) */}
+          <div className="hidden md:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-0.5 bg-gradient-to-r from-purple-500/40 via-purple-400/60 to-purple-500/40" />
+          {/* Flechas conectoras */}
+          <div className="hidden md:flex absolute top-3 left-0 right-0 justify-between px-[calc(33.33%-12px)]">
+            <ArrowRight className="w-5 h-5 text-purple-400/70" />
+            <ArrowRight className="w-5 h-5 text-purple-400/70" />
           </div>
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">2</div>
-            <h3 className="text-white font-bold text-lg">Configura tu tienda</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">Agrega tus productos, sucursales y cajeros. Todo desde el panel.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Paso 1 */}
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg shadow-purple-900/40 relative z-10">
+                👤
+              </div>
+              <div className="text-xs font-bold text-purple-400 uppercase tracking-widest">Paso 1</div>
+              <h3 className="text-white font-bold text-lg">Crea tu cuenta</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Regístrate en menos de 2 minutos. Sin tarjeta de crédito, sin contrato.</p>
+              <span className="text-xs text-slate-500 font-medium">⏱ 2 minutos</span>
+            </div>
+
+            {/* Paso 2 */}
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg shadow-purple-900/40 relative z-10">
+                🏪
+              </div>
+              <div className="text-xs font-bold text-purple-400 uppercase tracking-widest">Paso 2</div>
+              <h3 className="text-white font-bold text-lg">Configura tu tienda</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Agrega tus productos, sucursales y cajeros. Todo desde el panel.</p>
+              <span className="text-xs text-slate-500 font-medium">⏱ 10 minutos</span>
+            </div>
+
+            {/* Paso 3 */}
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg shadow-purple-900/40 relative z-10">
+                💳
+              </div>
+              <div className="text-xs font-bold text-purple-400 uppercase tracking-widest">Paso 3</div>
+              <h3 className="text-white font-bold text-lg">Empieza a vender</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Abre el punto de venta desde cualquier dispositivo y cobra desde el primer día.</p>
+              <span className="text-xs text-slate-500 font-medium">⏱ Inmediato</span>
+            </div>
           </div>
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">3</div>
-            <h3 className="text-white font-bold text-lg">Empieza a vender</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">Abre el punto de venta desde cualquier dispositivo y cobra desde el primer día.</p>
-          </div>
+        </div>
+
+        {/* Botón CTA — Mejora 12 */}
+        <div className="mt-12 text-center">
+          <Button
+            onClick={() => setLocation("/suscripcion")}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-10 py-5 text-lg font-semibold shadow-xl shadow-purple-900/40"
+          >
+            Empezar ahora <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
         </div>
       </div>
 
@@ -440,30 +589,38 @@ export function CyberpiezasHome() {
             ))}
           </div>
 
-          {/* Tarjeta activa */}
+          {/* Tarjeta activa — Mejoras 13 y 14 */}
           <div className="max-w-2xl mx-auto px-4">
             {(() => {
               const ch = storyChapters[storyChapter];
               return (
                 <div
-                  className={`rounded-2xl p-8 border transition-all duration-300 ${
+                  className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
                     ch.highlight
-                      ? "bg-purple-900/40 border-purple-500/50"
+                      ? "bg-purple-900/40 border-purple-500/50 shadow-xl shadow-purple-900/30"
                       : "bg-slate-800/60 border-slate-700/60"
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className={`text-4xl font-black ${
-                      ch.highlight ? "text-purple-300" : "text-slate-600"
+                  {/* Cabecera con ilustración — Mejora 14 */}
+                  <div className={`px-8 pt-8 pb-4 flex items-start gap-4 border-b ${
+                    ch.highlight ? "border-purple-700/50" : "border-slate-700/50"
+                  }`}>
+                    {/* Ícono ilustrativo */}
+                    <div className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-3xl ${
+                      ch.highlight
+                        ? "bg-purple-800/60 border border-purple-600/40"
+                        : "bg-slate-700/60 border border-slate-600/40"
                     }`}>
-                      {ch.num}
-                    </span>
-                    <div>
-                      <p className="text-slate-400 text-sm uppercase tracking-widest">
+                      {ch.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${
+                        ch.highlight ? "text-purple-400" : "text-slate-500"
+                      }`}>
                         Capítulo {ch.num}
                       </p>
-                      <h3 className="text-2xl font-bold text-white">{ch.title}</h3>
-                      <p className={`text-sm font-medium ${
+                      <h3 className="text-2xl font-black text-white leading-tight">{ch.title}</h3>
+                      <p className={`text-sm font-semibold mt-1 ${
                         ch.highlight ? "text-purple-300" : "text-purple-400"
                       }`}>
                         {ch.subtitle}
@@ -471,17 +628,20 @@ export function CyberpiezasHome() {
                     </div>
                   </div>
 
-                  <p className="text-slate-300 text-base leading-relaxed mb-6">
-                    {ch.text}
-                  </p>
+                  {/* Cuerpo — Mejora 13 */}
+                  <div className="px-8 py-6">
+                    <p className="text-slate-300 text-base leading-relaxed mb-6">
+                      {ch.text}
+                    </p>
 
-                  <blockquote className={`border-l-4 pl-4 italic text-sm ${
-                    ch.highlight
-                      ? "border-purple-400 text-purple-200"
-                      : "border-purple-600 text-slate-400"
-                  }`}>
-                    {ch.quote}
-                  </blockquote>
+                    <blockquote className={`border-l-4 pl-5 py-2 rounded-r-lg italic text-sm ${
+                      ch.highlight
+                        ? "border-purple-400 text-purple-200 bg-purple-900/30"
+                        : "border-purple-600 text-slate-400 bg-slate-700/30"
+                    }`}>
+                      {ch.quote}
+                    </blockquote>
+                  </div>
                 </div>
               );
             })()}
@@ -712,6 +872,19 @@ export function CyberpiezasHome() {
           </div>
         </div>
       </div>
+
+      {/* ===== BOTÓN FLOTANTE EMPEZAR GRATIS ===== */}
+      {!isAuthenticated && (
+        <div className="fixed bottom-20 right-6 z-40">
+          <button
+            onClick={() => setLocation("/suscripcion")}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold text-sm shadow-2xl shadow-purple-900/50 transition-all hover:scale-105 active:scale-95"
+          >
+            Empezar gratis
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ===== 9. DONACIONES — Cuadrito flotante discreto ===== */}
       <div className="fixed bottom-6 right-6 z-40">
