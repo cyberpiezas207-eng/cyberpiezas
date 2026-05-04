@@ -112,6 +112,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.lastSignedIn = user.lastSignedIn;
       updateSet.lastSignedIn = user.lastSignedIn;
     }
+    if (user.termsAcceptedAt !== undefined) {
+      values.termsAcceptedAt = user.termsAcceptedAt;
+      updateSet.termsAcceptedAt = user.termsAcceptedAt;
+    }
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;

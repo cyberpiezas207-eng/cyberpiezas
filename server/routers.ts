@@ -553,6 +553,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    acceptTerms: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.upsertUser({ openId: ctx.user.openId, termsAcceptedAt: new Date() });
+      return { ok: true };
+    }),
+
+    getTermsStatus: protectedProcedure.query(async ({ ctx }) => {
+      const user = await db.getUserByOpenId(ctx.user.openId);
+      return { accepted: !!user?.termsAcceptedAt };
+    }),
+
     grantSpecialLicense: adminProcedure
       .input(
         z.object({

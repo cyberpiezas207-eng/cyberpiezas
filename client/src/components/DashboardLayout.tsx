@@ -97,7 +97,7 @@ const menuItems: MenuItem[] = [
   { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "administracion", program: "boutique" },
   { icon: Settings2, label: "Configuración de tienda", path: "/settings/pos-hardware", section: "administracion", program: "boutique" },
   { icon: FileText, label: "Términos y condiciones", path: "/terms", section: "administracion", program: "boutique" },
-  { icon: ShieldCheck, label: "Panel CyberPiezas", path: "/admin-cyberpiezas", section: "administracion", roles: ["admin"] },
+  { icon: ShieldCheck, label: "Panel CyberPiezas", path: "/admin-cyberpiezas", section: "oculto", roles: ["admin"] },
 
   // ── Ocultos (código intacto, no se renderizan en el menú) ──
   { icon: Bell, label: "Preferencias de notificaciones", path: "/notifications/preferences", section: "oculto", program: "boutique" },
@@ -231,10 +231,19 @@ function DashboardLayoutContent({
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
-  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(TERMS_ACCEPTED_KEY) === "true";
+  const termsStatusQuery = trpc.users.getTermsStatus.useQuery(undefined, {
+    enabled: Boolean(user),
+    staleTime: 300_000,
   });
+  const acceptTermsMutation = trpc.users.acceptTerms.useMutation({
+    onSuccess: () => {
+      termsStatusQuery.refetch();
+    },
+  });
+  // Combinar DB + localStorage como fallback inmediato
+  const hasAcceptedTerms =
+    termsStatusQuery.data?.accepted ??
+    (typeof window !== "undefined" && window.localStorage.getItem(TERMS_ACCEPTED_KEY) === "true");
   const [termsChecked, setTermsChecked] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -275,11 +284,12 @@ function DashboardLayoutContent({
     }
   }, [isCollapsed]);
 
+  // Sincronizar localStorage cuando la DB confirma la aceptación
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setHasAcceptedTerms(window.localStorage.getItem(TERMS_ACCEPTED_KEY) === "true");
+    if (termsStatusQuery.data?.accepted && typeof window !== "undefined") {
+      window.localStorage.setItem(TERMS_ACCEPTED_KEY, "true");
     }
-  }, [location]);
+  }, [termsStatusQuery.data?.accepted]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -302,8 +312,12 @@ function DashboardLayoutContent({
 
   const handleAcceptTerms = () => {
     if (!termsChecked) return;
-    window.localStorage.setItem(TERMS_ACCEPTED_KEY, "true");
-    setHasAcceptedTerms(true);
+    // Guardar en localStorage para respuesta inmediata
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TERMS_ACCEPTED_KEY, "true");
+    }
+    // Persistir en la base de datos
+    acceptTermsMutation.mutate();
   };
 
   useEffect(() => {

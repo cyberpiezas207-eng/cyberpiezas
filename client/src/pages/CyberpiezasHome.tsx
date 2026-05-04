@@ -137,7 +137,8 @@ const storyChapters = [
 
 export function CyberpiezasHome() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
+  const isAdmin = (user as any)?.role === "admin";
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [storyChapter, setStoryChapter] = useState(0);
 
@@ -248,7 +249,7 @@ export function CyberpiezasHome() {
             Soluciones empresariales inteligentes para emprendedores que quieren crecer.
             Desde sistemas de seguridad hasta puntos de venta profesionales.
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Button
               onClick={() => setLocation("/suscripcion")}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg"
@@ -262,6 +263,15 @@ export function CyberpiezasHome() {
             >
               Ver Demostración
             </Button>
+            {isAdmin && (
+              <Button
+                onClick={() => setLocation("/admin-cyberpiezas")}
+                variant="outline"
+                className="border-purple-500/50 bg-purple-900/30 hover:bg-purple-800/50 text-purple-300 hover:text-white px-8 py-4 text-lg gap-2"
+              >
+                🛡️ Panel CyberPiezas
+              </Button>
+            )}
           </div>
         </div>
       </div>
