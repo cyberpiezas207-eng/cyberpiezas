@@ -150,6 +150,9 @@ export const productVariants = mysqlTable("productVariants", {
   color: varchar("color", { length: 100 }).notNull(), // Negro, Blanco, etc.
   stock: int("stock").default(0).notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Can differ from base price
+  imageUrl: varchar("imageUrl", { length: 1000 }),
+  sku: varchar("sku", { length: 100 }),
+  barcode: varchar("barcode", { length: 50 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

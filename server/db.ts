@@ -99,6 +99,11 @@ export async function runStartupMigrations(): Promise<void> {
   const migrations = [
     // Columna para persistir aceptación de términos y condiciones por usuario
     "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `termsAcceptedAt` timestamp NULL DEFAULT NULL",
+    // Campo de imagen opcional por variante de producto
+    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `imageUrl` varchar(1000) NULL DEFAULT NULL",
+    // SKU y código de barras opcionales por variante
+    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `sku` varchar(100) NULL DEFAULT NULL",
+    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `barcode` varchar(50) NULL DEFAULT NULL",
     // Tabla de clientes frecuentes para el POS
     `CREATE TABLE IF NOT EXISTS \`customers\` (
       \`id\` int AUTO_INCREMENT PRIMARY KEY,
@@ -811,6 +816,8 @@ export async function createProductVariant(data: {
   color: string;
   stock: number;
   price: string;
+  sku?: string;
+  barcode?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -876,6 +883,9 @@ export async function getProductVariantsByProductIdAndBranch(
       color: productVariants.color,
       stock: branchInventory.stock,
       price: productVariants.price,
+      imageUrl: productVariants.imageUrl,
+      sku: productVariants.sku,
+      barcode: productVariants.barcode,
       createdAt: productVariants.createdAt,
       updatedAt: productVariants.updatedAt,
     })
@@ -920,6 +930,15 @@ export async function updateProductVariantStock(
     .update(productVariants)
     .set({ stock: newStock })
     .where(eq(productVariants.id, id));
+}
+
+export async function updateProductVariantImage(variantId: number, imageUrl: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(productVariants)
+    .set({ imageUrl })
+    .where(eq(productVariants.id, variantId));
 }
 
 export async function getVariantsWithLowStock(minimumThreshold: number = 5) {

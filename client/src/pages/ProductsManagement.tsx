@@ -114,7 +114,7 @@ export default function ProductsManagement() {
     }
     setIsBulkLoading(true);
     try {
-      for (const id of selectedIds) {
+      for (const id of Array.from(selectedIds)) {
         await updateProduct.mutateAsync({ id, basePrice: bulkPrice });
       }
       toast.success(`Precio actualizado en ${selectedIds.size} productos`);
@@ -134,7 +134,7 @@ export default function ProductsManagement() {
     }
     setIsBulkLoading(true);
     try {
-      for (const id of selectedIds) {
+      for (const id of Array.from(selectedIds)) {
         const product = (products.data ?? []).find((p) => p.id === id);
         if (!product) continue;
         const newPrice = (Number(product.basePrice) * (1 - pct / 100)).toFixed(2);
@@ -280,7 +280,7 @@ export default function ProductsManagement() {
     if (!confirmed) return;
     setIsBulkLoading(true);
     try {
-      for (const id of selectedIds) {
+      for (const id of Array.from(selectedIds)) {
         await deleteProduct.mutateAsync({ id });
       }
       toast.success(`${selectedIds.size} productos eliminados`);

@@ -820,6 +820,8 @@ export const appRouter = router({
           color: z.string().min(1),
           stock: z.number().int().min(0),
           price: z.string(),
+          sku: z.string().optional(),
+          barcode: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -863,6 +865,17 @@ export const appRouter = router({
       .input(z.object({ threshold: z.number().optional() }))
       .query(async ({ input }) => {
         return await db.getVariantsWithLowStock(input.threshold || 5);
+      }),
+
+    updateImage: adminProcedure
+      .input(z.object({ variantId: z.number(), imageUrl: z.string().nullable() }))
+      .mutation(async ({ input, ctx }) => {
+        const variant = await db.getProductVariantById(input.variantId);
+        if (!variant) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Variante no encontrada" });
+        }
+        await db.updateProductVariantImage(input.variantId, input.imageUrl);
+        return { success: true };
       }),
   }),
 
