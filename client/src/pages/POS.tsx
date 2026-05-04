@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { getActivePosBranchId, saveActivePosBranchId } from "@/lib/posAdminPreferences";
 import { BARCODE_SCANNED_EVENT, calculatePosTaxSummary, getPosHardwareConfig, getPosTaxLabel, shouldDisplayTaxRow } from "@/lib/posHardware";
 import { queueOfflineSale } from "@/lib/offlineSaleQueue";
+import { playScanError } from "@/lib/scannerSound";
 import { runPostSaleHardware, type PosCartItem } from "@/lib/posSaleHardware";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Banknote, Camera, CreditCard, History, Landmark, LayoutGrid, List, Plus, Printer, ScanLine, Search, Settings2, ShoppingCart, Smartphone, Store, Trash2, WalletCards, X } from "lucide-react";
@@ -418,7 +419,19 @@ export default function POS() {
 
   const handleCameraDetected = (code: string) => {
     setSearchQuery(code);
-    toast.success(`Código enviado a la búsqueda: ${code}`);
+    // Verificar si el código existe en el inventario
+    const allProducts = products.data ?? [];
+    const found = allProducts.some(
+      (p) =>
+        p.sku?.toLowerCase() === code.toLowerCase() ||
+        (p as any).barcode?.toLowerCase() === code.toLowerCase()
+    );
+    if (!found) {
+      playScanError();
+      toast.error(`Código "${code}" no encontrado en el inventario`);
+    } else {
+      toast.success(`Código encontrado: ${code}`);
+    }
   };
 
   return (

@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
+import { playScanError } from "@/lib/scannerSound";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +106,20 @@ export default function VariantsManagement() {
 
   // ===== IMPORTAR CSV VARIANTES =====
   const [isVariantImportOpen, setIsVariantImportOpen] = useState(false);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [isInventoryScannerOpen, setIsInventoryScannerOpen] = useState(false);
+
+  const handleInventoryScan = (code: string) => {
+    const found = (variants.data ?? []).find(
+      (v) => v.barcode === code || v.sku === code
+    );
+    if (found) {
+      openRestockDialog(found);
+    } else {
+      playScanError();
+      toast.error(`Código "${code}" no encontrado en este producto`);
+    }
+  };
   const [variantCsvRows, setVariantCsvRows] = useState<{ size: string; color: string; price: string; stock: string; sku: string; barcode: string; error?: string }[]>([]);
   const [isImportingVariants, setIsImportingVariants] = useState(false);
 
@@ -449,13 +465,26 @@ export default function VariantsManagement() {
                   </p>
                 </div>
               </div>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-              >
-                <Plus className="h-4 w-4" />
-                Nueva variante
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  title="Buscar variante por código de barras"
+                  onClick={() => setIsInventoryScannerOpen(true)}
+                  disabled={!selectedProductId || (variants.data?.length ?? 0) === 0}
+                >
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Buscar por cámara</span>
+                </Button>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nueva variante
+                </Button>
+              </div>
             </div>
 
             <Card className="border-border shadow-sm">
@@ -881,6 +910,16 @@ export default function VariantsManagement() {
                   <Button
                     type="button"
                     variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    title="Escanear con cámara"
+                    onClick={() => setIsBarcodeScannerOpen(true)}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
                     className="shrink-0 text-xs"
                     onClick={() => {
                       const digits = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
@@ -1127,6 +1166,23 @@ export default function VariantsManagement() {
         </DialogContent>
       </Dialog>
       </div>
+
+      {/* Escáner de código de barras para el campo barcode */}
+      <BarcodeCameraScanner
+        open={isBarcodeScannerOpen}
+        onClose={() => setIsBarcodeScannerOpen(false)}
+        onDetected={(code) => {
+          setFormData((prev) => ({ ...prev, barcode: code }));
+          toast.success(`Código capturado: ${code}`);
+        }}
+      />
+
+      {/* Escáner de inventario — busca variante y abre ajuste de stock */}
+      <BarcodeCameraScanner
+        open={isInventoryScannerOpen}
+        onClose={() => setIsInventoryScannerOpen(false)}
+        onDetected={handleInventoryScan}
+      />
     </DashboardLayout>
   );
 }

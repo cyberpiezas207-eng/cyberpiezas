@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { playScanSuccess } from "@/lib/scannerSound";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, X, ScanLine } from "lucide-react";
@@ -59,6 +60,7 @@ export function BarcodeCameraScanner({ open, onClose, onDetected }: BarcodeCamer
             const code = result.getText();
             BrowserMultiFormatReader.releaseAllStreams();
             readerRef.current = null;
+            playScanSuccess();
             onDetected(code);
             onClose();
           } else if (err) {

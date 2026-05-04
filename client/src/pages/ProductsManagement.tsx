@@ -11,7 +11,8 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { routeProductScannerCode } from "@/lib/barcodeRouting";
 import { BARCODE_SCANNED_EVENT } from "@/lib/posHardware";
 import { trpc } from "@/lib/trpc";
-import { Edit2, FileText, ImagePlus, LayoutGrid, List, MoreVertical, PackagePlus, Search, Star, Trash2, Upload } from "lucide-react";
+import { Camera, Edit2, FileText, ImagePlus, LayoutGrid, List, MoreVertical, PackagePlus, Search, Star, Trash2, Upload } from "lucide-react";
+import { BarcodeCameraScanner } from "@/components/BarcodeCameraScanner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
@@ -151,6 +152,7 @@ export default function ProductsManagement() {
 
   // ===== IMPORTAR CSV =====
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isSkuScannerOpen, setIsSkuScannerOpen] = useState(false);
   const [csvRows, setCsvRows] = useState<{ name: string; sku: string; brand: string; basePrice: string; category: string; description: string; error?: string }[]>([]);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -1046,15 +1048,27 @@ export default function ProductsManagement() {
 
                 <div>
                   <Label htmlFor="sku">SKU *</Label>
-                  <Input
-                    id="sku"
-                    className="mt-2"
-                    value={formData.sku}
-                    onChange={(event) => setFormData((current) => ({ ...current, sku: event.target.value }))}
-                    placeholder="BTQ-001"
-                  />
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      id="sku"
+                      className="flex-1"
+                      value={formData.sku}
+                      onChange={(event) => setFormData((current) => ({ ...current, sku: event.target.value }))}
+                      placeholder="BTQ-001"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      title="Escanear con cámara"
+                      onClick={() => setIsSkuScannerOpen(true)}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Si el lector funciona como teclado, al escanear con este formulario abierto se llenará automáticamente el SKU.
+                    Puedes escribir el SKU, escanearlo con el lector físico o usar la cámara.
                   </p>
                 </div>
 
@@ -1548,6 +1562,16 @@ export default function ProductsManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Escáner de código de barras para el campo SKU */}
+      <BarcodeCameraScanner
+        open={isSkuScannerOpen}
+        onClose={() => setIsSkuScannerOpen(false)}
+        onDetected={(code) => {
+          setFormData((current) => ({ ...current, sku: code }));
+          toast.success(`SKU capturado con cámara: ${code}`);
+        }}
+      />
     </DashboardLayout>
   );
 }
