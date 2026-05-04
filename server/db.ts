@@ -507,16 +507,56 @@ async function syncProductBranchAssignments(productId: number, branchIds: number
 }
 
 async function enrichProductWithAssets(product: typeof products.$inferSelect) {
+  const db = await getDb();
   const [images, assignedBranches] = await Promise.all([
     getProductImagesByProductId(product.id),
     getProductBranchAssignments(product.id),
   ]);
+
+  // Calcular stock total sumando todas las variantes en todas las sucursales
+  let totalStock = 0;
+  let isBestSeller = false;
+  let hasNoMovement = false;
+
+  if (db) {
+    // Stock total
+    const stockResult = await db
+      .select({ total: sql<number>`coalesce(sum(${branchInventory.stock}), 0)` })
+      .from(branchInventory)
+      .innerJoin(productVariants, eq(branchInventory.productVariantId, productVariants.id))
+      .where(eq(productVariants.productId, product.id));
+    totalStock = Number(stockResult[0]?.total ?? 0);
+
+    // Más vendido: top 10% de productos por ventas en los últimos 30 días
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const salesResult = await db
+      .select({ total: sql<number>`coalesce(sum(${saleDetails.quantity}), 0)` })
+      .from(saleDetails)
+      .innerJoin(productVariants, eq(saleDetails.productVariantId, productVariants.id))
+      .innerJoin(sales, eq(saleDetails.saleId, sales.id))
+      .where(and(eq(productVariants.productId, product.id), gte(sales.createdAt, thirtyDaysAgo)));
+    const unitsSold = Number(salesResult[0]?.total ?? 0);
+    isBestSeller = unitsSold >= 10;
+
+    // Sin movimiento: ninguna venta en los últimos 30 días
+    hasNoMovement = unitsSold === 0 && totalStock > 0;
+  }
+
+  // Nuevo: creado hace menos de 7 días
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const isNew = product.createdAt >= sevenDaysAgo;
 
   return {
     ...product,
     primaryImageUrl: images.find((image) => image.isPrimary)?.imageUrl ?? images[0]?.imageUrl ?? null,
     assignedBranches,
     assignedBranchIds: assignedBranches.map((branch) => branch.branchId),
+    totalStock,
+    isBestSeller,
+    hasNoMovement,
+    isNew,
   };
 }
 

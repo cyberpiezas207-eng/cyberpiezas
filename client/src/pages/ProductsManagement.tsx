@@ -11,7 +11,8 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { routeProductScannerCode } from "@/lib/barcodeRouting";
 import { BARCODE_SCANNED_EVENT } from "@/lib/posHardware";
 import { trpc } from "@/lib/trpc";
-import { Edit2, ImagePlus, PackagePlus, Search, Star, Trash2, Upload } from "lucide-react";
+import { Edit2, FileText, ImagePlus, LayoutGrid, List, MoreVertical, PackagePlus, Search, Star, Trash2, Upload } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 type ProductFormState = {
@@ -41,7 +42,8 @@ const EMPTY_FORM: ProductFormState = {
   branchIds: [],
 };
 
-const PRODUCTS_PAGE_SIZE = 8;
+const PRODUCTS_PAGE_SIZE_LIST = 8;
+const PRODUCTS_PAGE_SIZE_GRID = 12;
 
 function fileToBase64(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -62,6 +64,7 @@ export default function ProductsManagement() {
   const utils = trpc.useUtils();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"newest" | "bestseller" | "low_stock" | "price_asc" | "price_desc">("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -71,6 +74,223 @@ export default function ProductsManagement() {
   const [formData, setFormData] = useState<ProductFormState>(EMPTY_FORM);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window === "undefined") return "grid";
+    return (window.localStorage.getItem("products-view-mode") as "grid" | "list") ?? "grid";
+  });
+
+  const handleSetViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") window.localStorage.setItem("products-view-mode", mode);
+  };
+
+  // Acciones masivas
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"price" | "discount" | null>(null);
+  const [bulkPrice, setBulkPrice] = useState("");
+  const [bulkDiscount, setBulkDiscount] = useState("");
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    setBulkPrice("");
+    setBulkDiscount("");
+  };
+
+  const handleBulkPriceChange = async () => {
+    if (!bulkPrice || isNaN(Number(bulkPrice))) {
+      toast.error("Ingresa un precio válido");
+      return;
+    }
+    setIsBulkLoading(true);
+    try {
+      for (const id of selectedIds) {
+        await updateProduct.mutateAsync({ id, basePrice: bulkPrice });
+      }
+      toast.success(`Precio actualizado en ${selectedIds.size} productos`);
+      clearSelection();
+    } catch {
+      toast.error("Error al actualizar precios");
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  const handleBulkDiscount = async () => {
+    const pct = Number(bulkDiscount);
+    if (!bulkDiscount || isNaN(pct) || pct <= 0 || pct >= 100) {
+      toast.error("Ingresa un porcentaje entre 1 y 99");
+      return;
+    }
+    setIsBulkLoading(true);
+    try {
+      for (const id of selectedIds) {
+        const product = (products.data ?? []).find((p) => p.id === id);
+        if (!product) continue;
+        const newPrice = (Number(product.basePrice) * (1 - pct / 100)).toFixed(2);
+        await updateProduct.mutateAsync({ id, basePrice: newPrice });
+      }
+      toast.success(`Descuento del ${pct}% aplicado en ${selectedIds.size} productos`);
+      clearSelection();
+    } catch {
+      toast.error("Error al aplicar descuento");
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  // ===== IMPORTAR CSV =====
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [csvRows, setCsvRows] = useState<{ name: string; sku: string; brand: string; basePrice: string; category: string; description: string; error?: string }[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const downloadCsvTemplate = () => {
+    const header = "nombre,sku,marca,precio,categoria,descripcion";
+    const example = "Camisa Lino Blanca,CAM-001,Zara,350.00,Camisas,Camisa de lino talla M";
+    const blob = new Blob([header + "\n" + example], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plantilla_productos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCsvFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { toast.error("El archivo está vacío o solo tiene encabezado"); return; }
+      const rows = lines.slice(1).map((line) => {
+        const cols = line.split(",").map((c) => c.trim());
+        const [name, sku, brand, basePrice, category, description] = cols;
+        let error: string | undefined;
+        if (!name) error = "Nombre requerido";
+        else if (!sku) error = "SKU requerido";
+        else if (!brand) error = "Marca requerida";
+        else if (!basePrice || isNaN(Number(basePrice))) error = "Precio inválido";
+        return { name: name ?? "", sku: sku ?? "", brand: brand ?? "", basePrice: basePrice ?? "", category: category ?? "", description: description ?? "", error };
+      });
+      setCsvRows(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  // ===== EXPORTAR INVENTARIO =====
+  const exportInventoryCsv = () => {
+    const data = products.data ?? [];
+    if (data.length === 0) { toast.error("No hay productos para exportar"); return; }
+    const header = ["Nombre", "SKU", "Marca", "Precio", "Stock Total", "Categoría", "Sucursales", "Estado"];
+    const rows = data.map((p) => {
+      const estados: string[] = [];
+      if (p.isBestSeller) estados.push("Más vendido");
+      if (p.isNew) estados.push("Nuevo");
+      if (p.hasNoMovement) estados.push("Sin movimiento");
+      if ((p.totalStock ?? 0) < 5 && (p.totalStock ?? 0) > 0) estados.push("Stock bajo");
+      if ((p.totalStock ?? 0) === 0) estados.push("Sin stock");
+      const catName = categories.data?.find((c) => c.id === p.categoryId)?.name ?? "";
+      const branches = p.assignedBranches?.map((b) => b.name).join(" | ") ?? "";
+      return [
+        `"${p.name.replace(/"/g, '""')}"`,
+        p.sku,
+        `"${p.brand.replace(/"/g, '""')}"`,
+        Number(p.basePrice).toFixed(2),
+        String(p.totalStock ?? 0),
+        catName,
+        `"${branches}"`,
+        estados.join(" | ") || "Normal",
+      ];
+    });
+    const csvContent = [header.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `inventario_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${data.length} productos exportados`);
+  };
+
+  // ===== DUPLICAR PRODUCTO =====
+  const [isDuplicating, setIsDuplicating] = useState<number | null>(null);
+
+  const handleDuplicateProduct = async (product: { id: number; name: string; sku: string; brand: string; basePrice: string; categoryId: number; description?: string | null; assignedBranchIds?: number[] }) => {
+    setIsDuplicating(product.id);
+    try {
+      await createProduct.mutateAsync({
+        name: `${product.name} (Copia)`,
+        sku: `${product.sku}-COPIA`,
+        brand: product.brand,
+        basePrice: product.basePrice,
+        categoryId: product.categoryId,
+        description: product.description ?? undefined,
+        branchIds: product.assignedBranchIds ?? [],
+      });
+      toast.success(`"${product.name}" duplicado correctamente`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al duplicar";
+      toast.error(msg);
+    } finally {
+      setIsDuplicating(null);
+    }
+  };
+
+  const handleImportCsv = async () => {
+    const validRows = csvRows.filter((r) => !r.error);
+    if (validRows.length === 0) { toast.error("No hay filas válidas para importar"); return; }
+    setIsImporting(true);
+    let success = 0;
+    let failed = 0;
+    for (const row of validRows) {
+      try {
+        const matchedCategory = categories.data?.find((c) => c.name.toLowerCase() === row.category.toLowerCase());
+        await createProduct.mutateAsync({
+          name: row.name,
+          sku: row.sku,
+          brand: row.brand,
+          basePrice: row.basePrice,
+          categoryId: matchedCategory?.id ?? (categories.data?.[0]?.id ?? 1),
+          description: row.description || undefined,
+        });
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    toast.success(`${success} productos importados${failed > 0 ? `, ${failed} fallaron` : ""}`);
+    setIsImporting(false);
+    setIsImportOpen(false);
+    setCsvRows([]);
+  };
+
+  const handleBulkDelete = async () => {
+    const confirmed = window.confirm(`¿Eliminar ${selectedIds.size} producto(s) del catálogo activo?`);
+    if (!confirmed) return;
+    setIsBulkLoading(true);
+    try {
+      for (const id of selectedIds) {
+        await deleteProduct.mutateAsync({ id });
+      }
+      toast.success(`${selectedIds.size} productos eliminados`);
+      clearSelection();
+    } catch {
+      toast.error("Error al eliminar productos");
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
 
   const products = trpc.products.list.useQuery();
   const categories = trpc.categories.list.useQuery();
@@ -168,18 +388,26 @@ export default function ProductsManagement() {
       );
       const matchesCategory = selectedCategoryId === "all" || product.categoryId === Number(selectedCategoryId);
       return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+      if (sortBy === "bestseller") return (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0);
+      if (sortBy === "low_stock") return (a.totalStock ?? 0) - (b.totalStock ?? 0);
+      if (sortBy === "price_asc") return Number(a.basePrice) - Number(b.basePrice);
+      if (sortBy === "price_desc") return Number(b.basePrice) - Number(a.basePrice);
+      // newest: por id descendente (mayor id = más reciente)
+      return b.id - a.id;
     });
-  }, [products.data, searchQuery, selectedCategoryId]);
+  }, [products.data, searchQuery, selectedCategoryId, sortBy]);
 
-  const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PAGE_SIZE));
+  const pageSize = viewMode === "grid" ? PRODUCTS_PAGE_SIZE_GRID : PRODUCTS_PAGE_SIZE_LIST;
+  const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * PRODUCTS_PAGE_SIZE;
-    return filteredProducts.slice(start, start + PRODUCTS_PAGE_SIZE);
-  }, [filteredProducts, currentPage]);
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategoryId]);
+  }, [searchQuery, selectedCategoryId, sortBy]);
 
   useEffect(() => {
     if (currentPage > totalProductPages) {
@@ -371,16 +599,34 @@ export default function ProductsManagement() {
               Administra el catálogo, corrige datos rápidamente y mantén visible la galería principal de cada producto.
             </p>
           </div>
-          <Button
-            onClick={() => {
-              resetForm();
-              setIsCreateDialogOpen(true);
-            }}
-            className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            <Edit2 className="h-4 w-4" />
-            Nuevo producto
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={exportInventoryCsv}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4 rotate-180" />
+              Exportar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setCsvRows([]); setIsImportOpen(true); }}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Importar CSV
+            </Button>
+            <Button
+              onClick={() => {
+                resetForm();
+                setIsCreateDialogOpen(true);
+              }}
+              className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              <Edit2 className="h-4 w-4" />
+              Nuevo producto
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -422,31 +668,73 @@ export default function ProductsManagement() {
                 💡 Tip: También puedes usar el lector para buscar por SKU sin escribir.
               </p>
             </div>
-            <div>
-              <Label htmlFor="category-filter" className="text-sm font-semibold text-foreground">Filtrar por categoría</Label>
-              <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                <SelectTrigger id="category-filter" className="mt-3 h-11 bg-secondary/40 border-primary/20 focus:border-primary/60 font-medium">
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">✓ Todas las categorías</SelectItem>
-                  {categories.data?.map((category) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="category-filter" className="text-sm font-semibold text-foreground">Filtrar por categoría</Label>
+                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                  <SelectTrigger id="category-filter" className="mt-3 h-11 bg-secondary/40 border-primary/20 focus:border-primary/60 font-medium">
+                    <SelectValue placeholder="Todas las categorías" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">✓ Todas las categorías</SelectItem>
+                    {categories.data?.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="sort-filter" className="text-sm font-semibold text-foreground">Ordenar por</Label>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <SelectTrigger id="sort-filter" className="mt-3 h-11 bg-secondary/40 border-primary/20 focus:border-primary/60 font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">🕐 Recién agregado</SelectItem>
+                    <SelectItem value="bestseller">🏆 Más vendido</SelectItem>
+                    <SelectItem value="low_stock">📉 Menor stock</SelectItem>
+                    <SelectItem value="price_asc">💲 Menor precio</SelectItem>
+                    <SelectItem value="price_desc">💲 Mayor precio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-primary">Catálogo</CardTitle>
-            <CardDescription>
-              {filteredProducts.length} productos disponibles para administración. Página {currentPage} de {totalProductPages}.
-            </CardDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-primary">Catálogo</CardTitle>
+                <CardDescription>
+                  {filteredProducts.length} productos disponibles. Página {currentPage} de {totalProductPages}.
+                </CardDescription>
+              </div>
+              {/* Toggle vista cuadrícula / lista */}
+              <div className="flex items-center gap-1 rounded-lg border border-border p-1">
+                <button
+                  onClick={() => handleSetViewMode("grid")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Vista cuadrícula"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleSetViewMode("list")}
+                  className={`rounded-md p-1.5 transition-colors ${
+                    viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Vista lista"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {products.isLoading ? (
@@ -455,90 +743,203 @@ export default function ProductsManagement() {
               <div className="py-10 text-center text-muted-foreground">No hay productos registrados todavía.</div>
             ) : (
               <div className="space-y-4">
-                <div className="grid gap-4">
-                  {paginatedProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="grid gap-4 rounded-2xl border border-border/80 bg-background/80 p-4 transition-colors hover:border-primary/30 md:grid-cols-[120px_minmax(0,1fr)_auto] md:items-center"
-                    >
-                      <div className="overflow-hidden rounded-2xl border border-border bg-secondary/30">
-                        {product.primaryImageUrl ? (
-                          <img
-                            src={product.primaryImageUrl}
-                            alt={product.name}
-                            loading="lazy"
-                            className="h-28 w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-28 items-center justify-center px-3 text-center text-xs text-muted-foreground">
-                            Sin imagen principal
+                {viewMode === "grid" ? (
+                  /* ===== VISTA CUADRÍCULA ===== */
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {paginatedProducts.map((product) => (
+                      <div key={product.id} className={`group flex flex-col rounded-2xl border overflow-hidden transition-colors hover:border-primary/40 ${
+                          selectedIds.has(product.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border/80 bg-background/80"
+                        }`}>
+                        {/* Foto */}
+                        <div className="relative overflow-hidden bg-secondary/30">
+                          {product.primaryImageUrl ? (
+                            <img
+                              src={product.primaryImageUrl}
+                              alt={product.name}
+                              loading="lazy"
+                              className="h-48 w-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-48 items-center justify-center text-xs text-muted-foreground">
+                              Sin imagen
+                            </div>
+                          )}
+                          {/* Checkbox de selección */}
+                          <div className="absolute top-2 left-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(product.id)}
+                              onChange={() => toggleSelect(product.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                            />
                           </div>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold text-foreground">{product.name}</h3>
-                          <span className="rounded-full bg-secondary px-2 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                            {product.sku}
-                          </span>
+                          {/* Etiquetas de estado */}
+                          <div className="absolute top-8 left-2 flex flex-col gap-1">
+                            {product.isBestSeller && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/90 text-white leading-tight">Más vendido</span>
+                            )}
+                            {product.isNew && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/90 text-white leading-tight">Nuevo</span>
+                            )}
+                            {product.hasNoMovement && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/90 text-white leading-tight">Sin movimiento</span>
+                            )}
+                            {(product.totalStock ?? 0) < 5 && (product.totalStock ?? 0) > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/90 text-white leading-tight">Stock bajo</span>
+                            )}
+                          </div>
+                          {/* Menú de acciones */}
+                          <div className="absolute top-2 right-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="rounded-full bg-background/80 backdrop-blur-sm p-1.5 shadow-sm hover:bg-background transition-colors">
+                                  <MoreVertical className="h-4 w-4 text-foreground" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => openEditDialog(product)}>
+                                  <Edit2 className="mr-2 h-4 w-4" /> Editar producto
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openGallery({ id: product.id, name: product.name })}>
+                                  <ImagePlus className="mr-2 h-4 w-4" /> Fotos
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenInventory(product.id)}>
+                                  <PackagePlus className="mr-2 h-4 w-4" /> Agregar inventario
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicateProduct(product)}
+                                  disabled={isDuplicating === product.id}
+                                >
+                                  <Star className="mr-2 h-4 w-4" /> {isDuplicating === product.id ? "Duplicando..." : "Duplicar"}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleDeleteProduct({ id: product.id, name: product.name })}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Borrar producto
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">{product.brand}</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {product.description?.trim() || "Agrega una descripción breve para recordar materiales, estilo o detalles de venta."}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3 text-sm">
-                          <span className="font-semibold text-accent">${Number(product.basePrice).toFixed(2)}</span>
-                          <span className="text-muted-foreground">
-                            {product.primaryImageUrl ? "Foto principal lista" : "Necesita foto principal"}
-                          </span>
+                        {/* Info */}
+                        <div className="p-3 space-y-1 flex-1">
+                          <p className="font-semibold text-sm text-foreground line-clamp-2 leading-tight">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">{product.brand}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-bold text-accent">${Number(product.basePrice).toFixed(2)}</p>
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              (product.totalStock ?? 0) === 0
+                                ? "bg-red-500/20 text-red-400"
+                                : (product.totalStock ?? 0) < 5
+                                ? "bg-orange-500/20 text-orange-400"
+                                : "bg-green-500/20 text-green-400"
+                            }`}>
+                              {product.totalStock ?? 0} uds
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{product.sku}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Sucursales: {product.assignedBranches?.length ? product.assignedBranches.map((branch) => branch.name).join(", ") : "Sin asignar"}
-                        </p>
                       </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* ===== VISTA LISTA ===== */
+                  <div className="grid gap-4">
+                    {paginatedProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className={`grid gap-4 rounded-2xl border p-4 transition-colors hover:border-primary/30 md:grid-cols-[auto_120px_minmax(0,1fr)_auto] md:items-center ${
+                          selectedIds.has(product.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border/80 bg-background/80"
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(product.id)}
+                            onChange={() => toggleSelect(product.id)}
+                            className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                        </div>
+                        <div className="overflow-hidden rounded-2xl border border-border bg-secondary/30">
+                          {product.primaryImageUrl ? (
+                            <img
+                              src={product.primaryImageUrl}
+                              alt={product.name}
+                              loading="lazy"
+                              className="h-28 w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-28 items-center justify-center px-3 text-center text-xs text-muted-foreground">
+                              Sin imagen principal
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex flex-col gap-2 md:min-w-[190px]">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start gap-2"
-                          onClick={() => openEditDialog(product)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          Editar producto
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start gap-2"
-                          onClick={() => openGallery({ id: product.id, name: product.name })}
-                        >
-                          <ImagePlus className="h-4 w-4" />
-                          Fotos e imagen principal
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="justify-start gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-                          onClick={() => handleOpenInventory(product.id)}
-                        >
-                          <PackagePlus className="h-4 w-4" />
-                          Agregar inventario
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="justify-start gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
-                          disabled={deleteProduct.isPending}
-                          onClick={() => handleDeleteProduct({ id: product.id, name: product.name })}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Borrar producto
-                        </Button>
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-semibold text-foreground">{product.name}</h3>
+                            <span className="rounded-full bg-secondary px-2 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                              {product.sku}
+                            </span>
+                            {product.isBestSeller && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400">Más vendido</span>}
+                            {product.isNew && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">Nuevo</span>}
+                            {product.hasNoMovement && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/20 text-slate-400">Sin movimiento</span>}
+                            {(product.totalStock ?? 0) < 5 && (product.totalStock ?? 0) > 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">Stock bajo</span>}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{product.brand}</p>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {product.description?.trim() || "Agrega una descripción breve para recordar materiales, estilo o detalles de venta."}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3 text-sm">
+                            <span className="font-semibold text-accent">${Number(product.basePrice).toFixed(2)}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              (product.totalStock ?? 0) === 0
+                                ? "bg-red-500/20 text-red-400"
+                                : (product.totalStock ?? 0) < 5
+                                ? "bg-orange-500/20 text-orange-400"
+                                : "bg-green-500/20 text-green-400"
+                            }`}>
+                              Stock: {product.totalStock ?? 0} uds
+                            </span>
+                            <span className="text-muted-foreground">
+                              {product.primaryImageUrl ? "Foto lista" : "Sin foto"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Sucursales: {product.assignedBranches?.length ? product.assignedBranches.map((branch) => branch.name).join(", ") : "Sin asignar"}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2 md:min-w-[190px]">
+                          <Button variant="outline" size="sm" className="justify-start gap-2" onClick={() => openEditDialog(product)}>
+                            <Edit2 className="h-4 w-4" /> Editar producto
+                          </Button>
+                          <Button variant="outline" size="sm" className="justify-start gap-2" onClick={() => openGallery({ id: product.id, name: product.name })}>
+                            <ImagePlus className="h-4 w-4" /> Fotos e imagen principal
+                          </Button>
+                          <Button size="sm" className="justify-start gap-2 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleOpenInventory(product.id)}>
+                            <PackagePlus className="h-4 w-4" /> Agregar inventario
+                          </Button>
+                          <Button variant="outline" size="sm" className="justify-start gap-2" disabled={isDuplicating === product.id} onClick={() => handleDuplicateProduct(product)}>
+                            <Star className="h-4 w-4" /> {isDuplicating === product.id ? "Duplicando..." : "Duplicar"}
+                          </Button>
+                          <Button variant="outline" size="sm" className="justify-start gap-2 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={deleteProduct.isPending} onClick={() => handleDeleteProduct({ id: product.id, name: product.name })}>
+                            <Trash2 className="h-4 w-4" /> Borrar producto
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
+
 
                 {totalProductPages > 1 && (
                   <Pagination>
@@ -998,6 +1399,151 @@ export default function ProductsManagement() {
                   </div>
                 )}
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== BARRA FLOTANTE DE ACCIONES MASIVAS ===== */}
+        {selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+            <div className="rounded-2xl border border-primary/30 bg-background/95 backdrop-blur-md shadow-xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">{selectedIds.size} producto(s) seleccionado(s)</span>
+                <button onClick={clearSelection} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+              </div>
+
+              {/* Botones de acción */}
+              {bulkAction === null && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setBulkAction("price")}
+                    className="flex-1 min-w-[120px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-medium hover:bg-secondary transition-colors"
+                  >
+                    Cambiar precio
+                  </button>
+                  <button
+                    onClick={() => setBulkAction("discount")}
+                    className="flex-1 min-w-[120px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-medium hover:bg-secondary transition-colors"
+                  >
+                    Poner en oferta
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={isBulkLoading}
+                    className="flex-1 min-w-[120px] rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                  >
+                    {isBulkLoading ? "Eliminando..." : "Eliminar"}
+                  </button>
+                </div>
+              )}
+
+              {/* Panel cambiar precio */}
+              {bulkAction === "price" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Nuevo precio"
+                    value={bulkPrice}
+                    onChange={(e) => setBulkPrice(e.target.value)}
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    onClick={handleBulkPriceChange}
+                    disabled={isBulkLoading}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isBulkLoading ? "Guardando..." : "Aplicar"}
+                  </button>
+                  <button onClick={() => setBulkAction(null)} className="text-xs text-muted-foreground hover:text-foreground">Volver</button>
+                </div>
+              )}
+
+              {/* Panel poner en oferta */}
+              {bulkAction === "discount" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    placeholder="% de descuento"
+                    value={bulkDiscount}
+                    onChange={(e) => setBulkDiscount(e.target.value)}
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    onClick={handleBulkDiscount}
+                    disabled={isBulkLoading}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isBulkLoading ? "Aplicando..." : "Aplicar"}
+                  </button>
+                  <button onClick={() => setBulkAction(null)} className="text-xs text-muted-foreground hover:text-foreground">Volver</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ===== DIALOG IMPORTAR CSV ===== */}
+        <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Importar productos desde CSV</DialogTitle>
+              <DialogDescription>Sube un archivo CSV con los productos a importar. Descarga la plantilla si no tienes el formato.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <button
+                onClick={downloadCsvTemplate}
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <FileText className="h-4 w-4" />
+                Descargar plantilla CSV de ejemplo
+              </button>
+              <div
+                className="rounded-xl border-2 border-dashed border-border p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleCsvFile(file); }}
+                onClick={() => document.getElementById("csv-file-input")?.click()}
+              >
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Arrastra tu archivo CSV aquí o haz clic para seleccionar</p>
+                <input id="csv-file-input" type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); }} />
+              </div>
+              {csvRows.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">{csvRows.filter((r) => !r.error).length} filas válidas · {csvRows.filter((r) => r.error).length} con error</p>
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-secondary/50">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Nombre</th>
+                          <th className="px-3 py-2 text-left">SKU</th>
+                          <th className="px-3 py-2 text-left">Precio</th>
+                          <th className="px-3 py-2 text-left">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvRows.slice(0, 20).map((row, i) => (
+                          <tr key={i} className={row.error ? "bg-red-500/10" : ""}>
+                            <td className="px-3 py-1.5">{row.name || "—"}</td>
+                            <td className="px-3 py-1.5">{row.sku || "—"}</td>
+                            <td className="px-3 py-1.5">{row.basePrice || "—"}</td>
+                            <td className="px-3 py-1.5">{row.error ? <span className="text-red-400">{row.error}</span> : <span className="text-green-400">OK</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Button
+                    onClick={handleImportCsv}
+                    disabled={isImporting || csvRows.filter((r) => !r.error).length === 0}
+                    className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  >
+                    {isImporting ? "Importando..." : `Importar ${csvRows.filter((r) => !r.error).length} productos`}
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
