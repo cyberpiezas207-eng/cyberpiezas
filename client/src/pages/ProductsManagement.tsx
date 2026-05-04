@@ -384,52 +384,52 @@ export default function ProductsManagement() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="border-border shadow-sm">
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Productos activos</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">{products.data?.length ?? 0}</p>
+              <p className="text-sm text-primary font-semibold">📦 Productos activos</p>
+              <p className="mt-3 text-4xl font-bold text-primary">{products.data?.length ?? 0}</p>
             </CardContent>
           </Card>
-          <Card className="border-border shadow-sm">
+          <Card className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Con imagen principal</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">
+              <p className="text-sm text-green-600 font-semibold">✓ Con imagen principal</p>
+              <p className="mt-3 text-4xl font-bold text-green-500">
                 {(products.data ?? []).filter((product) => Boolean(product.primaryImageUrl)).length}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border shadow-sm">
+          <Card className="border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-transparent shadow-md hover:shadow-lg transition-shadow">
             <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Pendientes de foto</p>
-              <p className="mt-2 text-3xl font-bold text-foreground">
+              <p className="text-sm text-yellow-600 font-semibold">⚠ Pendientes de foto</p>
+              <p className="mt-3 text-4xl font-bold text-yellow-500">
                 {(products.data ?? []).filter((product) => !product.primaryImageUrl).length}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="border-border shadow-sm">
-          <CardContent className="space-y-4 pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 shadow-md">
+          <CardContent className="space-y-5 pt-6">
+            <div className="relative group">
+              <Search className="absolute left-4 top-3.5 h-5 w-5 text-primary/60 group-focus-within:text-primary transition-colors" />
               <Input
-                placeholder="Buscar por nombre, SKU o marca..."
+                placeholder="🔍 Buscar por nombre, SKU o marca..."
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                className="pl-10"
+                className="pl-12 h-11 bg-secondary/40 border-primary/20 focus:border-primary/60 text-base font-medium"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                También puedes usar el lector configurado para buscar por SKU o código sin escribir manualmente.
+                💡 Tip: También puedes usar el lector para buscar por SKU sin escribir.
               </p>
             </div>
             <div>
-              <Label htmlFor="category-filter">Filtrar por categoría</Label>
+              <Label htmlFor="category-filter" className="text-sm font-semibold text-foreground">Filtrar por categoría</Label>
               <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                <SelectTrigger id="category-filter" className="mt-2">
+                <SelectTrigger id="category-filter" className="mt-3 h-11 bg-secondary/40 border-primary/20 focus:border-primary/60 font-medium">
                   <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  <SelectItem value="all">✓ Todas las categorías</SelectItem>
                   {categories.data?.map((category) => (
                     <SelectItem key={category.id} value={String(category.id)}>
                       {category.name}
