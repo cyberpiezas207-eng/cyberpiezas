@@ -37,10 +37,8 @@ const AVAILABLE_PERMISSIONS = [
 export default function MySubscription() {
   const { user } = useAuth();
 
-  // Datos reales del backend
-  const branchesQuery = trpc.branches.list.useQuery();
-  const productsQuery = trpc.products.list.useQuery();
-  const usersQuery = trpc.users.list.useQuery(undefined, { retry: false });
+  // Contadores reales desde planUsage (protectedProcedure — accesible para cualquier rol)
+  const planUsageQuery = trpc.dashboard.planUsage.useQuery();
 
   // Permisos con persistencia en localStorage
   const [permissions, setPermissions] = useState<Record<string, boolean>>(() => {
@@ -64,27 +62,45 @@ export default function MySubscription() {
   const [emailCopied, setEmailCopied] = useState(false);
   const [cancelConfirmed, setCancelConfirmed] = useState(false);
 
-  // Datos del plan (en producción vendrían del backend)
+  // Datos del plan desde el usuario real
+  const planCode = (user as any)?.subscriptionPlan ?? "free";
+  const planNames: Record<string, string> = {
+    free: "Gratis",
+    basic: "Básico",
+    professional: "Profesional",
+    premium: "Premium",
+    annual: "Anual",
+  };
+  const planPrices: Record<string, number> = {
+    free: 0,
+    basic: 249,
+    professional: 500,
+    premium: 0, // precio especial
+    annual: 2390,
+  };
+  const planFeatures: Record<string, string[]> = {
+    free: ["1 sucursal", "Hasta 50 productos", "Reportes básicos"],
+    basic: ["1 sucursal", "Hasta 500 productos", "Reportes básicos", "Soporte por correo"],
+    professional: ["Hasta 3 sucursales", "Productos ilimitados", "Reportes avanzados", "Soporte prioritario"],
+    premium: ["Sucursales ilimitadas", "Productos ilimitados", "Reportes avanzados", "Soporte directo", "Características especiales a solicitud"],
+    annual: ["Todo lo del plan Profesional", "2 meses gratis incluidos", "Facturación anual"],
+  };
+  const rawStart = (user as any)?.subscriptionStartDate;
+  const rawEnd = (user as any)?.subscriptionEndDate;
   const subscriptionData = {
-    plan: user?.subscriptionStatus === "active" ? "Profesional" : "Gratis",
-    price: user?.subscriptionStatus === "active" ? 170 : 0,
+    plan: planNames[planCode] ?? "Gratis",
+    price: planPrices[planCode] ?? 0,
     currency: "MXN",
-    startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    renewalDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-    status: user?.subscriptionStatus || "active",
-    features: [
-      "Gestión de inventario ilimitado",
-      "Múltiples sucursales",
-      "Reportes avanzados",
-      "Tienda pública",
-      "Soporte prioritario",
-    ],
+    startDate: rawStart ? new Date(rawStart) : null,
+    renewalDate: rawEnd ? new Date(rawEnd) : null,
+    status: user?.subscriptionStatus || "inactive",
+    features: planFeatures[planCode] ?? planFeatures["free"],
   };
 
   const today = new Date();
-  const daysRemaining = Math.ceil(
-    (subscriptionData.renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const daysRemaining = subscriptionData.renewalDate
+    ? Math.ceil((subscriptionData.renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" });
@@ -110,10 +126,10 @@ export default function MySubscription() {
     }, 2000);
   };
 
-  // Conteos reales
-  const branchCount = branchesQuery.data?.length ?? 0;
-  const productCount = productsQuery.data?.length ?? 0;
-  const userCount = usersQuery.data?.length ?? 0;
+  // Conteos reales desde planUsage
+  const branchCount = planUsageQuery.data?.usage?.branches ?? 0;
+  const productCount = planUsageQuery.data?.usage?.products ?? 0;
+  const userCount = planUsageQuery.data?.limits?.users ?? 0;
 
   return (
     <DashboardLayout>
@@ -149,14 +165,18 @@ export default function MySubscription() {
                   <Calendar className="w-4 h-4" />
                   <span className="text-sm">Fecha de inicio</span>
                 </div>
-                <p className="text-white font-medium">{formatDate(subscriptionData.startDate)}</p>
+                <p className="text-white font-medium">
+                  {subscriptionData.startDate ? formatDate(subscriptionData.startDate) : "No disponible"}
+                </p>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-slate-400">
                   <Calendar className="w-4 h-4" />
                   <span className="text-sm">Próxima renovación</span>
                 </div>
-                <p className="text-white font-medium">{formatDate(subscriptionData.renewalDate)}</p>
+                <p className="text-white font-medium">
+                  {subscriptionData.renewalDate ? formatDate(subscriptionData.renewalDate) : "No disponible"}
+                </p>
               </div>
             </div>
 
@@ -164,14 +184,18 @@ export default function MySubscription() {
             <div className="bg-slate-700/50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-slate-300 text-sm">Días restantes</span>
-                <span className={`text-2xl font-bold ${daysRemaining <= 5 ? "text-red-400" : daysRemaining <= 10 ? "text-yellow-400" : "text-purple-400"}`}>
-                  {daysRemaining} días
+                <span className={`text-2xl font-bold ${
+                  daysRemaining === null ? "text-slate-400" :
+                  daysRemaining <= 5 ? "text-red-400" :
+                  daysRemaining <= 10 ? "text-yellow-400" : "text-purple-400"
+                }`}>
+                  {daysRemaining === null ? "N/A" : `${daysRemaining} días`}
                 </span>
               </div>
               <div className="w-full bg-slate-600 rounded-full h-2">
                 <div
                   className={`rounded-full h-2 transition-all ${daysRemaining <= 5 ? "bg-red-500" : daysRemaining <= 10 ? "bg-yellow-500" : "bg-purple-500"}`}
-                  style={{ width: `${Math.max(0, Math.min(100, (daysRemaining / 30) * 100))}%` }}
+                  style={{ width: `${daysRemaining === null ? 0 : Math.max(0, Math.min(100, (daysRemaining / 30) * 100))}%` }}
                 />
               </div>
             </div>
@@ -187,17 +211,17 @@ export default function MySubscription() {
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-slate-700/50 rounded-lg p-4 text-center">
                 <Store className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                <p className="text-3xl font-bold text-white">{branchesQuery.isLoading ? "..." : branchCount}</p>
+                <p className="text-3xl font-bold text-white">{planUsageQuery.isLoading ? "..." : branchCount}</p>
                 <p className="text-slate-400 text-sm mt-1">Sucursales</p>
               </div>
               <div className="bg-slate-700/50 rounded-lg p-4 text-center">
                 <Package className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                <p className="text-3xl font-bold text-white">{productsQuery.isLoading ? "..." : productCount}</p>
+                <p className="text-3xl font-bold text-white">{planUsageQuery.isLoading ? "..." : productCount}</p>
                 <p className="text-slate-400 text-sm mt-1">Productos</p>
               </div>
               <div className="bg-slate-700/50 rounded-lg p-4 text-center">
                 <Users className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                <p className="text-3xl font-bold text-white">{usersQuery.isLoading ? "..." : userCount}</p>
+                <p className="text-3xl font-bold text-white">{planUsageQuery.isLoading ? "..." : userCount}</p>
                 <p className="text-slate-400 text-sm mt-1">Cajeros</p>
               </div>
             </div>
@@ -384,7 +408,9 @@ export default function MySubscription() {
                 </div>
                 <p className="text-slate-400 text-sm text-center">
                   Tu acceso continuará activo hasta el{" "}
-                  <span className="text-white font-medium">{formatDate(subscriptionData.renewalDate)}</span>
+                  <span className="text-white font-medium">
+                    {subscriptionData.renewalDate ? formatDate(subscriptionData.renewalDate) : "la fecha de vencimiento"}
+                  </span>
                 </p>
               </div>
             )}
