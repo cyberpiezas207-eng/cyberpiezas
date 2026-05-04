@@ -50,6 +50,7 @@ import SubscriptionPanel from "@/pages/SubscriptionPanel";
 import PaymentConfirmationPanel from "@/pages/PaymentConfirmationPanel";
 import CajerosYUsuarios from "@/pages/CajerosYUsuarios";
 import GestionAccesoSuscriptor from "@/pages/GestionAccesoSuscriptor";
+import MySubscription from "@/pages/MySubscription";
 import ReferralPanel from "@/pages/ReferralPanel";
 import SubscribersManagement from "@/pages/SubscribersManagement";
 import { Route, Switch, useLocation } from "wouter";
@@ -234,6 +235,12 @@ function Router() {
 
       <Route path="/checkout">
         <CheckoutPage />
+      </Route>
+
+      <Route path="/subscription">
+        <ProtectedRoute>
+          <MySubscription />
+        </ProtectedRoute>
       </Route>
 
       <Route path="/subscription-panel">
