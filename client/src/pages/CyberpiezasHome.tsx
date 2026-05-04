@@ -1,11 +1,11 @@
-import React from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Heart, Zap, TrendingUp, ArrowRight, Check } from "lucide-react";
+import { Heart, Zap, TrendingUp, ArrowRight, Check, ChevronLeft, X } from "lucide-react";
 
 interface POSSystem {
   id: string;
@@ -79,6 +79,7 @@ const systems: POSSystem[] = [
 export function CyberpiezasHome() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   const handleSystemClick = (system: POSSystem) => {
     if (system.status === "active" && system.path && isAuthenticated) {
@@ -94,24 +95,35 @@ export function CyberpiezasHome() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-            Cyberpiezas
-          </h1>
-         {!isAuthenticated ? (
-  <Button
-    onClick={() => (window.location.href = getLoginUrl())}
-    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-  >
-    Iniciar Sesión
-  </Button>
-) : (
-  <Button
-    onClick={() => setLocation("/dashboard")}
-    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-  >
-    Ir al Panel
-  </Button>
-)}
+          <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <button
+                onClick={() => window.history.back()}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                title="Atrás"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-300" />
+              </button>
+            )}
+            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              Cyberpiezas
+            </h1>
+          </div>
+          {!isAuthenticated ? (
+            <Button
+              onClick={() => (window.location.href = getLoginUrl())}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              Iniciar Sesión
+            </Button>
+          ) : (
+            <Button
+              onClick={() => setLocation("/dashboard")}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              Ir al Panel
+            </Button>
+          )}
         </div>
       </nav>
 
@@ -130,12 +142,13 @@ export function CyberpiezasHome() {
           </p>
           <div className="flex gap-4 justify-center">
             <Button
-              onClick={() => (window.location.href = getLoginUrl())}
+              onClick={() => setLocation("/suscripcion")}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg"
             >
               Comenzar Ahora <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             <Button
+              onClick={() => setShowDemoModal(true)}
               variant="outline"
               className="border-slate-600 hover:bg-slate-800 text-white px-8 py-4 text-lg"
             >
@@ -304,7 +317,10 @@ export function CyberpiezasHome() {
               Tus donaciones nos ayudan a desarrollar nuevas funcionalidades y mejorar 
               nuestros servicios para beneficio de toda la comunidad.
             </p>
-            <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 group-hover:shadow-lg transition-all">
+            <Button 
+              onClick={() => setLocation("/donations")}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 group-hover:shadow-lg transition-all"
+            >
               Contribuir Ahora
             </Button>
           </Card>
@@ -317,7 +333,10 @@ export function CyberpiezasHome() {
               Flujo profesional diseñado para el ecosistema Cyberpiezas con herramientas 
               avanzadas de gestión.
             </p>
-            <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 group-hover:shadow-lg transition-all">
+            <Button 
+              onClick={() => setLocation("/celine")}
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 group-hover:shadow-lg transition-all"
+            >
               Explorar CELINE
             </Button>
           </Card>
@@ -333,28 +352,31 @@ export function CyberpiezasHome() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Plan 1 */}
+            {/* Plan Gratis */}
             <Card className="bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600 p-8 hover:shadow-xl transition-all">
-              <h3 className="text-2xl font-bold text-white mb-2">Básico</h3>
-              <p className="text-slate-400 mb-6">Para emprendedores</p>
+              <h3 className="text-2xl font-bold text-white mb-2">Gratis</h3>
+              <p className="text-slate-400 mb-6">Para empezar</p>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$99</span>
+                <span className="text-4xl font-bold text-white">$0</span>
                 <span className="text-slate-400">/mes</span>
               </div>
               <ul className="space-y-3 mb-8">
-                {["1 Sistema POS", "Inventario básico", "Reportes simples", "Soporte por email"].map((feature, idx) => (
+                {["Acceso básico", "1 Sistema POS", "Inventario simple", "Soporte por email"].map((feature, idx) => (
                   <li key={idx} className="flex items-center gap-2 text-slate-300">
                     <Check className="w-5 h-5 text-green-400" />
                     {feature}
                   </li>
                 ))}
               </ul>
-              <Button className="w-full bg-slate-600 hover:bg-slate-700">
+              <Button 
+                onClick={() => setLocation("/suscripcion")}
+                className="w-full bg-slate-600 hover:bg-slate-700"
+              >
                 Seleccionar
               </Button>
             </Card>
 
-            {/* Plan 2 */}
+            {/* Plan Profesional */}
             <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 p-8 hover:shadow-xl transition-all border-2 relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
@@ -364,8 +386,8 @@ export function CyberpiezasHome() {
               <h3 className="text-2xl font-bold text-white mb-2 mt-4">Profesional</h3>
               <p className="text-slate-300 mb-6">Para pequeños negocios</p>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$299</span>
-                <span className="text-slate-300">/mes</span>
+                <span className="text-4xl font-bold text-white">$170</span>
+                <span className="text-slate-300">/mes MXN</span>
               </div>
               <ul className="space-y-3 mb-8">
                 {["Múltiples sistemas", "Inventario avanzado", "Reportes detallados", "Soporte prioritario"].map((feature, idx) => (
@@ -375,12 +397,13 @@ export function CyberpiezasHome() {
                   </li>
                 ))}
               </ul>
-              <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+              <Button 
+                onClick={() => setLocation("/suscripcion")}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
                 Seleccionar
               </Button>
             </Card>
-
-
           </div>
         </div>
 
@@ -392,19 +415,85 @@ export function CyberpiezasHome() {
             sus negocios de forma profesional y eficiente.
           </p>
           <Button
-            onClick={() => (window.location.href = getLoginUrl())}
+            onClick={() => setLocation("/suscripcion")}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg"
           >
             Comenzar Ahora
           </Button>
         </div>
-
-        {/* Footer */}
-        <footer className="border-t border-slate-700 pt-12 pb-8 text-center text-slate-400">
-          <p>&copy; 2026 Cyberpiezas. Todos los derechos reservados.</p>
-          <p className="mt-2 text-sm">Soluciones empresariales para emprendedores</p>
-        </footer>
       </div>
+
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <Card className="bg-slate-800 border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-white">Características del POS</h2>
+                <button
+                  onClick={() => setShowDemoModal(false)}
+                  className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6 text-slate-300" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Ventas Rápidas */}
+                <div className="flex gap-4">
+                  <div className="text-3xl">🛒</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">Ventas Rápidas</h3>
+                    <p className="text-slate-300">
+                      Procesa transacciones en segundos. Interfaz intuitiva diseñada para maximizar la velocidad de cobro sin sacrificar precisión.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Control de Inventario */}
+                <div className="flex gap-4">
+                  <div className="text-3xl">📦</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">Control de Inventario</h3>
+                    <p className="text-slate-300">
+                      Seguimiento en tiempo real de tu stock. Alertas automáticas cuando los productos se agotan y gestión de múltiples almacenes.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reportes Inteligentes */}
+                <div className="flex gap-4">
+                  <div className="text-3xl">📊</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">Reportes Inteligentes</h3>
+                    <p className="text-slate-300">
+                      Análisis detallados de ventas, ganancias y tendencias. Toma decisiones basadas en datos reales de tu negocio.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Multi-negocio */}
+                <div className="flex gap-4">
+                  <div className="text-3xl">🏢</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">Gestión Multi-negocio</h3>
+                    <p className="text-slate-300">
+                      Administra todas tus sucursales desde un solo panel. Sincronización automática y reportes consolidados de tu ecosistema completo.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setShowDemoModal(false)}
+                className="w-full mt-8 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                Entendido
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

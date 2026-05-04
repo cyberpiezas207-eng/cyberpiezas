@@ -30,6 +30,7 @@ import TermsAndConditions from "@/pages/TermsAndConditions";
 import { LicenseRequest } from "@/pages/LicenseRequest";
 import VariantsManagement from "@/pages/VariantsManagement";
 import { CyberpiezasHome } from "@/pages/CyberpiezasHome";
+import SubscriptionPage from "@/pages/SubscriptionPage";
 import SystemsPanel from "@/pages/SystemsPanel";
 
 import AbarrotesPOS from "@/pages/AbarrotesPOS";
@@ -72,6 +73,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/donations" component={Donations} />
+      <Route path="/suscripcion" component={SubscriptionPage} />
       <Route path="/cameras-store" component={CamerasStore} />
       <Route path="/subscriptions-dashboard">
         <ProtectedRoute requiredRole="admin">

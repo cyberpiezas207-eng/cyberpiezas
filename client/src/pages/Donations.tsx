@@ -1,4 +1,3 @@
-import { Heart, PawPrint, Store, ArrowRight, ShieldCheck, Target } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Heart, PawPrint, Store, Target, X } from "lucide-react";
 
 const campaigns = [
   {
@@ -69,11 +69,38 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "paypal">("transfer");
+  const [comprobante, setComprobante] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const bankData = {
+    bank: "AZTECA",
+    account: "4027660019183039",
+    clabe: "127542013042637791",
+    holder: "David Farfan",
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setComprobante(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!amount || !email || !name) {
-      alert("Por favor completa todos los campos");
+    if (!amount || !email) {
+      alert("Por favor completa los campos requeridos");
+      return;
+    }
+
+    if (!isAnonymous && !name) {
+      alert("Por favor ingresa tu nombre o marca la opción anónimo");
+      return;
+    }
+
+    if (paymentMethod === "transfer" && !comprobante) {
+      alert("Por favor sube el comprobante de pago");
       return;
     }
 
@@ -82,15 +109,19 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
       // Simular envío de donación
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Aquí iría la integración real con Stripe o PayPal
+      const donorName = isAnonymous ? "Anónimo" : name;
       alert(
-        `¡Gracias ${name}! Tu donación de $${amount} para "${campaign.title}" ha sido registrada.\n\nTe enviaremos un recibo a ${email}.`
+        `¡Gracias ${donorName}! Tu donación de ${formatCurrency(Number(amount))} para "${campaign.title}" ha sido registrada.\n\nTe enviaremos un recibo a ${email}.`
       );
 
       // Resetear formulario
       setAmount("");
       setEmail("");
       setName("");
+      setMessage("");
+      setIsAnonymous(false);
+      setComprobante(null);
+      setPaymentMethod("transfer");
       onOpenChange(false);
     } catch (error) {
       alert("Hubo un error al procesar tu donación. Intenta de nuevo.");
@@ -101,29 +132,43 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-slate-950 text-white">
+      <DialogContent className="border-white/10 bg-slate-950 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">{campaign.title}</DialogTitle>
           <DialogDescription className="text-slate-300">{campaign.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
+        <div className="space-y-6">
+          {/* Nombre */}
+          <div className="space-y-3">
             <Label htmlFor="name" className="text-white">
               Tu nombre
             </Label>
-            <Input
-              id="name"
-              placeholder="Juan Pérez"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border-white/20 bg-slate-900 text-white placeholder:text-slate-500"
-            />
+            <div className="space-y-2">
+              <Input
+                id="name"
+                placeholder="Juan Pérez"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isAnonymous}
+                className="border-white/20 bg-slate-900 text-white placeholder:text-slate-500 disabled:opacity-50"
+              />
+              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAnonymous}
+                  onChange={(e) => setIsAnonymous(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                Donar como anónimo
+              </label>
+            </div>
           </div>
 
+          {/* Email */}
           <div>
             <Label htmlFor="email" className="text-white">
-              Tu email
+              Tu email *
             </Label>
             <Input
               id="email"
@@ -135,9 +180,10 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
             />
           </div>
 
+          {/* Monto */}
           <div>
             <Label htmlFor="amount" className="text-white">
-              Cantidad a donar (MXN)
+              Cantidad a donar (MXN) *
             </Label>
             <Input
               id="amount"
@@ -150,6 +196,83 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
             />
           </div>
 
+          {/* Mensaje */}
+          <div>
+            <Label htmlFor="message" className="text-white">
+              Mensaje o dedicatoria (opcional)
+            </Label>
+            <textarea
+              id="message"
+              placeholder="Escribe un mensaje opcional..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full px-4 py-2 bg-slate-900 border border-white/20 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+              rows={3}
+            />
+          </div>
+
+          {/* Método de Pago */}
+          <div>
+            <Label className="text-white mb-3 block">Método de Pago</Label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="transfer"
+                  checked={paymentMethod === "transfer"}
+                  onChange={(e) => setPaymentMethod(e.target.value as "transfer" | "paypal")}
+                  className="w-4 h-4"
+                />
+                <span className="text-white">Transferencia Bancaria</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="paypal"
+                  checked={paymentMethod === "paypal"}
+                  onChange={(e) => setPaymentMethod(e.target.value as "transfer" | "paypal")}
+                  className="w-4 h-4"
+                />
+                <span className="text-white">PayPal (davids207@hotmail.com)</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Datos Bancarios */}
+          {paymentMethod === "transfer" && (
+            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-4 space-y-2">
+              <h4 className="text-white font-semibold mb-3">Datos Bancarios</h4>
+              <div className="text-sm text-slate-300 space-y-1">
+                <div><span className="text-slate-400">Banco:</span> {bankData.bank}</div>
+                <div><span className="text-slate-400">Tarjeta:</span> {bankData.account}</div>
+                <div><span className="text-slate-400">CLABE:</span> {bankData.clabe}</div>
+                <div><span className="text-slate-400">Titular:</span> {bankData.holder}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Comprobante */}
+          {paymentMethod === "transfer" && (
+            <div>
+              <Label htmlFor="comprobante" className="text-white">
+                Comprobante de Pago (imagen o PDF) *
+              </Label>
+              <input
+                id="comprobante"
+                type="file"
+                onChange={handleFileChange}
+                accept="image/*,.pdf"
+                className="w-full px-4 py-2 bg-slate-900 border border-white/20 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              />
+              {comprobante && (
+                <p className="text-sm text-green-400 mt-2">✓ {comprobante.name}</p>
+              )}
+            </div>
+          )}
+
+          {/* Resumen */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="text-sm text-slate-300">
               <span className="font-semibold text-white">Resumen:</span> Donarás{" "}
@@ -158,9 +281,10 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
             </p>
           </div>
 
+          {/* Botón Confirmar */}
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !amount || !email || !name}
+            disabled={isSubmitting || !amount || !email || (!isAnonymous && !name) || (paymentMethod === "transfer" && !comprobante)}
             className={`w-full rounded-2xl bg-gradient-to-r ${campaign.accent} text-base font-semibold text-white shadow-lg transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {isSubmitting ? "Procesando..." : "Confirmar donación"}
@@ -199,9 +323,6 @@ export function Donations() {
               <Link href="/cyberpiezas">
                 <Button className="rounded-full bg-white text-slate-950 hover:bg-slate-100">Volver a Cyberpiezas</Button>
               </Link>
-              <Button variant="outline" className="rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10">
-                Ver cómo donar
-              </Button>
             </div>
           </div>
         </div>
@@ -249,9 +370,7 @@ export function Donations() {
                       <Target className="h-4 w-4" />
                       ¿Para qué se destina?
                     </div>
-                    <p>
-                      El avance se muestra para que cualquier persona entienda con claridad cuánto falta y por qué vale la pena apoyar esta causa.
-                    </p>
+                    <p>{campaign.description}</p>
                   </div>
 
                   <Button
@@ -259,7 +378,6 @@ export function Donations() {
                     className={`w-full rounded-2xl bg-gradient-to-r ${campaign.accent} text-base font-semibold text-white shadow-lg transition hover:scale-[1.01]`}
                   >
                     {campaign.buttonLabel}
-                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardContent>
               </Card>
@@ -268,38 +386,13 @@ export function Donations() {
         </div>
       </section>
 
-      <section className="container pb-16 md:pb-20">
-        <Card className="border-white/10 bg-white/5 text-white backdrop-blur">
-          <CardContent className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-white md:text-3xl">Transparencia, apoyo real y oportunidad compartida</h2>
-              <p className="leading-8 text-slate-300">
-                Además de donar, también queremos abrir la puerta a colaboraciones. Si alguien necesita levantar su negocio o quiere impulsar una causa,
-                este espacio puede convertirse en una ruta clara para organizar ayuda, mostrar metas y generar confianza.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5 text-sm leading-7 text-cyan-50">
-              <div className="mb-3 flex items-center gap-2 font-semibold">
-                <ShieldCheck className="h-4 w-4" />
-                Compromiso Cyberpiezas
-              </div>
-              <p>
-                Cada campaña explica su propósito, muestra avance y deja visible la meta económica para que la ayuda tenga contexto, dirección y sentido.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
       {currentCampaign && (
         <DonationDialog
           campaign={currentCampaign}
-          open={openDialog !== null}
-          onOpenChange={(open) => setOpenDialog(open ? openDialog : null)}
+          open={!!openDialog}
+          onOpenChange={(open) => !open && setOpenDialog(null)}
         />
       )}
     </main>
   );
 }
-
-export default Donations;
