@@ -241,57 +241,63 @@ export function CyberpiezasHome() {
           </div>
 
           {/* Horizontal Scroll Systems */}
-          <div className="overflow-x-auto pb-4">
+          <div className="overflow-x-auto pb-6 -mx-4 px-4">
             <div className="flex gap-6 min-w-max">
               {systems.map((system) => (
-                <div key={system.id} className="flex-shrink-0 w-80">
+                <div key={system.id} className="flex-shrink-0 w-80 group">
                   <Card
-                    className={`h-full overflow-hidden transition-all duration-300 hover:shadow-2xl ${
+                    className={`h-full overflow-hidden transition-all duration-500 ${
                       system.status === "active"
-                        ? "cursor-pointer hover:scale-105 border-2 border-purple-500/50"
-                        : "opacity-75"
+                        ? "cursor-pointer hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(139,92,246,0.4)] border-2 border-purple-500/40 hover:border-purple-400/80 bg-slate-900"
+                        : "opacity-60 border border-slate-700/50 bg-slate-900/80"
                     }`}
                     onClick={() => handleSystemClick(system)}
                   >
-                    {/* Gradient Background */}
+                    {/* Gradient Header - taller and more impactful */}
                     <div
-                      className={`h-24 bg-gradient-to-r ${system.color} relative overflow-hidden flex items-center justify-center`}
+                      className={`h-36 bg-gradient-to-br ${system.color} relative overflow-hidden flex flex-col items-center justify-center gap-2`}
                     >
-                      <span className="text-5xl">{system.icon}</span>
+                      {/* Decorative circles */}
+                      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+                      <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-black/20" />
+                      {/* Icon */}
+                      <span className={`text-6xl transition-transform duration-500 ${
+                        system.status === "active" ? "group-hover:scale-110 group-hover:-rotate-6" : ""
+                      } drop-shadow-lg relative z-10`}>
+                        {system.icon}
+                      </span>
+                      {/* Status badge inside header */}
+                      <span className={`relative z-10 text-xs font-bold px-3 py-1 rounded-full ${
+                        system.status === "active"
+                          ? "bg-white/20 text-white border border-white/30 backdrop-blur-sm"
+                          : "bg-black/30 text-white/70 border border-white/10"
+                      }`}>
+                        {system.status === "active" ? "✅ Disponible" : "🔜 Próximamente"}
+                      </span>
                     </div>
 
                     {/* Content */}
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-lg font-bold text-white">
-                          {system.name}
-                        </h3>
-                        <Badge
-                          variant={
-                            system.status === "active" ? "default" : "secondary"
-                          }
-                          className={
-                            system.status === "active"
-                              ? "bg-green-500 hover:bg-green-600 text-xs"
-                              : "bg-slate-500 hover:bg-slate-600 text-xs"
-                          }
-                        >
-                          {system.status === "active" ? "Activo" : "Pronto"}
-                        </Badge>
-                      </div>
-
-                      <p className="text-slate-400 text-sm mb-4">
+                      <h3 className="text-xl font-bold text-white mb-1 tracking-tight">
+                        {system.name}
+                      </h3>
+                      <p className="text-slate-400 text-sm mb-5 leading-relaxed">
                         {system.description}
                       </p>
 
-                      {/* Features */}
+                      {/* Features as pills */}
                       <div className="mb-6">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-2">
                           {system.features.map((feature, idx) => (
                             <span
                               key={idx}
-                              className="inline-block px-2 py-1 bg-slate-700/50 text-slate-200 text-xs rounded"
+                              className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                                system.status === "active"
+                                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                  : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
+                              }`}
                             >
+                              <span className="w-1.5 h-1.5 rounded-full bg-current" />
                               {feature}
                             </span>
                           ))}
@@ -301,16 +307,21 @@ export function CyberpiezasHome() {
                       {/* Button */}
                       <Button
                         onClick={() => handleSystemClick(system)}
-                        className={
+                        className={`w-full h-11 font-semibold transition-all duration-300 ${
                           system.status === "active"
-                            ? "w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-sm"
-                            : "w-full bg-slate-600 hover:bg-slate-700 cursor-not-allowed text-sm"
-                        }
+                            ? `bg-gradient-to-r ${system.color} hover:opacity-90 hover:shadow-lg text-white text-sm`
+                            : "bg-slate-700/50 hover:bg-slate-700 cursor-not-allowed text-slate-400 text-sm"
+                        }`}
                         disabled={system.status === "coming-soon"}
                       >
-                        {system.status === "active"
-                          ? "Acceder"
-                          : "Próximamente"}
+                        {system.status === "active" ? (
+                          <span className="flex items-center justify-center gap-2">
+                            Acceder al sistema
+                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                          </span>
+                        ) : (
+                          "Próximamente"
+                        )}
                       </Button>
                     </div>
                   </Card>
