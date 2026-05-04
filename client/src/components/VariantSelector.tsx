@@ -192,9 +192,9 @@ export function VariantSelector({
           </div>
 
           {!variants.isLoading && (variants.data?.length ?? 0) === 0 ? (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-              <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-              <p className="text-sm text-destructive">Este producto no tiene variantes disponibles para la sucursal seleccionada.</p>
+            <div className="flex items-center gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3">
+              <AlertCircle className="h-4 w-4 shrink-0 text-yellow-600" />
+              <p className="text-sm text-yellow-600">⚠️ Este producto no tiene variantes registradas para esta sucursal. Puedes agregarlo al carrito de todas formas.</p>
             </div>
           ) : null}
 
@@ -220,6 +220,17 @@ export function VariantSelector({
                 <span className="font-semibold text-foreground">{selectedVariant.stock}</span>
               </div>
             </div>
+          ) : (variants.data?.length ?? 0) === 0 ? (
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <div className="mb-2 flex justify-between text-sm">
+                <span className="text-muted-foreground">Producto</span>
+                <span className="font-semibold text-foreground">{productName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Precio base</span>
+                <span className="font-semibold text-foreground">Por confirmar</span>
+              </div>
+            </div>
           ) : null}
 
           {selectedVariant && !isOutOfStock ? (
@@ -238,6 +249,18 @@ export function VariantSelector({
                 <p className="mt-1 text-xs text-destructive">Cantidad no disponible. Máximo: {maxQuantity}</p>
               ) : null}
             </div>
+          ) : (variants.data?.length ?? 0) === 0 ? (
+            <div>
+              <Label htmlFor="quantity" className="font-semibold text-foreground">Cantidad</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+                className="mt-2"
+              />
+            </div>
           ) : null}
 
           {selectedVariant && !isOutOfStock ? (
@@ -247,6 +270,10 @@ export function VariantSelector({
                 <span className="text-2xl font-bold text-accent">${computedTotal.toFixed(2)}</span>
               </div>
             </div>
+          ) : (variants.data?.length ?? 0) === 0 ? (
+            <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+              <p className="text-sm text-yellow-600 mb-2">Este producto se agregará sin variante específica. Confirma la cantidad y precio en el carrito.</p>
+            </div>
           ) : null}
 
           <div className="flex justify-end gap-3 pt-2">
@@ -255,7 +282,7 @@ export function VariantSelector({
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={!selectedVariant || isOutOfStock || parseInt(quantity || "0", 10) > maxQuantity}
+              disabled={!selectedVariant && (variants.data?.length ?? 0) > 0 || isOutOfStock || parseInt(quantity || "0", 10) > maxQuantity}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               Agregar al carrito
