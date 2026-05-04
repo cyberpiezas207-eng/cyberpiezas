@@ -264,66 +264,41 @@ export function CyberpiezasHome() {
           </div>
         </div>
 
-        {/* Our Story Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-32 items-center">
-          <div>
-            <h2 className="text-5xl font-bold text-white mb-8">Nuestra Historia</h2>
-            <div className="space-y-6 text-slate-300 text-lg leading-relaxed">
-              <p>
-                Comenzamos en Morelos, en Huitzilac y Ayalá, con una visión clara: 
-                transformar la forma en que los negocios operan. Lo que comenzó como 
-                instalación de sistemas de seguridad y puntos de venta se convirtió en 
-                una plataforma integral de soluciones empresariales.
+        {/* Sello de identidad — reemplaza la historia larga anterior */}
+        <div className="flex justify-center mb-32">
+          <div className="inline-flex flex-col items-center gap-4 px-10 py-7 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            {/* Ícono de raíces */}
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <span className="text-2xl" role="img" aria-label="planta">🌱</span>
+            </div>
+            {/* Separador + texto */}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-px bg-gradient-to-r from-transparent to-slate-500" />
+              <p className="text-slate-200 text-base font-medium tracking-wide text-center">
+                Nacido en Ayala, Morelos.
+                <span className="text-slate-400"> Hecho en México, pensado para crecer.</span>
               </p>
-              <p>
-                Con más de una década de experiencia en el sector, hemos trabajado con 
-                negocios de todo tipo: tiendas, restaurantes, ferreterías, farmacias y más. 
-                Cada proyecto nos enseñó algo nuevo, cada cliente nos inspiró a innovar.
-              </p>
-              <p>
-                Hoy, Cyberpiezas es un ecosistema completo de herramientas digitales 
-                diseñadas para empresarios que quieren crecer. Nuestro objetivo es simple: 
-                darte la tecnología que necesitas para administrar múltiples negocios desde 
-                un solo lugar.
-              </p>
+              <div className="w-12 h-px bg-gradient-to-l from-transparent to-slate-500" />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4">
-            <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/30 p-8 hover:shadow-lg transition-all">
-              <div className="flex items-start gap-4">
-                <Zap className="w-8 h-8 text-purple-400 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Innovación Constante</h3>
-                  <p className="text-slate-300">
-                    Desarrollamos soluciones que evolucionan con tu negocio
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30 p-8 hover:shadow-lg transition-all">
-              <div className="flex items-start gap-4">
-                <TrendingUp className="w-8 h-8 text-blue-400 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Crecimiento Empresarial</h3>
-                  <p className="text-slate-300">
-                    Herramientas diseñadas para que escales tu negocio
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/30 p-8 hover:shadow-lg transition-all">
-              <div className="flex items-start gap-4">
-                <Heart className="w-8 h-8 text-green-400 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Compromiso Total</h3>
-                  <p className="text-slate-300">
-                    Soporte y capacitación para tu éxito
-                  </p>
-                </div>
-              </div>
-            </Card>
+        </div>
+
+        {/*
+          CÓDIGO ANTERIOR — Sección historia larga (Morelos / Huitzilac / Ayala)
+          Oculto visualmente. No eliminar.
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-32 items-center">
+          <div>
+            <h2>Nuestra Historia</h2>
+            <p>Comenzamos en Morelos, en Huitzilac y Ayalá...</p>
+            <p>Con más de una década de experiencia...</p>
+            <p>Hoy, Cyberpiezas es un ecosistema completo...</p>
+          </div>
+          <div>
+            Tarjetas: Innovación Constante / Crecimiento Empresarial / Compromiso Total
           </div>
         </div>
+        */}
 
         {/* Systems Section */}
         <div className="mb-32">
