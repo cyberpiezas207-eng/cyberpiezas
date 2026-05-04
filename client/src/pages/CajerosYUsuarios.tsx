@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Plus, Edit2, Trash2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Users, Plus, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
 
 // Datos simulados de cajeros (en producción vendrían del backend)
 const mockCajeros = [
@@ -50,15 +52,10 @@ const mockCajeros = [
   },
 ];
 
-const mockSucursales = [
-  { id: 1, nombre: "Sucursal Centro" },
-  { id: 2, nombre: "Sucursal Norte" },
-  { id: 3, nombre: "Sucursal Sur" },
-];
-
 export default function CajerosYUsuarios() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const branchesQuery = trpc.branches.list.useQuery();
   const [cajeros, setCajeros] = useState(mockCajeros);
   const [showPassword, setShowPassword] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,6 +66,8 @@ export default function CajerosYUsuarios() {
     password: "",
     sucursal: "",
   });
+
+  const sucursales = branchesQuery.data ?? [];
 
   const handleAddOrEdit = () => {
     if (!formData.nombre || !formData.email || !formData.sucursal) {
@@ -141,48 +140,41 @@ export default function CajerosYUsuarios() {
   const inactiveCajeros = cajeros.filter((c) => c.estado === "inactivo");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
-      <div className="max-w-6xl mx-auto">
+    <DashboardLayout>
+      <div className="space-y-8">
         {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => setLocation("/dashboard")}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-4 text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Regresar al dashboard
-          </button>
-          <div className="flex items-center gap-3 mb-2">
-            <Users className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-bold text-white">Cajeros y Usuarios</h1>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <Users className="w-7 h-7 text-primary" />
+            <h1 className="text-3xl font-bold text-foreground">Cajeros y Usuarios</h1>
           </div>
-          <p className="text-slate-300">Gestiona los cajeros y usuarios de tu boutique</p>
+          <p className="text-muted-foreground text-sm">Gestiona los cajeros y usuarios de tu boutique</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-slate-800/50 border-primary/20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Cajeros Activos</p>
+              <p className="text-sm text-muted-foreground">Cajeros Activos</p>
               <p className="text-3xl font-bold text-primary mt-2">{activeCajeros.length}</p>
             </CardContent>
           </Card>
-          <Card className="bg-slate-800/50 border-primary/20">
+          <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Cajeros Inactivos</p>
+              <p className="text-sm text-muted-foreground">Cajeros Inactivos</p>
               <p className="text-3xl font-bold text-yellow-500 mt-2">{inactiveCajeros.length}</p>
             </CardContent>
           </Card>
-          <Card className="bg-slate-800/50 border-primary/20">
+          <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Total</p>
+              <p className="text-sm text-muted-foreground">Total</p>
               <p className="text-3xl font-bold text-accent mt-2">{cajeros.length}</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Add Button */}
-        <div className="mb-6">
+        <div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -230,29 +222,44 @@ export default function CajerosYUsuarios() {
                 {!editingId && (
                   <div>
                     <Label className="text-slate-300">Contraseña</Label>
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="••••••••"
-                      className="mt-2 bg-slate-700 border-slate-600 text-white placeholder-slate-500"
-                    />
+                    <div className="relative mt-2">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="bg-slate-700 border-slate-600 text-white placeholder-slate-500 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div>
                   <Label className="text-slate-300">Sucursal Asignada</Label>
-                  <Select value={formData.sucursal} onValueChange={(value) => setFormData({ ...formData, sucursal: value })}>
-                    <SelectTrigger className="mt-2 bg-slate-700 border-slate-600 text-white">
-                      <SelectValue placeholder="Selecciona una sucursal" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-slate-600">
-                      {mockSucursales.map((s) => (
-                        <SelectItem key={s.id} value={s.nombre} className="text-white">
-                          {s.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {branchesQuery.isLoading ? (
+                    <p className="text-slate-400 text-sm mt-2">Cargando sucursales...</p>
+                  ) : sucursales.length === 0 ? (
+                    <p className="text-yellow-400 text-sm mt-2">No hay sucursales registradas. Crea una en Sucursales primero.</p>
+                  ) : (
+                    <Select value={formData.sucursal} onValueChange={(value) => setFormData({ ...formData, sucursal: value })}>
+                      <SelectTrigger className="mt-2 bg-slate-700 border-slate-600 text-white">
+                        <SelectValue placeholder="Selecciona una sucursal" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-700 border-slate-600">
+                        {sucursales.map((s) => (
+                          <SelectItem key={s.id} value={s.name} className="text-white hover:bg-slate-600">
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex gap-3 pt-4">
                   <Button
@@ -275,34 +282,34 @@ export default function CajerosYUsuarios() {
         </div>
 
         {/* Cajeros Activos */}
-        <Card className="bg-slate-800/50 border-slate-700 mb-8">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">Cajeros Activos</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardTitle>Cajeros Activos</CardTitle>
+            <CardDescription>
               {activeCajeros.length} cajero{activeCajeros.length !== 1 ? "s" : ""} operando
             </CardDescription>
           </CardHeader>
           <CardContent>
             {activeCajeros.length === 0 ? (
-              <p className="text-slate-400 text-center py-8">No hay cajeros activos</p>
+              <p className="text-muted-foreground text-center py-8">No hay cajeros activos</p>
             ) : (
               <div className="space-y-3">
                 {activeCajeros.map((cajero) => (
                   <div
                     key={cajero.id}
-                    className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-primary/30 transition-colors"
+                    className="flex items-center justify-between p-4 rounded-xl border border-border bg-secondary/30 hover:border-primary/30 transition-colors"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-white">{cajero.nombre}</h3>
-                      <p className="text-sm text-slate-400">{cajero.email}</p>
-                      <p className="text-xs text-slate-500 mt-1">📍 {cajero.sucursal}</p>
+                      <h3 className="font-semibold text-foreground">{cajero.nombre}</h3>
+                      <p className="text-sm text-muted-foreground">{cajero.email}</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">📍 {cajero.sucursal}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleEdit(cajero)}
-                        className="border-slate-600 hover:bg-slate-600"
+                        className="border-border hover:bg-secondary"
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
@@ -324,10 +331,10 @@ export default function CajerosYUsuarios() {
 
         {/* Cajeros Inactivos */}
         {inactiveCajeros.length > 0 && (
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white">Cajeros Inactivos</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle>Cajeros Inactivos</CardTitle>
+              <CardDescription>
                 {inactiveCajeros.length} cajero{inactiveCajeros.length !== 1 ? "s" : ""} desactivado{inactiveCajeros.length !== 1 ? "s" : ""}
               </CardDescription>
             </CardHeader>
@@ -336,12 +343,12 @@ export default function CajerosYUsuarios() {
                 {inactiveCajeros.map((cajero) => (
                   <div
                     key={cajero.id}
-                    className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600 opacity-75"
+                    className="flex items-center justify-between p-4 rounded-xl border border-border bg-secondary/10 opacity-75"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-slate-400">{cajero.nombre}</h3>
-                      <p className="text-sm text-slate-500">{cajero.email}</p>
-                      <p className="text-xs text-slate-600 mt-1">📍 {cajero.sucursal}</p>
+                      <h3 className="font-semibold text-muted-foreground">{cajero.nombre}</h3>
+                      <p className="text-sm text-muted-foreground/70">{cajero.email}</p>
+                      <p className="text-xs text-muted-foreground/50 mt-1">📍 {cajero.sucursal}</p>
                     </div>
                     <Button
                       size="sm"
@@ -358,6 +365,6 @@ export default function CajerosYUsuarios() {
           </Card>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

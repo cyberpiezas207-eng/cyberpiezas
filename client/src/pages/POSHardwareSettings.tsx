@@ -152,13 +152,26 @@ export default function POSHardwareSettings() {
 
   const canManageBusiness = user?.role === "admin";
 
+  const sidebarDomClasses: Record<SidebarPalette, string> = {
+    violet: "border-r border-sidebar-border/60 bg-gradient-to-b from-primary via-primary/95 to-primary/90 text-white shadow-lg",
+    midnight: "border-r border-slate-900/80 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white shadow-lg",
+    emerald: "border-r border-emerald-950/30 bg-gradient-to-b from-emerald-700 via-emerald-800 to-teal-900 text-white shadow-lg",
+  };
+
   const handleSidebarPaletteChange = (palette: SidebarPalette) => {
     setSidebarPalette(palette);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(SIDEBAR_PALETTE_KEY, palette);
+      // Aplicar inmediatamente al sidebar en el DOM sin esperar re-render
+      const allPaletteClasses = Object.values(sidebarDomClasses).flatMap((cls) => cls.split(" "));
+      const sidebar = document.querySelector("[data-sidebar='sidebar']");
+      if (sidebar) {
+        allPaletteClasses.forEach((cls) => sidebar.classList.remove(cls));
+        sidebarDomClasses[palette].split(" ").forEach((cls) => sidebar.classList.add(cls));
+      }
       window.dispatchEvent(new CustomEvent("boutique-pos:sidebar-palette-change"));
     }
-    toast.success("Color lateral actualizado");
+    toast.success("\u2713 Color aplicado al men\u00fa lateral");
   };
 
   const updateConfig = <K extends keyof HardwareConfig>(key: K, value: HardwareConfig[K]) => {
@@ -259,28 +272,17 @@ export default function POSHardwareSettings() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-primary/70">Administración del POS</p>
-            <h1 className="mt-2 text-4xl font-bold text-primary">Configuración</h1>
-            <p className="mt-2 max-w-3xl text-muted-foreground">
-              Aquí se concentra la sucursal operativa del punto de venta, los periféricos de caja y la configuración práctica del negocio, incluyendo impresoras genéricas de 58mm u 80mm.
+            <h1 className="text-3xl font-bold text-foreground">Configuración de tienda</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {canManageBusiness ? "Sucursal, hardware, colores, impresión y escáner." : "Consulta la configuración del equipo. Los cambios sensibles son solo para el administrador."}
             </p>
           </div>
           <Badge variant={readiness.variant} className="w-fit px-4 py-2 text-sm">
             {readiness.label}
           </Badge>
         </div>
-
-        <Alert>
-          <BellRing className="h-4 w-4" />
-          <AlertTitle>{canManageBusiness ? "Configuración del negocio" : "Configuración con alcance limitado"}</AlertTitle>
-          <AlertDescription>
-            {canManageBusiness
-              ? "Desde aquí puedes revisar sucursal, hardware POS, impresión, escáner, conexión operativa y accesos rápidos para administrar tu negocio."
-              : "Los cajeros pueden consultar la configuración local del equipo, pero los cambios sensibles del negocio siguen reservados para el administrador."}
-          </AlertDescription>
-        </Alert>
 
         {canManageBusiness ? (
           <Card className="border-border shadow-sm">
@@ -289,9 +291,7 @@ export default function POSHardwareSettings() {
                 <ImagePlus className="h-5 w-5" />
                 Branding administrativo
               </CardTitle>
-              <CardDescription>
-                Cambia el título visible del programa, define un subtítulo y administra un banner para el panel del administrador.
-              </CardDescription>
+              <CardDescription>Título, subtítulo y banner del panel.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
               <div className="space-y-4">
@@ -359,9 +359,7 @@ export default function POSHardwareSettings() {
                 <Palette className="h-5 w-5" />
                 Color lateral del sistema
               </CardTitle>
-              <CardDescription>
-                Ajusta el menú izquierdo para que Boutique POS se sienta más cómodo visualmente en tu mostrador.
-              </CardDescription>
+              <CardDescription>Elige el color del menú lateral.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
@@ -396,9 +394,7 @@ export default function POSHardwareSettings() {
                 <Building2 className="h-5 w-5" />
                 Sucursal operativa
               </CardTitle>
-              <CardDescription>
-                Define qué sucursal usará el punto de venta para inventario, variantes y ventas del administrador.
-              </CardDescription>
+              <CardDescription>Sucursal activa para el POS del administrador.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
@@ -444,12 +440,11 @@ export default function POSHardwareSettings() {
                   Conectar celular / offline
                 </Button>
               </div>
-              <p className="text-xs leading-5 text-muted-foreground">
-                Este acceso es solo para administración interna del negocio. Los cajeros no pueden cambiar personal ni permisos desde aquí.
-              </p>
+
             </CardContent>
           </Card>
 
+          {/* OCULTO: Permisos del sistema — código conservado, no visible en el menú
           <Card className="border-border shadow-sm xl:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-primary">
@@ -477,6 +472,7 @@ export default function POSHardwareSettings() {
               </div>
             </CardContent>
           </Card>
+          */}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-3">
@@ -486,9 +482,7 @@ export default function POSHardwareSettings() {
                 <Printer className="h-5 w-5" />
                 Impresión térmica
               </CardTitle>
-              <CardDescription>
-                Prepara tickets de 58 mm u 80 mm y automatiza la impresión al cerrar una venta.
-              </CardDescription>
+              <CardDescription>Tickets de 58 mm u 80 mm con impresión automática.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
@@ -519,9 +513,7 @@ export default function POSHardwareSettings() {
                   onChange={(event) => updateConfig("preferredPrinterName", event.target.value)}
                   placeholder="Ej. Genérica 58mm, Xprinter, Epson TM-T20III"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Puedes escribir cualquier modelo. Si tu impresora es genérica, basta con indicar el nombre que tú uses para reconocerla.
-                </p>
+
               </div>
 
               <div className="space-y-2">
@@ -535,9 +527,7 @@ export default function POSHardwareSettings() {
                   <option value="80mm">80 mm estándar</option>
                   <option value="58mm">58 mm genérica</option>
                 </select>
-                <p className="text-xs text-muted-foreground">
-                  El formato de 58 mm ajusta el ancho del ticket para impresoras térmicas compactas o genéricas.
-                </p>
+
               </div>
 
               <div className="space-y-2">
@@ -571,9 +561,7 @@ export default function POSHardwareSettings() {
                 <WalletCards className="h-5 w-5" />
                 Cajón de dinero
               </CardTitle>
-              <CardDescription>
-                Define la política para apertura del cajón en ventas en efectivo.
-              </CardDescription>
+              <CardDescription>Apertura automática en ventas en efectivo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
@@ -596,12 +584,7 @@ export default function POSHardwareSettings() {
                 />
               </div>
 
-              <Alert>
-                <AlertTitle>Nota técnica</AlertTitle>
-                <AlertDescription>
-                  En navegadores estándar no existe acceso directo universal al puerto del cajón. La activación real se deja conectada mediante un evento compatible para middleware local o disparo vía impresora.
-                </AlertDescription>
-              </Alert>
+
 
               <Button onClick={handleDrawerTest} variant="outline" className="w-full gap-2">
                 <WalletCards className="h-4 w-4" />
@@ -616,9 +599,7 @@ export default function POSHardwareSettings() {
                 <ScanLine className="h-5 w-5" />
                 Lector de códigos
               </CardTitle>
-              <CardDescription>
-                Configura lectores que escriben como teclado y envían un sufijo al finalizar el escaneo.
-              </CardDescription>
+              <CardDescription>Lectores USB tipo teclado con sufijo configurable.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
@@ -667,9 +648,7 @@ export default function POSHardwareSettings() {
                 <WalletCards className="h-5 w-5" />
                 Impuestos
               </CardTitle>
-              <CardDescription>
-                Configura el IVA u otros impuestos que se aplicarán a todas las ventas.
-              </CardDescription>
+              <CardDescription>IVA aplicado a todas las ventas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between rounded-xl border border-border bg-secondary/40 p-4">
@@ -699,19 +678,7 @@ export default function POSHardwareSettings() {
                 <p className="text-xs text-muted-foreground">Ingresa un valor entre 0 y 100. Por defecto es 19%.</p>
               </div>
 
-              <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">Impacto en tickets y ventas</p>
-                <p className="mt-1">
-                  El porcentaje de IVA se aplicará automáticamente a todas las ventas nuevas, historial de ventas, tickets impresos y reportes.
-                </p>
-              </div>
 
-              <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">Uso desde celular</p>
-                <p className="mt-1">
-                  Si quieres operar desde un teléfono o tablet, entra también en la opción de conexión offline para preparar sincronización, uso local y continuidad de venta fuera de escritorio.
-                </p>
-              </div>
 
               <Button onClick={handlePrintTest} variant="outline" className="w-full gap-2">
                 <Receipt className="h-4 w-4" />
@@ -726,17 +693,10 @@ export default function POSHardwareSettings() {
                 <Settings2 className="h-5 w-5" />
                 Mantenimiento del sistema
               </CardTitle>
-              <CardDescription>
-                Herramientas administrativas para sincronización de datos.
-              </CardDescription>
+              <CardDescription>Sincroniza inventario con todas las sucursales.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">Inicializar inventario por sucursal</p>
-                <p className="mt-1">
-                  Si las variantes de productos no aparecen en el punto de venta, ejecuta esta herramienta para sincronizar el inventario con todas las sucursales.
-                </p>
-              </div>
+
               <Button 
                 onClick={() => {
                   initInventoryMutation.mutate(undefined, {

@@ -48,6 +48,8 @@ export default function SalesHistory() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [isReturnSearchOpen, setIsReturnSearchOpen] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all");
@@ -133,14 +135,26 @@ export default function SalesHistory() {
   };
 
   const handleOpenReturnDialog = () => {
-    if (!selectedSale.data) {
-      toast.error("Primero abre una venta para preparar la devolución.");
+    if (!selectedSaleId || !selectedSale.data) {
+      // Abrir diálogo de búsqueda de venta
+      setReturnSearchQuery("");
+      setIsReturnSearchOpen(true);
       return;
     }
     setReturnReason("");
     setReturnNotes("");
     setReturnQuantities({});
     setIsReturnDialogOpen(true);
+  };
+
+  const handleSelectSaleForReturn = (saleId: number) => {
+    setSelectedSaleId(saleId);
+    setIsReturnSearchOpen(false);
+    setReturnReason("");
+    setReturnNotes("");
+    setReturnQuantities({});
+    // Pequeño delay para que el query se actualice antes de abrir el diálogo
+    setTimeout(() => setIsReturnDialogOpen(true), 300);
   };
 
   const handleExportSale = (sale: any) => {
@@ -730,6 +744,63 @@ TOTAL:           $${parseFloat(sale.total).toFixed(2)}
                   {createReturn.isPending ? "Guardando..." : "Guardar devolución"}
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===== DIÁLOGO BÚSqueda de venta para devolución ===== */}
+        <Dialog open={isReturnSearchOpen} onOpenChange={setIsReturnSearchOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-primary">Buscar venta para devolución</DialogTitle>
+              <DialogDescription>
+                Escribe el número de venta o el nombre del producto para encontrarla.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                autoFocus
+                placeholder="Ej. VTA-0042 o nombre del producto..."
+                value={returnSearchQuery}
+                onChange={(e) => setReturnSearchQuery(e.target.value)}
+              />
+              <div className="max-h-72 overflow-y-auto space-y-2">
+                {(startDate || endDate ? dateRangeSales.data : todaySales.data)
+                  ?.filter((sale: any) => {
+                    const q = returnSearchQuery.toLowerCase();
+                    if (!q) return true;
+                    return (
+                      sale.saleNumber?.toLowerCase().includes(q) ||
+                      sale.details?.some((d: any) => d.productName?.toLowerCase().includes(q))
+                    );
+                  })
+                  .slice(0, 20)
+                  .map((sale: any) => (
+                    <button
+                      key={sale.id}
+                      type="button"
+                      onClick={() => handleSelectSaleForReturn(sale.id)}
+                      className="w-full flex items-center justify-between rounded-xl border border-border bg-secondary/30 hover:border-primary/40 hover:bg-primary/5 p-3 text-left transition-all"
+                    >
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">{sale.saleNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sale.details?.map((d: any) => d.productName).join(", ").slice(0, 60)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-primary">${parseFloat(sale.total).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sale.paymentMethod === "cash" ? "Efectivo" : sale.paymentMethod === "card" ? "Tarjeta" : "Transferencia"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                {!(startDate || endDate ? dateRangeSales.data : todaySales.data)?.length && (
+                  <p className="text-center text-muted-foreground text-sm py-6">No hay ventas disponibles para devolución.</p>
+                )}
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => setIsReturnSearchOpen(false)}>Cancelar</Button>
             </div>
           </DialogContent>
         </Dialog>

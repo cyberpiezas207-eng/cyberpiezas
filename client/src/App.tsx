@@ -19,6 +19,7 @@ import PayPalSubscriptionPlans from "@/pages/PayPalSubscriptionPlans";
 import AdminPaymentReview from "@/pages/AdminPaymentReview";
 import { OfflineSyncSettings } from "@/pages/OfflineSyncSettings";
 import SubscriberManagement from "@/pages/SubscriberManagement";
+import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import SubscriptionManagement from "@/pages/SubscriptionManagement";
 import POS from "@/pages/POS";
 import POSHardwareSettings from "@/pages/POSHardwareSettings";
@@ -200,6 +201,12 @@ function Router() {
       <Route path="/subscribers">
         <ProtectedRoute requiredRole="admin">
           <SubscriberManagement />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin-cyberpiezas">
+        <ProtectedRoute requiredRole="admin">
+          <AdminCyberpiezas />
         </ProtectedRoute>
       </Route>
 

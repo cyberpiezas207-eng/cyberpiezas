@@ -39,6 +39,7 @@ import {
   PanelLeft,
   ReceiptText,
   Settings2,
+  ShieldCheck,
   ShoppingCart,
   Store,
   Sun,
@@ -95,6 +96,7 @@ const menuItems: MenuItem[] = [
   { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "administracion", program: "boutique" },
   { icon: Settings2, label: "Configuración de tienda", path: "/settings/pos-hardware", section: "administracion", program: "boutique" },
   { icon: FileText, label: "Términos y condiciones", path: "/terms", section: "administracion", program: "boutique" },
+  { icon: ShieldCheck, label: "Panel CyberPiezas", path: "/admin-cyberpiezas", section: "administracion", roles: ["admin"] },
 
   // ── Ocultos (código intacto, no se renderizan en el menú) ──
   { icon: Bell, label: "Preferencias de notificaciones", path: "/notifications/preferences", section: "oculto", program: "boutique" },
