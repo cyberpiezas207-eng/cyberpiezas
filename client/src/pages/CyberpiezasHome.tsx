@@ -235,7 +235,8 @@ export function CyberpiezasHome() {
       </nav>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      {/* ===== 1. HERO PRINCIPAL ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="text-center mb-20">
           <h1 className="text-7xl font-bold text-white mb-6 leading-tight">
             Gestiona Múltiples
@@ -263,242 +264,145 @@ export function CyberpiezasHome() {
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* Sello de identidad — reemplaza la historia larga anterior */}
-        <div className="flex justify-center mb-32">
-          <div className="inline-flex flex-col items-center gap-4 px-10 py-7 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-            {/* Ícono de raíces */}
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
-              <span className="text-2xl" role="img" aria-label="planta">🌱</span>
-            </div>
-            {/* Separador + texto */}
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-px bg-gradient-to-r from-transparent to-slate-500" />
-              <p className="text-slate-200 text-base font-medium tracking-wide text-center">
-                Nacido en Ayala, Morelos.
-                <span className="text-slate-400"> Hecho en México, pensado para crecer.</span>
-              </p>
-              <div className="w-12 h-px bg-gradient-to-l from-transparent to-slate-500" />
-            </div>
+      {/* ===== 2. ¿QUÉ ES CYBERPIEZAS? ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-700/50">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-3">¿Qué es Cyberpiezas?</h2>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">Todo lo que necesitas para operar tu negocio, en un solo lugar.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="flex flex-col items-center text-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/10">
+            <span className="text-4xl">🛒</span>
+            <h3 className="text-white font-bold text-lg">Punto de Venta</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Cobra rápido, controla tu caja y registra cada venta sin complicaciones.</p>
+          </div>
+          <div className="flex flex-col items-center text-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/10">
+            <span className="text-4xl">📦</span>
+            <h3 className="text-white font-bold text-lg">Inventario Real</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Sabe exactamente qué tienes, qué se agota y qué vende más — en tiempo real.</p>
+          </div>
+          <div className="flex flex-col items-center text-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/10">
+            <span className="text-4xl">📊</span>
+            <h3 className="text-white font-bold text-lg">Para ti, no para corporativos</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Diseñado para negocios reales en México. Sin mensualidades exageradas, sin contratos.</p>
           </div>
         </div>
+      </div>
 
-        {/*
-          CÓDIGO ANTERIOR — Sección historia larga (Morelos / Huitzilac / Ayala)
-          Oculto visualmente. No eliminar.
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-32 items-center">
-          <div>
-            <h2>Nuestra Historia</h2>
-            <p>Comenzamos en Morelos, en Huitzilac y Ayalá...</p>
-            <p>Con más de una década de experiencia...</p>
-            <p>Hoy, Cyberpiezas es un ecosistema completo...</p>
-          </div>
-          <div>
-            Tarjetas: Innovación Constante / Crecimiento Empresarial / Compromiso Total
-          </div>
+      {/* ===== 3. PUNTOS DE VENTA ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-700/50">
+        <div className="text-center mb-16">
+          <h2 className="text-5xl font-bold text-white mb-4">Puntos de Venta</h2>
+          <p className="text-slate-300 text-xl">
+            Soluciones especializadas para cada tipo de negocio
+          </p>
         </div>
-        */}
-
-        {/* Systems Section */}
-        <div className="mb-32">
-          <div className="text-center mb-16">
-            <h2 className="text-5xl font-bold text-white mb-4">Nuestros Sistemas POS</h2>
-            <p className="text-slate-300 text-xl">
-              Soluciones especializadas para cada tipo de negocio
-            </p>
-          </div>
-
-          {/* Horizontal Scroll Systems */}
-          <div className="overflow-x-auto pb-6 -mx-4 px-4">
-            <div className="flex gap-6 min-w-max">
-              {systems.map((system) => (
-                <div key={system.id} className="flex-shrink-0 w-80 group">
-                  <Card
-                    className={`h-full overflow-hidden transition-all duration-500 ${
-                      system.status === "active"
-                        ? "cursor-pointer hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(139,92,246,0.4)] border-2 border-purple-500/40 hover:border-purple-400/80 bg-slate-900"
-                        : "opacity-60 border border-slate-700/50 bg-slate-900/80"
-                    }`}
-                    onClick={() => handleSystemClick(system)}
+        {/* Horizontal Scroll Systems */}
+        <div className="overflow-x-auto pb-6 -mx-4 px-4">
+          <div className="flex gap-6 min-w-max">
+            {systems.map((system) => (
+              <div key={system.id} className="flex-shrink-0 w-80 group">
+                <Card
+                  className={`h-full overflow-hidden transition-all duration-500 ${
+                    system.status === "active"
+                      ? "cursor-pointer hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(139,92,246,0.4)] border-2 border-purple-500/40 hover:border-purple-400/80 bg-slate-900"
+                      : "opacity-60 border border-slate-700/50 bg-slate-900/80"
+                  }`}
+                  onClick={() => handleSystemClick(system)}
+                >
+                  <div
+                    className={`h-36 bg-gradient-to-br ${system.color} relative overflow-hidden flex flex-col items-center justify-center gap-2`}
                   >
-                    {/* Gradient Header - taller and more impactful */}
-                    <div
-                      className={`h-36 bg-gradient-to-br ${system.color} relative overflow-hidden flex flex-col items-center justify-center gap-2`}
-                    >
-                      {/* Decorative circles */}
-                      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
-                      <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-black/20" />
-                      {/* Icon */}
-                      <span className={`text-6xl transition-transform duration-500 ${
-                        system.status === "active" ? "group-hover:scale-110 group-hover:-rotate-6" : ""
-                      } drop-shadow-lg relative z-10`}>
-                        {system.icon}
-                      </span>
-                      {/* Status badge inside header */}
-                      <span className={`relative z-10 text-xs font-bold px-3 py-1 rounded-full ${
-                        system.status === "active"
-                          ? "bg-white/20 text-white border border-white/30 backdrop-blur-sm"
-                          : "bg-black/30 text-white/70 border border-white/10"
-                      }`}>
-                        {system.status === "active" ? "✅ Disponible" : "🔜 Próximamente"}
-                      </span>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-white mb-1 tracking-tight">
-                        {system.name}
-                      </h3>
-                      <p className="text-slate-400 text-sm mb-5 leading-relaxed">
-                        {system.description}
-                      </p>
-
-                      {/* Features as pills */}
-                      <div className="mb-6">
-                        <div className="flex flex-wrap gap-2">
-                          {system.features.map((feature, idx) => (
-                            <span
-                              key={idx}
-                              className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                                system.status === "active"
-                                  ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                                  : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
-                              }`}
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                              {feature}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Button */}
-                      <Button
-                        onClick={() => handleSystemClick(system)}
-                        className={`w-full h-11 font-semibold transition-all duration-300 ${
-                          system.status === "active"
-                            ? `bg-gradient-to-r ${system.color} hover:opacity-90 hover:shadow-lg text-white text-sm`
-                            : "bg-slate-700/50 hover:bg-slate-700 cursor-not-allowed text-slate-400 text-sm"
-                        }`}
-                        disabled={system.status === "coming-soon"}
-                      >
-                        {system.status === "active" ? (
-                          <span className="flex items-center justify-center gap-2">
-                            Acceder al sistema
-                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+                    <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-black/20" />
+                    <span className={`text-6xl transition-transform duration-500 ${
+                      system.status === "active" ? "group-hover:scale-110 group-hover:-rotate-6" : ""
+                    } drop-shadow-lg relative z-10`}>
+                      {system.icon}
+                    </span>
+                    <span className={`relative z-10 text-xs font-bold px-3 py-1 rounded-full ${
+                      system.status === "active"
+                        ? "bg-white/20 text-white border border-white/30 backdrop-blur-sm"
+                        : "bg-black/30 text-white/70 border border-white/10"
+                    }`}>
+                      {system.status === "active" ? "✅ Disponible" : "🔜 Próximamente"}
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-1 tracking-tight">{system.name}</h3>
+                    <p className="text-slate-400 text-sm mb-5 leading-relaxed">{system.description}</p>
+                    <div className="mb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {system.features.map((feature, idx) => (
+                          <span
+                            key={idx}
+                            className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                              system.status === "active"
+                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {feature}
                           </span>
-                        ) : (
-                          "Próximamente"
-                        )}
-                      </Button>
+                        ))}
+                      </div>
                     </div>
-                  </Card>
-                </div>
-              ))}
-            </div>
+                    <Button
+                      onClick={() => handleSystemClick(system)}
+                      className={`w-full h-11 font-semibold transition-all duration-300 ${
+                        system.status === "active"
+                          ? `bg-gradient-to-r ${system.color} hover:opacity-90 hover:shadow-lg text-white text-sm`
+                          : "bg-slate-700/50 hover:bg-slate-700 cursor-not-allowed text-slate-400 text-sm"
+                      }`}
+                      disabled={system.status === "coming-soon"}
+                    >
+                      {system.status === "active" ? (
+                        <span className="flex items-center justify-center gap-2">
+                          Acceder al sistema
+                          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </span>
+                      ) : (
+                        "Próximamente"
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Additional Services Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-32">
-          {/* Donations */}
-          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30 p-8 hover:shadow-lg transition-all group cursor-pointer">
-            <h3 className="text-3xl font-bold text-white mb-4">❤️ Donaciones</h3>
-            <p className="text-slate-300 mb-6 text-lg leading-relaxed">
-              Apoya nuestro proyecto y sé parte del crecimiento de Cyberpiezas. 
-              Tus donaciones nos ayudan a desarrollar nuevas funcionalidades y mejorar 
-              nuestros servicios para beneficio de toda la comunidad.
-            </p>
-            <Button 
-              onClick={() => setLocation("/donations")}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 group-hover:shadow-lg transition-all"
-            >
-              Contribuir Ahora
-            </Button>
-          </Card>
-
-          {/* CELINE */}
-          <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30 p-8 hover:shadow-lg transition-all group cursor-pointer">
-            <h3 className="text-3xl font-bold text-white mb-4">💻 CELINE</h3>
-            <p className="text-slate-300 mb-6 text-lg leading-relaxed">
-              Sistema especializado para compra y evaluación de artículos de cómputo. 
-              Flujo profesional diseñado para el ecosistema Cyberpiezas con herramientas 
-              avanzadas de gestión.
-            </p>
-            <Button 
-              onClick={() => setLocation("/celine")}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 group-hover:shadow-lg transition-all"
-            >
-              Explorar CELINE
-            </Button>
-          </Card>
+      {/* ===== 4. CÓMO FUNCIONA ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-700/50">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-3">¿Cómo funciona?</h2>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">Empieza en minutos, sin instalaciones complicadas.</p>
         </div>
-
-        {/* Pricing Section */}
-        <div className="mb-32">
-          <div className="text-center mb-16">
-            <h2 className="text-5xl font-bold text-white mb-4">Planes y Precios</h2>
-            <p className="text-slate-300 text-xl">
-              Elige el plan que mejor se adapte a tu negocio
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">1</div>
+            <h3 className="text-white font-bold text-lg">Crea tu cuenta</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Regístrate en menos de 2 minutos. Sin tarjeta de crédito, sin contrato.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Plan Gratis */}
-            <Card className="bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600 p-8 hover:shadow-xl transition-all">
-              <h3 className="text-2xl font-bold text-white mb-2">Gratis</h3>
-              <p className="text-slate-400 mb-6">Para empezar</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$0</span>
-                <span className="text-slate-400">/mes</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                {["Acceso básico", "1 Sistema POS", "Inventario simple", "Soporte por email"].map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-slate-300">
-                    <Check className="w-5 h-5 text-green-400" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Button 
-                onClick={() => setLocation("/suscripcion")}
-                className="w-full bg-slate-600 hover:bg-slate-700"
-              >
-                Seleccionar
-              </Button>
-            </Card>
-
-            {/* Plan Profesional */}
-            <Card className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 p-8 hover:shadow-xl transition-all border-2 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
-                  Más Popular
-                </Badge>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-2 mt-4">Profesional</h3>
-              <p className="text-slate-300 mb-6">Para pequeños negocios</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$170</span>
-                <span className="text-slate-300">/mes MXN</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                {["Múltiples sistemas", "Inventario avanzado", "Reportes detallados", "Soporte prioritario"].map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-slate-300">
-                    <Check className="w-5 h-5 text-green-400" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Button 
-                onClick={() => setLocation("/suscripcion")}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              >
-                Seleccionar
-              </Button>
-            </Card>
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">2</div>
+            <h3 className="text-white font-bold text-lg">Configura tu tienda</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Agrega tus productos, sucursales y cajeros. Todo desde el panel.</p>
+          </div>
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">3</div>
+            <h3 className="text-white font-bold text-lg">Empieza a vender</h3>
+            <p className="text-slate-400 text-sm leading-relaxed">Abre el punto de venta desde cualquier dispositivo y cobra desde el primer día.</p>
           </div>
         </div>
+      </div>
+
+      {/* ===== 5 + 6. NUESTRA HISTORIA + ESTAMOS ABIERTOS A TI ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-700/50">
 
         {/* ===== NUESTRA HISTORIA ===== */}
         <div className="mb-32">
@@ -752,21 +656,106 @@ export function CyberpiezasHome() {
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center py-20 border-t border-slate-700 mb-20">
-          <h2 className="text-4xl font-bold text-white mb-6">¿Listo para transformar tu negocio?</h2>
-          <p className="text-slate-300 text-xl mb-12 max-w-2xl mx-auto">
-            Únete a cientos de empresarios que ya utilizan Cyberpiezas para gestionar 
-            sus negocios de forma profesional y eficiente.
-          </p>
-          <Button
-            onClick={() => setLocation("/suscripcion")}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg"
-          >
-            Comenzar Ahora
-          </Button>
+      </div>
+
+      {/* ===== 7. MÁS DE CYBERPIEZAS ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-slate-700/50">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-3">Más de CyberPiezas</h2>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">Servicios adicionales del ecosistema Cyberpiezas.</p>
+        </div>
+        <div className="max-w-2xl mx-auto">
+          {/* CELINE */}
+          <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30 p-8 hover:shadow-lg transition-all group cursor-pointer">
+            <h3 className="text-3xl font-bold text-white mb-4">💻 CELINE</h3>
+            <p className="text-slate-300 mb-6 text-lg leading-relaxed">
+              Sistema especializado para compra y evaluación de artículos de cómputo.
+              Flujo profesional diseñado para el ecosistema Cyberpiezas con herramientas
+              avanzadas de gestión.
+            </p>
+            <Button
+              onClick={() => setLocation("/celine")}
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 group-hover:shadow-lg transition-all"
+            >
+              Explorar CELINE
+            </Button>
+          </Card>
+          {/* Próximamente: cámaras, computadoras, equipos de informática */}
         </div>
       </div>
+
+      {/* ===== 8. NACIDO EN AYALA, MORELOS ===== */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-slate-700/50">
+        <div className="flex justify-center">
+          <div className="inline-flex flex-col items-center gap-4 px-10 py-7 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <span className="text-2xl" role="img" aria-label="planta">🌱</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-px bg-gradient-to-r from-transparent to-slate-500" />
+              <p className="text-slate-200 text-base font-medium tracking-wide text-center">
+                Nacido en Ayala, Morelos.
+                <span className="text-slate-400"> Hecho en México, pensado para crecer.</span>
+              </p>
+              <div className="w-12 h-px bg-gradient-to-l from-transparent to-slate-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== 9. DONACIONES — Cuadrito flotante discreto ===== */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setLocation("/donations")}
+          className="group flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900/90 border border-amber-500/30 backdrop-blur-md shadow-xl hover:border-amber-400/60 hover:bg-slate-800/90 transition-all"
+          title="Apoya a Cyberpiezas"
+        >
+          <span className="text-lg">❤️</span>
+          <span className="text-slate-300 text-sm font-medium group-hover:text-white transition-colors">Donar</span>
+        </button>
+      </div>
+
+      {/* ===== 10. FOOTER ===== */}
+      <footer className="border-t border-slate-700/50 bg-slate-900/80 mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {/* Logo y descripción */}
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Cyberpiezas</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">Sistema POS para negocios reales en México. Inventario, ventas y reportes en un solo lugar.</p>
+            </div>
+            {/* Links rápidos */}
+            <div className="space-y-3">
+              <h3 className="text-white font-semibold text-sm uppercase tracking-widest">Accesos rápidos</h3>
+              <ul className="space-y-2 text-sm">
+                <li><button onClick={() => setLocation("/suscripcion")} className="text-slate-400 hover:text-white transition-colors">Planes y precios</button></li>
+                <li><button onClick={() => setLocation("/donations")} className="text-slate-400 hover:text-white transition-colors">Donaciones</button></li>
+                <li><button onClick={() => setLocation("/terms")} className="text-slate-400 hover:text-white transition-colors">Términos y condiciones</button></li>
+                <li><button onClick={() => window.location.href = getLoginUrl()} className="text-slate-400 hover:text-white transition-colors">Iniciar sesión</button></li>
+              </ul>
+            </div>
+            {/* Contacto y redes */}
+            <div className="space-y-3">
+              <h3 className="text-white font-semibold text-sm uppercase tracking-widest">Contacto</h3>
+              <ul className="space-y-2 text-sm">
+                <li><a href="mailto:cyberpiezas207@gmail.com" className="text-slate-400 hover:text-white transition-colors">cyberpiezas207@gmail.com</a></li>
+                <li><span className="text-slate-500">Morelos, México</span></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-10 pt-6 border-t border-slate-700/50 text-center">
+            <p className="text-slate-500 text-xs">© {new Date().getFullYear()} CyberPiezas. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
+
+      {/*
+        CÓDIGO ANTERIOR — Secciones ocultas (no eliminar)
+        - Additional Services Section (grid con Donaciones + CELINE)
+        - Pricing Section (Planes Gratis y Profesional)
+        - CTA Section (¿Listo para transformar tu negocio?)
+        - Sello de identidad anterior (dentro del max-w-7xl)
+      */}
 
       {/* Demo Modal */}
       {showDemoModal && (
