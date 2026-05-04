@@ -215,38 +215,48 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 relative overflow-hidden">
+      {/* Fondo decorativo con gradientes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl opacity-30 animate-pulse" />
+      </div>
+
       {/* Header */}
-      <header className="py-6 px-4 border-b border-border">
+      <header className="py-8 px-4 border-b border-primary/10 backdrop-blur-sm relative z-10">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-primary">Boutique POS</h1>
-          <p className="text-muted-foreground">
-            Software profesional de punto de venta
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <span className="text-white font-bold text-lg">⚙️</span>
+            </div>
+            <h1 className="text-4xl font-black bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">Cyberpiezas POS</h1>
+          </div>
+          <p className="text-lg text-slate-300 font-medium">
+            Gestiona tu negocio de forma inteligente
           </p>
         </div>
       </header>
 
       {/* Main */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 px-4 py-12 max-w-6xl mx-auto w-full">
+      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 px-4 py-16 max-w-6xl mx-auto w-full relative z-10">
         {/* Left: Hero */}
-        <div className="flex-1 text-center lg:text-left max-w-xl">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Gestiona tu Boutique de Forma Profesional
+        <div className="flex-1 text-center lg:text-left max-w-2xl">
+          <h2 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent mb-6 leading-tight">
+            Gestiona tu Negocio de Forma Inteligente
           </h2>
-          <p className="text-lg text-muted-foreground mb-8">
-            Sistema POS completo para tiendas de ropa. Controla inventario,
-            realiza ventas rápidas y accede a reportes en tiempo real desde
-            cualquier dispositivo.
+          <p className="text-xl text-slate-300 mb-10 leading-relaxed font-light">
+            Sistema POS completo para boutiques, restaurantes y negocios. Controla inventario,
+            realiza ventas rápidas, accede a reportes en tiempo real y crece sin límites.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
             {features.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="bg-card rounded-lg p-4 border border-border"
+                className="group bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl p-5 border border-primary/20 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
               >
-                <Icon className="h-6 w-6 text-primary mb-2" />
-                <h3 className="font-semibold text-foreground text-sm mb-1">{title}</h3>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <Icon className="h-7 w-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
+                <h3 className="font-bold text-white text-sm mb-2">{title}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{description}</p>
               </div>
             ))}
           </div>
@@ -255,9 +265,9 @@ export default function Home() {
         {/* Right: Auth form */}
         <div className="w-full max-w-md flex-shrink-0">
           <AuthForm onSuccess={() => navigate("/cyberpiezas")} />
-          <p className="text-center text-xs text-muted-foreground mt-4">
+          <p className="text-center text-xs text-slate-400 mt-6">
             Al registrarte aceptas nuestros{" "}
-            <a href="/terms" className="underline">
+            <a href="/terms" className="text-primary hover:text-accent font-semibold transition-colors">
               Términos y Condiciones
             </a>
             .
