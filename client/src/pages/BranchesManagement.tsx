@@ -380,9 +380,9 @@ export default function BranchesManagement() {
       </div>
 
       <Dialog open={isBranchDialogOpen} onOpenChange={setIsBranchDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nueva sucursal</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Nueva sucursal</DialogTitle>
             <DialogDescription>
               Captura los datos básicos de la ubicación para habilitar inventario independiente.
             </DialogDescription>
@@ -442,7 +442,7 @@ export default function BranchesManagement() {
       </Dialog>
 
       <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nuevo traspaso</DialogTitle>
             <DialogDescription>

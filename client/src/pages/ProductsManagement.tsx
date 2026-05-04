@@ -592,7 +592,7 @@ export default function ProductsManagement() {
             }
           }}
         >
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-primary">Crear nuevo producto</DialogTitle>
               <DialogDescription>
@@ -745,7 +745,7 @@ export default function ProductsManagement() {
             }
           }}
         >
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-primary">Editar producto</DialogTitle>
               <DialogDescription>
