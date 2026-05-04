@@ -5,15 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowLeft } from "lucide-react";
 
+type PlanKey = "free" | "professional" | "business";
+
 export default function SubscriptionPage() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const initialPlan = params.get("plan") || "professional";
+  const initialPlan = (params.get("plan") as PlanKey) || "professional";
 
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "professional">(
-    (initialPlan as "free" | "professional") || "professional"
-  );
+  const [selectedPlan, setSelectedPlan] = useState<PlanKey>(initialPlan);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -23,21 +23,62 @@ export default function SubscriptionPage() {
   });
   const [comprobante, setComprobante] = useState<File | null>(null);
 
-  const plans = {
+  const plans: Record<PlanKey, {
+    name: string;
+    price: string;
+    period: string;
+    description: string;
+    features: string[];
+    popular?: boolean;
+    bankData: { bank: string; account: string; clabe: string; holder: string } | null;
+  }> = {
     free: {
       name: "Gratis",
       price: "$0",
       period: "/mes",
-      description: "Para empezar",
-      features: ["Acceso básico", "1 Sistema POS", "Inventario simple", "Soporte por email"],
+      description: "Para empezar sin costo",
+      features: [
+        "1 sucursal",
+        "Hasta 50 productos",
+        "1 cajero",
+        "POS Boutique",
+        "Soporte por correo",
+      ],
       bankData: null,
     },
     professional: {
       name: "Profesional",
-      price: "$170",
+      price: "$249",
       period: "/mes MXN",
       description: "Para pequeños negocios",
-      features: ["Múltiples sistemas", "Inventario avanzado", "Reportes detallados", "Soporte prioritario"],
+      popular: true,
+      features: [
+        "Hasta 2 sucursales",
+        "Productos ilimitados",
+        "5 cajeros",
+        "Tienda pública con link propio",
+        "Reportes avanzados",
+        "Soporte prioritario por WhatsApp",
+      ],
+      bankData: {
+        bank: "AZTECA",
+        account: "4027660019183039",
+        clabe: "127542013042637791",
+        holder: "David Farfan",
+      },
+    },
+    business: {
+      name: "Negocio",
+      price: "$500",
+      period: "/mes MXN",
+      description: "Para negocios en crecimiento",
+      features: [
+        "Hasta 4 sucursales",
+        "Cajeros ilimitados",
+        "Impresión de tickets y cajón de dinero",
+        "Notificaciones avanzadas",
+        "Soporte prioritario",
+      ],
       bankData: {
         bank: "AZTECA",
         account: "4027660019183039",
@@ -60,26 +101,18 @@ export default function SubscriptionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validar campos requeridos
+
     if (!formData.name || !formData.email) {
       alert("Por favor completa todos los campos requeridos");
       return;
     }
 
-    // Si es plan profesional y elige transferencia, requiere comprobante
-    if (selectedPlan === "professional" && formData.paymentMethod === "transfer" && !comprobante) {
+    if (selectedPlan !== "free" && formData.paymentMethod === "transfer" && !comprobante) {
       alert("Por favor sube el comprobante de pago");
       return;
     }
 
-    // Aquí iría la lógica para enviar los datos al servidor
-    console.log({
-      plan: selectedPlan,
-      formData,
-      comprobante: comprobante?.name,
-    });
-
+    console.log({ plan: selectedPlan, formData, comprobante: comprobante?.name });
     alert("¡Solicitud de suscripción enviada! Te contactaremos pronto.");
     setLocation("/cyberpiezas");
   };
@@ -110,74 +143,50 @@ export default function SubscriptionPage() {
         {/* Plan Selection */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-white mb-8 text-center">Elige tu Plan</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Plan Gratis */}
-            <Card
-              className={`p-8 cursor-pointer transition-all ${
-                selectedPlan === "free"
-                  ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 border-2"
-                  : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
-              }`}
-              onClick={() => setSelectedPlan("free")}
-            >
-              <h3 className="text-2xl font-bold text-white mb-2">Gratis</h3>
-              <p className="text-slate-400 mb-4">Para empezar</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$0</span>
-                <span className="text-slate-400">/mes</span>
-              </div>
-              <ul className="space-y-2">
-                {plans.free.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-slate-300">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              {selectedPlan === "free" && (
-                <Badge className="mt-4 bg-purple-500">Seleccionado</Badge>
-              )}
-            </Card>
-
-            {/* Plan Profesional */}
-            <Card
-              className={`p-8 cursor-pointer transition-all relative ${
-                selectedPlan === "professional"
-                  ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 border-2"
-                  : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
-              }`}
-              onClick={() => setSelectedPlan("professional")}
-            >
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
-                  Más Popular
-                </Badge>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-2 mt-4">Profesional</h3>
-              <p className="text-slate-300 mb-4">Para pequeños negocios</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$170</span>
-                <span className="text-slate-300">/mes MXN</span>
-              </div>
-              <ul className="space-y-2">
-                {plans.professional.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-slate-300">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              {selectedPlan === "professional" && (
-                <Badge className="mt-4 bg-purple-500">Seleccionado</Badge>
-              )}
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {(Object.entries(plans) as [PlanKey, typeof plans[PlanKey]][]).map(([key, plan]) => (
+              <Card
+                key={key}
+                className={`p-8 cursor-pointer transition-all relative ${
+                  selectedPlan === key
+                    ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50 border-2"
+                    : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+                }`}
+                onClick={() => setSelectedPlan(key)}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
+                      Más Popular
+                    </Badge>
+                  </div>
+                )}
+                <h3 className="text-2xl font-bold text-white mb-2 mt-2">{plan.name}</h3>
+                <p className="text-slate-400 mb-4">{plan.description}</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-white">{plan.price}</span>
+                  <span className="text-slate-400">{plan.period}</span>
+                </div>
+                <ul className="space-y-2">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-slate-300">
+                      <Check className="w-4 h-4 text-green-400 shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {selectedPlan === key && (
+                  <Badge className="mt-4 bg-purple-500">Seleccionado</Badge>
+                )}
+              </Card>
+            ))}
           </div>
         </div>
 
         {/* Form Section */}
         <Card className="bg-slate-800/50 border-slate-700 p-8">
           <h2 className="text-2xl font-bold text-white mb-8">Completa tu Información</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Name */}
             <div>
@@ -241,8 +250,8 @@ export default function SubscriptionPage() {
               />
             </div>
 
-            {/* Payment Method - Solo para plan profesional */}
-            {selectedPlan === "professional" && (
+            {/* Payment Method - Solo para planes de pago */}
+            {selectedPlan !== "free" && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-4">
@@ -284,23 +293,15 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Bank Data - Si elige transferencia */}
-                {formData.paymentMethod === "transfer" && plans.professional.bankData && (
+                {/* Bank Data */}
+                {formData.paymentMethod === "transfer" && currentPlan.bankData && (
                   <Card className="bg-slate-700/50 border-slate-600 p-6">
                     <h3 className="text-lg font-bold text-white mb-4">Datos Bancarios</h3>
                     <div className="space-y-3 text-slate-300">
-                      <div>
-                        <span className="text-slate-400">Banco:</span> {plans.professional.bankData.bank}
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Tarjeta:</span> {plans.professional.bankData.account}
-                      </div>
-                      <div>
-                        <span className="text-slate-400">CLABE:</span> {plans.professional.bankData.clabe}
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Titular:</span> {plans.professional.bankData.holder}
-                      </div>
+                      <div><span className="text-slate-400">Banco:</span> {currentPlan.bankData.bank}</div>
+                      <div><span className="text-slate-400">Tarjeta:</span> {currentPlan.bankData.account}</div>
+                      <div><span className="text-slate-400">CLABE:</span> {currentPlan.bankData.clabe}</div>
+                      <div><span className="text-slate-400">Titular:</span> {currentPlan.bankData.holder}</div>
                     </div>
                   </Card>
                 )}
