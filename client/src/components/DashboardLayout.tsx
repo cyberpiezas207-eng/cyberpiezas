@@ -51,6 +51,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { NotificationBell } from "./NotificationBell";
+import { BugReportButton } from "./BugReportButton";
 
 type AppRole = "admin" | "cashier";
 type ProgramCode = "boutique" | "abarrotes" | "celine";
@@ -491,8 +492,8 @@ function DashboardLayoutContent({
             </p>
           </footer>
         </main>
+       <BugReportButton />
       </SidebarInset>
-
       {!hasAcceptedTerms && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-3xl border border-border bg-background p-6 shadow-2xl">
