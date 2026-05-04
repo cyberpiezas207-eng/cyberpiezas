@@ -98,12 +98,13 @@ export async function runStartupMigrations(): Promise<void> {
   }
   const migrations = [
     // Columna para persistir aceptación de términos y condiciones por usuario
-    "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `termsAcceptedAt` timestamp NULL DEFAULT NULL",
+    // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
+    "ALTER TABLE `users` ADD COLUMN `termsAcceptedAt` timestamp NULL DEFAULT NULL",
     // Campo de imagen opcional por variante de producto
-    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `imageUrl` varchar(1000) NULL DEFAULT NULL",
+    "ALTER TABLE `productVariants` ADD COLUMN `imageUrl` varchar(1000) NULL DEFAULT NULL",
     // SKU y código de barras opcionales por variante
-    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `sku` varchar(100) NULL DEFAULT NULL",
-    "ALTER TABLE `productVariants` ADD COLUMN IF NOT EXISTS `barcode` varchar(50) NULL DEFAULT NULL",
+    "ALTER TABLE `productVariants` ADD COLUMN `sku` varchar(100) NULL DEFAULT NULL",
+    "ALTER TABLE `productVariants` ADD COLUMN `barcode` varchar(50) NULL DEFAULT NULL",
     // Tabla de clientes frecuentes para el POS
     `CREATE TABLE IF NOT EXISTS \`customers\` (
       \`id\` int AUTO_INCREMENT PRIMARY KEY,
