@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -15,14 +14,20 @@ import {
   Search,
   Mail,
   RefreshCw,
+  ArrowLeft,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useLocation } from "wouter";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [searchQuery, setSearchQuery] = useState("");
+  // Estado para mostrar el email de bienvenida en pantalla (sin abrir pestaña)
+  const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
 
   // Cargar todos los usuarios registrados
   const { data: allUsers = [], isLoading } = trpc.users.getAllUsers.useQuery();
@@ -46,16 +51,15 @@ export default function AdminCyberpiezas() {
     });
     toast.success(`✓ Acceso activado para ${userName}`);
 
-    // Abrir cliente de correo con email de bienvenida
-    const subject = encodeURIComponent("[CyberPiezas] Tu acceso ha sido activado");
-    const body = encodeURIComponent(
+    // Mostrar el email de bienvenida en pantalla sin abrir pestaña
+    const subject = "[CyberPiezas] Tu acceso ha sido activado";
+    const body =
       `Hola ${userName},\n\n` +
       `¡Bienvenido a CyberPiezas! Tu acceso ha sido confirmado y ya puedes ingresar al sistema.\n\n` +
       `Ingresa en: https://cyberpiezas.com\n\n` +
       `Si tienes dudas, responde este correo.\n\n` +
-      `— Deivid\nCyberPiezas`
-    );
-    window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`);
+      `— Deivid\nCyberPiezas`;
+    setWelcomeEmail({ to: userEmail, subject, body });
   };
 
   const handleReject = async (userId: number, userName: string) => {
@@ -70,9 +74,17 @@ export default function AdminCyberpiezas() {
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
-    const subject = encodeURIComponent("[CyberPiezas] Mensaje del equipo");
-    const body = encodeURIComponent(`Hola ${userName},\n\n`);
-    window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`);
+    const subject = "[CyberPiezas] Mensaje del equipo";
+    const body = `Hola ${userName},\n\n`;
+    setWelcomeEmail({ to: userEmail, subject, body });
+  };
+
+  const handleCopyEmail = () => {
+    if (!welcomeEmail) return;
+    const text = `Para: ${welcomeEmail.to}\nAsunto: ${welcomeEmail.subject}\n\n${welcomeEmail.body}`;
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Correo copiado al portapapeles");
+    });
   };
 
   // Filtrar usuarios por búsqueda
@@ -122,17 +134,17 @@ export default function AdminCyberpiezas() {
     const u = row.user ?? row;
     const status = u.status ?? "pending";
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border bg-secondary/20 hover:border-primary/30 transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:border-purple-500/30 transition-colors">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-foreground truncate">{u.name || "Sin nombre"}</p>
+            <p className="font-semibold text-white truncate">{u.name || "Sin nombre"}</p>
             {getStatusBadge(status)}
           </div>
           {u.businessName && (
-            <p className="text-sm text-primary/80 mt-0.5">🏪 {u.businessName}</p>
+            <p className="text-sm text-purple-300 mt-0.5">🏪 {u.businessName}</p>
           )}
-          <p className="text-sm text-muted-foreground truncate">{u.email}</p>
-          <p className="text-xs text-muted-foreground/60 mt-0.5">
+          <p className="text-sm text-slate-400 truncate">{u.email}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
             Registro: {u.createdAt ? format(new Date(u.createdAt), "dd/MM/yyyy", { locale: es }) : "—"}
           </p>
         </div>
@@ -141,8 +153,8 @@ export default function AdminCyberpiezas() {
             size="sm"
             variant="outline"
             onClick={() => handleSendEmail(u.email, u.name || "usuario")}
-            className="border-border hover:bg-secondary gap-1"
-            title="Enviar correo"
+            className="border-white/20 hover:bg-white/10 text-slate-300 gap-1"
+            title="Preparar correo"
           >
             <Mail className="w-3.5 h-3.5" />
           </Button>
@@ -173,128 +185,159 @@ export default function AdminCyberpiezas() {
     );
   };
 
-  if (user?.role !== "admin") {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Acceso restringido al administrador.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
+  // Layout propio aislado — sin DashboardLayout de boutique
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">Panel CyberPiezas</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 text-white">
+      {/* Header fijo */}
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-950/80 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/cyberpiezas")}
+            className="text-slate-400 hover:text-white gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Regresar
+          </Button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-purple-400" />
+            <span className="font-semibold text-white">Panel CyberPiezas</span>
           </div>
-          <p className="text-muted-foreground text-sm">Gestión centralizada de suscriptores y accesos. Solo visible para ti.</p>
+          <span className="text-xs text-slate-500 ml-auto">Solo visible para ti</span>
         </div>
+      </header>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Total registrados</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{allUsers.length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Pendientes de confirmar</p>
-              <p className="text-3xl font-bold text-yellow-400 mt-1">{pendingUsers.length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Activos</p>
-              <p className="text-3xl font-bold text-emerald-400 mt-1">{activeUsers.length}</p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Contenido */}
+      <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
 
-        {/* Búsqueda */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, negocio o email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        {isLoading && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span>Cargando suscriptores...</span>
+        {/* Acceso restringido */}
+        {user?.role !== "admin" && (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-slate-400">Acceso restringido al administrador.</p>
           </div>
         )}
 
-        {/* Pendientes */}
-        {pendingUsers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-400">
-                <Users className="w-5 h-5" />
-                Pendientes de confirmación ({pendingUsers.length})
-              </CardTitle>
-              <CardDescription>Estos usuarios se registraron pero aún no tienen acceso activo.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {pendingUsers.map((row: any, i: number) => (
-                <UserRow key={(row.user ?? row).id ?? i} row={row} />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        {user?.role === "admin" && (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <p className="text-sm text-slate-400">Total registrados</p>
+                <p className="text-3xl font-bold text-white mt-1">{allUsers.length}</p>
+              </div>
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
+                <p className="text-sm text-yellow-400/80">Pendientes de confirmar</p>
+                <p className="text-3xl font-bold text-yellow-400 mt-1">{pendingUsers.length}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <p className="text-sm text-emerald-400/80">Activos</p>
+                <p className="text-3xl font-bold text-emerald-400 mt-1">{activeUsers.length}</p>
+              </div>
+            </div>
 
-        {/* Activos */}
-        {activeUsers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-emerald-400">
-                <CheckCircle2 className="w-5 h-5" />
-                Suscriptores activos ({activeUsers.length})
-              </CardTitle>
-              <CardDescription>Usuarios con acceso confirmado al sistema.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {activeUsers.map((row: any, i: number) => (
-                <UserRow key={(row.user ?? row).id ?? i} row={row} />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+            {/* Búsqueda */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Input
+                placeholder="Buscar por nombre, negocio o email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500/50"
+              />
+            </div>
 
-        {/* Inactivos */}
-        {inactiveUsers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-muted-foreground">
-                <XCircle className="w-5 h-5" />
-                Inactivos / Suspendidos ({inactiveUsers.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {inactiveUsers.map((row: any, i: number) => (
-                <UserRow key={(row.user ?? row).id ?? i} row={row} />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+            {isLoading && (
+              <div className="flex items-center gap-2 text-slate-400">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Cargando suscriptores...</span>
+              </div>
+            )}
 
-        {!isLoading && allUsers.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>Aún no hay usuarios registrados.</p>
-          </div>
+            {/* Modal de correo en pantalla */}
+            {welcomeEmail && (
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-purple-300">✉ Correo preparado</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
+                      <Copy className="w-3.5 h-3.5" /> Copiar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">
+                      ✕
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-sm text-slate-300 space-y-1">
+                  <p><span className="text-slate-500">Para:</span> {welcomeEmail.to}</p>
+                  <p><span className="text-slate-500">Asunto:</span> {welcomeEmail.subject}</p>
+                </div>
+                <pre className="text-sm text-slate-300 whitespace-pre-wrap bg-black/20 rounded-lg p-3 font-sans">{welcomeEmail.body}</pre>
+              </div>
+            )}
+
+            {/* Pendientes */}
+            {pendingUsers.length > 0 && (
+              <Card className="bg-white/5 border-white/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-yellow-400">
+                    <Users className="w-5 h-5" />
+                    Pendientes de confirmación ({pendingUsers.length})
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">Estos usuarios se registraron pero aún no tienen acceso activo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {pendingUsers.map((row: any, i: number) => (
+                    <UserRow key={(row.user ?? row).id ?? i} row={row} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Activos */}
+            {activeUsers.length > 0 && (
+              <Card className="bg-white/5 border-white/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Suscriptores activos ({activeUsers.length})
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">Usuarios con acceso confirmado al sistema.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {activeUsers.map((row: any, i: number) => (
+                    <UserRow key={(row.user ?? row).id ?? i} row={row} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Inactivos */}
+            {inactiveUsers.length > 0 && (
+              <Card className="bg-white/5 border-white/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-slate-400">
+                    <XCircle className="w-5 h-5" />
+                    Inactivos / Suspendidos ({inactiveUsers.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {inactiveUsers.map((row: any, i: number) => (
+                    <UserRow key={(row.user ?? row).id ?? i} row={row} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {!isLoading && allUsers.length === 0 && (
+              <div className="text-center py-16 text-slate-500">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>Aún no hay usuarios registrados.</p>
+              </div>
+            )}
+          </>
         )}
-      </div>
-    </DashboardLayout>
+      </main>
+    </div>
   );
 }
