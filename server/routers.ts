@@ -476,7 +476,7 @@ export const appRouter = router({
     }),
 
     getAllUsers: adminProcedure.query(async () => {
-      return await db.getUsersWithAssignedBranch();
+      return await db.getAllUsersWithProgramAccess();
     }),
 
     accessLogs: adminProcedure

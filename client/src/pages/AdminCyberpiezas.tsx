@@ -118,18 +118,16 @@ export default function AdminCyberpiezas() {
     });
   }, [allUsers, searchQuery]);
 
-  // Separar por estado
+  // Separar por estado — usar row.status que viene del servidor (de userProgramAccess)
   const pendingUsers = filteredUsers.filter((row: any) => {
-    const u = row.user ?? row;
-    return u.status === "pending" || !u.status;
+    const status = row.status ?? "pending";
+    return status === "pending" || status === "inactive" || status === "suspended" || status === "expired";
   });
   const activeUsers = filteredUsers.filter((row: any) => {
-    const u = row.user ?? row;
-    return u.status === "active";
+    return row.status === "active";
   });
   const inactiveUsers = filteredUsers.filter((row: any) => {
-    const u = row.user ?? row;
-    return u.status === "inactive" || u.status === "suspended" || u.status === "expired";
+    return row.status === "inactive" || row.status === "suspended" || row.status === "expired";
   });
 
   const getStatusBadge = (status: string) => {
@@ -149,7 +147,8 @@ export default function AdminCyberpiezas() {
 
   const UserRow = ({ row }: { row: any }) => {
     const u = row.user ?? row;
-    const status = u.status ?? "pending";
+    // status viene del servidor (de userProgramAccess), no de la tabla users
+    const status = row.status ?? "pending";
     return (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:border-purple-500/30 transition-colors">
         <div className="flex-1 min-w-0">

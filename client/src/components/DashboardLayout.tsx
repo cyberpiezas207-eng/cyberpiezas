@@ -240,9 +240,16 @@ function DashboardLayoutContent({
       termsStatusQuery.refetch();
     },
   });
-  // Combinar DB + localStorage como fallback inmediato
+  // Estado optimista local: se activa inmediatamente al presionar Aceptar
+  // sin esperar el refetch de la DB (evita el bug del ?? con false)
+  const [localAccepted, setLocalAccepted] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(TERMS_ACCEPTED_KEY) === "true";
+  });
+  // Combinar: DB confirmada || localStorage || estado optimista local
   const hasAcceptedTerms =
-    termsStatusQuery.data?.accepted ??
+    termsStatusQuery.data?.accepted === true ||
+    localAccepted ||
     (typeof window !== "undefined" && window.localStorage.getItem(TERMS_ACCEPTED_KEY) === "true");
   const [termsChecked, setTermsChecked] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -312,7 +319,9 @@ function DashboardLayoutContent({
 
   const handleAcceptTerms = () => {
     if (!termsChecked) return;
-    // Guardar en localStorage para respuesta inmediata
+    // Activar estado optimista local INMEDIATAMENTE (cierra el modal al instante)
+    setLocalAccepted(true);
+    // Guardar en localStorage como respaldo persistente
     if (typeof window !== "undefined") {
       window.localStorage.setItem(TERMS_ACCEPTED_KEY, "true");
     }

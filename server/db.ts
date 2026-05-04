@@ -2465,3 +2465,43 @@ export async function getReturnsOfMonth(userId: number) {
     .sort((a, b) => b.count - a.count);
   return { total: returns.length, byReason };
 }
+
+// ============ ADMIN PANEL — USUARIOS CON ESTADO DE ACCESO ============
+
+/**
+ * Devuelve todos los usuarios con su estado en userProgramAccess (boutique).
+ * Usado por el panel AdminCyberpiezas para mostrar correctamente quién está
+ * activo, pendiente o inactivo.
+ */
+export async function getAllUsersWithProgramAccess() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const allUsers = await db
+    .select()
+    .from(users)
+    .orderBy(asc(users.createdAt));
+
+  if (allUsers.length === 0) return [];
+
+  const allAccess = await db
+    .select()
+    .from(userProgramAccess)
+    .where(eq(userProgramAccess.programCode, "boutique"));
+
+  const accessByUserId = new Map<number, typeof allAccess[number]>();
+  for (const a of allAccess) {
+    accessByUserId.set(a.userId, a);
+  }
+
+  return allUsers.map((u) => {
+    const access = accessByUserId.get(u.id) ?? null;
+    return {
+      user: u,
+      programAccess: access,
+      // status derivado: si tiene registro en userProgramAccess, usar ese status;
+      // si no tiene registro, se considera "pending"
+      status: access?.status ?? "pending",
+    };
+  });
+}
