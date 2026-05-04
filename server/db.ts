@@ -78,6 +78,41 @@ export async function getDb() {
   return _db;
 }
 
+/**
+ * Ejecuta migraciones de columnas nuevas directamente como SQL.
+ * Se llama al arrancar el servidor para garantizar que las columnas existen
+ * sin depender de archivos .sql externos que no se empaquetan en el build.
+ */
+export async function runStartupMigrations(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.log("[Startup Migrations] No DATABASE_URL, skipping.");
+    return;
+  }
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Startup Migrations] Could not get DB connection, skipping.");
+    return;
+  }
+  const migrations = [
+    // Columna para persistir aceptación de términos y condiciones por usuario
+    "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `termsAcceptedAt` timestamp NULL DEFAULT NULL",
+  ];
+  for (const migration of migrations) {
+    try {
+      await db.execute(sql.raw(migration));
+      console.log(`[Startup Migrations] OK: ${migration.slice(0, 60)}...`);
+    } catch (err: unknown) {
+      // Si la columna ya existe, MySQL lanza error 1060 — ignorar
+      const mysqlErr = err as { errno?: number };
+      if (mysqlErr?.errno === 1060) {
+        console.log(`[Startup Migrations] Column already exists, skipping.`);
+      } else {
+        console.error(`[Startup Migrations] Error (non-fatal):`, err);
+      }
+    }
+  }
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");

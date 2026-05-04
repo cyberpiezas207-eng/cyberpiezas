@@ -2,13 +2,12 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
-import path from "path";
-import { fileURLToPath } from "url";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { runStartupMigrations } from "../db";
 
 export type RunningServer = {
   app: express.Express;
@@ -16,27 +15,6 @@ export type RunningServer = {
   port: number;
   url: string;
 };
-
-async function runMigrations() {
-  if (!process.env.DATABASE_URL) {
-    console.log("[Migrations] No DATABASE_URL found, skipping migrations.");
-    return;
-  }
-  try {
-    const { drizzle } = await import("drizzle-orm/mysql2");
-    const { migrate } = await import("drizzle-orm/mysql2/migrator");
-    // Resolve the drizzle/ folder relative to the project root (two levels up from server/_core/)
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const migrationsFolder = path.resolve(__dirname, "../../drizzle");
-    const db = drizzle(process.env.DATABASE_URL);
-    await migrate(db, { migrationsFolder });
-    console.log("[Migrations] All migrations applied successfully.");
-  } catch (err) {
-    // Non-fatal: server will still start even if migrations fail
-    console.error("[Migrations] Migration error (non-fatal):", err);
-  }
-}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -59,8 +37,8 @@ async function findAvailablePort(startPort = 3000): Promise<number> {
 }
 
 export async function startServer(): Promise<RunningServer> {
-  // Run database migrations before starting the server
-  await runMigrations();
+  // Ejecutar migraciones de columnas nuevas antes de levantar el servidor
+  await runStartupMigrations();
 
   const app = express();
   const server = createServer(app);

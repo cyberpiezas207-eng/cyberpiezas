@@ -43,34 +43,51 @@ export default function AdminCyberpiezas() {
   });
 
   const handleConfirm = async (userId: number, userName: string, userEmail: string) => {
-    await upsertAccess.mutateAsync({
-      userId,
-      programCode: "boutique",
-      status: "active",
-      accessSource: "admin_override",
-    });
-    toast.success(`✓ Acceso activado para ${userName}`);
-
-    // Mostrar el email de bienvenida en pantalla sin abrir pestaña
-    const subject = "[CyberPiezas] Tu acceso ha sido activado";
-    const body =
-      `Hola ${userName},\n\n` +
-      `¡Bienvenido a CyberPiezas! Tu acceso ha sido confirmado y ya puedes ingresar al sistema.\n\n` +
-      `Ingresa en: https://cyberpiezas.com\n\n` +
-      `Si tienes dudas, responde este correo.\n\n` +
-      `— Deivid\nCyberPiezas`;
-    setWelcomeEmail({ to: userEmail, subject, body });
+    try {
+      await upsertAccess.mutateAsync({
+        userId,
+        programCode: "boutique",
+        status: "active",
+        accessSource: "admin_override",
+      });
+      toast.success(`✓ Acceso activado para ${userName}`);
+      // Mostrar el email de bienvenida en pantalla sin abrir pestaña
+      const subject = "[CyberPiezas] Tu acceso ha sido activado";
+      const body =
+        `Hola ${userName},\n\n` +
+        `¡Bienvenido a CyberPiezas! Tu acceso ha sido confirmado y ya puedes ingresar al sistema.\n\n` +
+        `Ingresa en: https://cyberpiezas.com\n\n` +
+        `Si tienes dudas, responde este correo.\n\n` +
+        `— Deivid\nCyberPiezas`;
+      setWelcomeEmail({ to: userEmail, subject, body });
+    } catch (err: unknown) {
+      const trpcErr = err as { data?: { code?: string }; message?: string };
+      if (trpcErr?.data?.code === "FORBIDDEN") {
+        toast.error("Sin permisos: verifica que OWNER_OPEN_ID en Railway coincide con tu cuenta.");
+      } else {
+        toast.error(`Error al confirmar: ${trpcErr?.message ?? "Error desconocido"}`);
+      }
+    }
   };
 
   const handleReject = async (userId: number, userName: string) => {
     if (!confirm(`¿Desactivar el acceso de ${userName}?`)) return;
-    await upsertAccess.mutateAsync({
-      userId,
-      programCode: "boutique",
-      status: "inactive",
-      accessSource: "admin_override",
-    });
-    toast.success(`Acceso desactivado para ${userName}`);
+    try {
+      await upsertAccess.mutateAsync({
+        userId,
+        programCode: "boutique",
+        status: "inactive",
+        accessSource: "admin_override",
+      });
+      toast.success(`Acceso desactivado para ${userName}`);
+    } catch (err: unknown) {
+      const trpcErr = err as { data?: { code?: string }; message?: string };
+      if (trpcErr?.data?.code === "FORBIDDEN") {
+        toast.error("Sin permisos: verifica que OWNER_OPEN_ID en Railway coincide con tu cuenta.");
+      } else {
+        toast.error(`Error: ${trpcErr?.message ?? "Error desconocido"}`);
+      }
+    }
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
