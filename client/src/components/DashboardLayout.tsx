@@ -96,7 +96,7 @@ const menuItems: MenuItem[] = [
   { icon: CreditCard, label: "Mi Suscripción", path: "/subscription", section: "administracion", program: "boutique" },
   { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "administracion", program: "boutique" },
   { icon: Settings2, label: "Configuración de tienda", path: "/settings/pos-hardware", section: "administracion", program: "boutique" },
-  { icon: FileText, label: "Términos y condiciones", path: "/terms", section: "administracion", program: "boutique" },
+  { icon: FileText, label: "Términos y condiciones", path: "/terms", section: "oculto", program: "boutique" }, // OCULTO: no aparece en menú lateral, la ruta /terms sigue activa
   { icon: ShieldCheck, label: "Panel CyberPiezas", path: "/admin-cyberpiezas", section: "oculto", roles: ["admin"] },
 
   // ── Ocultos (código intacto, no se renderizan en el menú) ──

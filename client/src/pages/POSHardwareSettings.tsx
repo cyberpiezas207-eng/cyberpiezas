@@ -422,6 +422,7 @@ export default function POSHardwareSettings() {
                 </p>
               </div>
 
+{/* OCULTO: Botones de acceso rápido — ya existen en el menú lateral del suscriptor, se ocultan para evitar duplicación
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button variant="outline" onClick={() => setLocation("/branches")} className="gap-2" disabled={!canManageBusiness}>
                   <Building2 className="h-4 w-4" />
@@ -440,6 +441,7 @@ export default function POSHardwareSettings() {
                   Conectar celular / offline
                 </Button>
               </div>
+*/}
 
             </CardContent>
           </Card>

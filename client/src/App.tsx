@@ -287,7 +287,8 @@ function Router() {
       </Route>
 
       <Route path="/gestion-acceso">
-        <ProtectedRoute requiredProgram="boutique">
+        {/* MOVIDO AL PANEL CYBERPIEZAS: solo accesible para el admin */}
+        <ProtectedRoute requiredRole="admin">
           <GestionAccesoSuscriptor />
         </ProtectedRoute>
       </Route>

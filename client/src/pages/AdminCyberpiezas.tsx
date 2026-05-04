@@ -351,6 +351,28 @@ export default function AdminCyberpiezas() {
                 <p>Aún no hay usuarios registrados.</p>
               </div>
             )}
+
+            {/* Gestión de Acceso de Suscriptores */}
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-400">
+                  <ShieldCheck className="w-5 h-5" />
+                  Gestión de Acceso de Suscriptores
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Administra los accesos, suscripciones, anualidades y requisitos pendientes de cada suscriptor.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => setLocation("/gestion-acceso")}
+                  className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Abrir Gestión de Acceso
+                </Button>
+              </CardContent>
+            </Card>
           </>
         )}
       </main>
