@@ -252,6 +252,18 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/settings/pos-hardware">
+        <ProtectedRoute requiredProgram="boutique">
+          <POSHardwareSettings />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/settings/offline-sync">
+        <ProtectedRoute requiredRole="admin">
+          <OfflineSyncSettings />
+        </ProtectedRoute>
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );
