@@ -98,6 +98,20 @@ export default function POS() {
     },
   });
 
+  const createSale = trpc.sales.create.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.sales.listToday.invalidate(),
+        utils.dashboard.todayStats.invalidate(),
+        utils.dashboard.topProducts.invalidate(),
+      ]);
+    },
+  });
+
+  const selectedBranch = branches.data?.find((branch) => branch.id === Number(selectedBranchId));
+  const assignedBranch = myBranch.data?.branch ?? null;
+  const activeBranch = selectedBranch ?? assignedBranch ?? null;
+
   const inlineVariantsQuery = trpc.variants.getByProductId.useQuery(
     { productId: inlineVariant?.productId ?? 0, branchId: activeBranch?.id ?? undefined },
     { enabled: inlineVariant !== null },
@@ -115,34 +129,19 @@ export default function POS() {
       .filter(Boolean);
   }, [inlineVariantsQuery.data, inlineColor]);
 
-  const createSale = trpc.sales.create.useMutation({
-    onSuccess: async () => {
-      await Promise.all([
-        utils.sales.listToday.invalidate(),
-        utils.dashboard.todayStats.invalidate(),
-        utils.dashboard.topProducts.invalidate(),
-      ]);
-    },
-  });
-
-  // Categorías únicas extraídas de todos los productos cargados
+  // Categorías únicas extraídas de los productos cargados usando categoryId
+  const categoriesQuery = trpc.categories.list.useQuery();
   const availableCategories = useMemo(() => {
-    const cats = new Set<string>();
-    for (const p of products.data ?? []) {
-      if (p.category) cats.add(p.category);
-    }
-    return Array.from(cats).sort();
-  }, [products.data]);
+    const usedIds = new Set((products.data ?? []).map((p) => p.categoryId).filter(Boolean));
+    return (categoriesQuery.data ?? []).filter((c) => usedIds.has(c.id));
+  }, [products.data, categoriesQuery.data]);
 
   // Productos base (búsqueda o listado completo) filtrados por categoría
   const baseProducts = searchQuery.trim().length > 0 ? searchResults.data : products.data;
   const displayedProducts = useMemo(() => {
     if (!selectedCategory) return baseProducts;
-    return (baseProducts ?? []).filter((p) => p.category === selectedCategory);
+    return (baseProducts ?? []).filter((p) => String(p.categoryId) === selectedCategory);
   }, [baseProducts, selectedCategory]);
-  const selectedBranch = branches.data?.find((branch) => branch.id === Number(selectedBranchId));
-  const assignedBranch = myBranch.data?.branch ?? null;
-  const activeBranch = selectedBranch ?? assignedBranch ?? null;
   const isAdmin = user?.role === "admin";
   const isCashier = user?.role === "cashier";
 
@@ -534,15 +533,15 @@ export default function POS() {
                   </button>
                   {availableCategories.map((cat) => (
                     <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(String(cat.id) === selectedCategory ? null : String(cat.id))}
                       className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors capitalize ${
-                        selectedCategory === cat
+                        selectedCategory === String(cat.id)
                           ? "bg-purple-600 text-white"
                           : "bg-slate-700/60 text-slate-300 hover:bg-slate-600/80"
                       }`}
                     >
-                      {cat}
+                      {cat.name}
                     </button>
                   ))}
                 </div>

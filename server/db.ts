@@ -2417,9 +2417,11 @@ export async function getProductsWithoutMovement(userId: number, days: number = 
   const since = new Date();
   since.setDate(since.getDate() - days);
   const allProds = await db
-    .select({ id: products.id, name: products.name })
+    .selectDistinct({ id: products.id, name: products.name })
     .from(products)
-    .where(eq(products.userId, userId));
+    .innerJoin(productBranchAssignments, eq(productBranchAssignments.productId, products.id))
+    .innerJoin(branches, eq(productBranchAssignments.branchId, branches.id))
+    .where(and(eq(branches.userId, userId), eq(branches.isActive, true), eq(products.isActive, true)));
   if (allProds.length === 0) return [];
   const activeSales = await db
     .selectDistinct({ productName: saleDetails.productName })
