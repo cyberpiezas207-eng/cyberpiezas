@@ -469,6 +469,23 @@ export async function createCategory(userId: number, name: string, description?:
   return result[0];
 }
 
+export async function updateCategory(id: number, userId: number, name: string, description?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(categories)
+    .set({ name, description: description ?? null })
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)));
+}
+
+export async function deleteCategory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(categories)
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)));
+}
+
 // ============ PRODUCTS ============
 
 export async function getProductBranchAssignments(productId: number) {

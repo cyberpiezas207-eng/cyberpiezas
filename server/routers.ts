@@ -643,6 +643,26 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         return await db.createCategory(ctx.user.id, input.name, input.description);
       }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          name: z.string().min(1),
+          description: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.updateCategory(input.id, ctx.user.id, input.name, input.description);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteCategory(input.id, ctx.user.id);
+        return { success: true };
+      }),
   }),
 
   // ============ PRODUCTS ============

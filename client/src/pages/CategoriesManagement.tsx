@@ -9,30 +9,37 @@ import { trpc } from "@/lib/trpc";
 import { Plus, Edit2, Trash2, Tag } from "lucide-react";
 import { toast } from "sonner";
 
+type Category = {
+  id: number;
+  name: string;
+  description?: string | null;
+};
+
 export default function CategoriesManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-  });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [editFormData, setEditFormData] = useState({ name: "", description: "" });
 
   const categories = trpc.categories.list.useQuery();
   const createCategory = trpc.categories.create.useMutation();
+  const updateCategory = trpc.categories.update.useMutation();
+  const deleteCategory = trpc.categories.delete.useMutation();
 
+  // ── Crear ──────────────────────────────────────────────────────────────────
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.name.trim()) {
       toast.error("El nombre de la categoría es requerido");
       return;
     }
-
     try {
       await createCategory.mutateAsync({
         name: formData.name,
         description: formData.description,
       });
-
       toast.success("Categoría creada exitosamente");
       setFormData({ name: "", description: "" });
       setIsCreateDialogOpen(false);
@@ -42,14 +49,48 @@ export default function CategoriesManagement() {
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta categoría?")) {
+  // ── Abrir modal de edición ─────────────────────────────────────────────────
+  const handleOpenEdit = (category: Category) => {
+    setEditingCategory(category);
+    setEditFormData({
+      name: category.name,
+      description: category.description ?? "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  // ── Guardar edición ────────────────────────────────────────────────────────
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    if (!editFormData.name.trim()) {
+      toast.error("El nombre de la categoría es requerido");
       return;
     }
-
     try {
-      toast.info("Eliminación de categorías disponible en próxima versión");
-      // TODO: Implementar eliminación de categorías
+      await updateCategory.mutateAsync({
+        id: editingCategory.id,
+        name: editFormData.name,
+        description: editFormData.description,
+      });
+      toast.success("Categoría actualizada exitosamente");
+      setIsEditDialogOpen(false);
+      setEditingCategory(null);
+      categories.refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Error al actualizar la categoría");
+    }
+  };
+
+  // ── Eliminar ───────────────────────────────────────────────────────────────
+  const handleDeleteCategory = async (id: number, name: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar la categoría "${name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await deleteCategory.mutateAsync({ id });
+      toast.success("Categoría eliminada exitosamente");
+      categories.refetch();
     } catch (error: any) {
       toast.error(error.message || "Error al eliminar la categoría");
     }
@@ -62,9 +103,7 @@ export default function CategoriesManagement() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-primary mb-2">Gestión de Categorías</h1>
-            <p className="text-muted-foreground">
-              Organiza tus productos por categorías
-            </p>
+            <p className="text-muted-foreground">Organiza tus productos por categorías</p>
           </div>
           <Button
             onClick={() => setIsCreateDialogOpen(true)}
@@ -111,6 +150,7 @@ export default function CategoriesManagement() {
                           variant="outline"
                           size="sm"
                           className="flex-1 gap-1"
+                          onClick={() => handleOpenEdit(category)}
                         >
                           <Edit2 className="h-3 w-3" />
                           Editar
@@ -119,7 +159,8 @@ export default function CategoriesManagement() {
                           variant="outline"
                           size="sm"
                           className="flex-1 text-destructive gap-1"
-                          onClick={() => handleDeleteCategory(category.id)}
+                          disabled={deleteCategory.isPending}
+                          onClick={() => handleDeleteCategory(category.id, category.name)}
                         >
                           <Trash2 className="h-3 w-3" />
                           Eliminar
@@ -142,12 +183,9 @@ export default function CategoriesManagement() {
                 Agrega una nueva categoría para organizar tus productos
               </DialogDescription>
             </DialogHeader>
-
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div>
-                <Label htmlFor="name" className="text-foreground font-semibold">
-                  Nombre *
-                </Label>
+                <Label htmlFor="name" className="text-foreground font-semibold">Nombre *</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -156,11 +194,8 @@ export default function CategoriesManagement() {
                   className="mt-2"
                 />
               </div>
-
               <div>
-                <Label htmlFor="description" className="text-foreground font-semibold">
-                  Descripción
-                </Label>
+                <Label htmlFor="description" className="text-foreground font-semibold">Descripción</Label>
                 <Input
                   id="description"
                   value={formData.description}
@@ -169,13 +204,8 @@ export default function CategoriesManagement() {
                   className="mt-2"
                 />
               </div>
-
               <div className="flex gap-3 justify-end pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
                 <Button
@@ -184,6 +214,52 @@ export default function CategoriesManagement() {
                   disabled={createCategory.isPending}
                 >
                   {createCategory.isPending ? "Creando..." : "Crear Categoría"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Category Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) setEditingCategory(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-primary">Editar Categoría</DialogTitle>
+              <DialogDescription>
+                Modifica el nombre o descripción de la categoría
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateCategory} className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name" className="text-foreground font-semibold">Nombre *</Label>
+                <Input
+                  id="edit-name"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  placeholder="Nombre de la categoría"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-description" className="text-foreground font-semibold">Descripción</Label>
+                <Input
+                  id="edit-description"
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  placeholder="Descripción opcional"
+                  className="mt-2"
+                />
+              </div>
+              <div className="flex gap-3 justify-end pt-4">
+                <Button type="button" variant="outline" onClick={() => { setIsEditDialogOpen(false); setEditingCategory(null); }}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  disabled={updateCategory.isPending}
+                >
+                  {updateCategory.isPending ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </div>
             </form>
