@@ -15,6 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Heart, PawPrint, Store, Target, X } from "lucide-react";
 
+// ============================================================
+// DONACIONES CONFIRMADAS — Editar manualmente al verificar
+// comprobante de cada donante. Solo estas cantidades avanzan
+// la barra de progreso. Las no confirmadas NO cuentan.
+// Formato: { [campaignId]: monto_total_confirmado_en_MXN }
+// ============================================================
+const CONFIRMED_DONATIONS: Record<string, number> = {
+  cyberpiezas: 0,   // <- editar al confirmar donaciones para Cyberpiezas
+  perrito: 0,       // <- editar al confirmar donaciones para el perrito
+  negocio: 0,       // <- editar al confirmar donaciones para el negocio
+};
+
 const campaigns = [
   {
     id: "cyberpiezas",
@@ -331,7 +343,8 @@ export function Donations() {
       <section className="container py-12 md:py-16">
         <div className="grid gap-6 lg:grid-cols-3">
           {campaigns.map((campaign) => {
-            const percentage = Math.min(100, Math.round((campaign.raised / campaign.goal) * 100));
+            const confirmed = CONFIRMED_DONATIONS[campaign.id] ?? 0;
+            const percentage = Math.min(100, Math.round((confirmed / campaign.goal) * 100));
             const Icon = campaign.icon;
 
             return (
@@ -360,7 +373,7 @@ export function Donations() {
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Actual</p>
-                        <p className="mt-1 text-lg font-bold text-white">{formatCurrency(campaign.raised)}</p>
+                        <p className="mt-1 text-lg font-bold text-white">{formatCurrency(confirmed)}</p>
                       </div>
                     </div>
                   </div>
