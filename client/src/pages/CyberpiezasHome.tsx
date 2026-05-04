@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Heart, Zap, TrendingUp, ArrowRight, Check, ChevronLeft, X, LogOut } from "lucide-react";
+import { Heart, Zap, TrendingUp, ArrowRight, Check, ChevronLeft, ChevronRight, X, LogOut } from "lucide-react";
 
 interface POSSystem {
   id: string;
@@ -76,10 +76,107 @@ const systems: POSSystem[] = [
   },
 ];
 
+const storyChapters = [
+  {
+    num: "01",
+    title: "El inicio",
+    subtitle: "Todo empezó en una cochera",
+    text: "No había oficina, no había capital, no había plan de negocios. Solo había ganas de hacer algo. Empecé a vender lo que podía: cables, accesorios, lo que fuera. La cochera de mi casa fue mi primer local. Ahí aprendí que el negocio no empieza con dinero, empieza con decisión.",
+    quote: "\"El primer paso no tiene que ser perfecto. Solo tiene que darse.\"",
+    highlight: false,
+  },
+  {
+    num: "02",
+    title: "La moto",
+    subtitle: "La primera gran compra con mis propios ahorros",
+    text: "Ahorré durante meses. Cada venta, cada peso que entraba, lo guardaba. No para gastar, sino para invertir. Cuando compré mi primera moto con dinero propio, entendí lo que significa construir algo desde cero. No fue un lujo: fue una herramienta, y también fue una prueba de que podía.",
+    quote: "\"Ahorrar no es privarse. Es elegir en qué creer.\"",
+    highlight: false,
+  },
+  {
+    num: "03",
+    title: "Las caídas",
+    subtitle: "Me estafaron. Una y otra vez.",
+    text: "Hubo socios que no cumplieron. Clientes que no pagaron. Proveedores que desaparecieron. Cada estafa dejó una marca, pero también dejó una lección. Aprendí a leer a las personas, a poner límites, a no mezclar amistad con negocios. Las caídas no me detuvieron: me hicieron más cuidadoso.",
+    quote: "\"Que te estafen una vez es mala suerte. Que te estafen dos veces es una lección que ya aprendiste.\"",
+    highlight: false,
+  },
+  {
+    num: "04",
+    title: "La computación",
+    subtitle: "Encontré mi camino en la tecnología",
+    text: "Siempre me llamó la atención cómo funcionaban las cosas por dentro. Empecé a estudiar programación, a entender sistemas, a ver el mundo como un conjunto de problemas que tienen solución. La tecnología no fue solo una carrera: fue el idioma en el que empecé a pensar. Y con ese idioma, todo cambió.",
+    quote: "\"La tecnología no reemplaza el trabajo. Lo multiplica.\"",
+    highlight: false,
+  },
+  {
+    num: "05",
+    title: "El problema real",
+    subtitle: "Mi mamá no podía irse de su tienda",
+    text: "Mi mamá tenía una tienda. Y no podía salir. Si salía, se perdía una venta. Si no estaba, nadie sabía qué había en inventario. Dependía de su presencia física para que el negocio funcionara. Eso no es libertad: es una trampa disfrazada de trabajo. Ese problema se volvió mi motivación.",
+    quote: "\"Un negocio que te necesita todo el tiempo no es un negocio. Es un segundo trabajo sin sueldo.\"",
+    highlight: false,
+  },
+  {
+    num: "06",
+    title: "La solución",
+    subtitle: "Busqué un punto de venta. Lo encontré. Lo mejoré.",
+    text: "Busqué herramientas en el mercado. Encontré opciones caras, complicadas, o diseñadas para empresas grandes. Nada para el negocio pequeño, real, mexicano. Entonces decidí construirlo yo mismo: un sistema que cualquier dueño de tienda pudiera usar sin ser técnico, sin pagar una fortuna, sin depender de nadie.",
+    quote: "\"Si no existe la herramienta que necesitas, constrúyela.\"",
+    highlight: false,
+  },
+  {
+    num: "07",
+    title: "Hoy",
+    subtitle: "CyberPiezas: constante, aunque no perfecta",
+    text: "CyberPiezas no es el producto terminado. Es el resultado de años de trabajo, errores, aprendizajes y una convicción que no cambió: los negocios pequeños merecen herramientas de calidad. Seguimos construyendo, mejorando y escuchando. No somos perfectos, pero somos constantes. Y eso, en los negocios, vale más.",
+    quote: "\"No necesitas ser perfecto para ser real. Solo necesitas seguir.\"",
+    highlight: true,
+  },
+];
+
 export function CyberpiezasHome() {
   const [, setLocation] = useLocation();
   const { isAuthenticated, logout } = useAuth();
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [storyChapter, setStoryChapter] = useState(0);
+
+  // Estado sección "Estamos Abiertos a Ti"
+  const [openTab, setOpenTab] = useState<"colaborar" | "adquirir">("colaborar");
+  // Pestaña 1 — Quiero colaborar
+  const [colabNombre, setColabNombre] = useState("");
+  const [colabContacto, setColabContacto] = useState("");
+  const [colabChips, setColabChips] = useState<string[]>([]);
+  const [colabMensaje, setColabMensaje] = useState("");
+  // Pestaña 2 — Me interesa adquirirlo
+  const [adqNombre, setAdqNombre] = useState("");
+  const [adqContacto, setAdqContacto] = useState("");
+  const [adqEmpresa, setAdqEmpresa] = useState("");
+  const [adqInteres, setAdqInteres] = useState("");
+
+  const colabChipOptions = ["Inversión", "Desarrollo", "Ventas", "Diseño", "Distribución", "Otro"];
+
+  const toggleChip = (chip: string) => {
+    setColabChips((prev) =>
+      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
+    );
+  };
+
+  const handleColabSubmit = () => {
+    const subject = encodeURIComponent("[Cyberpiezas] Quiero colaborar");
+    const body = encodeURIComponent(
+      `Nombre: ${colabNombre}\nContacto (correo/WhatsApp): ${colabContacto}\nÁreas de interés: ${colabChips.join(", ") || "No especificado"}\n\nMensaje:\n${colabMensaje || "(sin mensaje adicional)"}`
+    );
+    window.location.href = `mailto:cyberpiezas207@gmail.com?subject=${subject}&body=${body}`;
+  };
+
+  const handleAdqSubmit = () => {
+    const subject = encodeURIComponent("[Cyberpiezas] Me interesa adquirirlo");
+    const body = encodeURIComponent(
+      `Nombre: ${adqNombre}\nContacto (correo/WhatsApp): ${adqContacto}\nEmpresa / Perfil: ${adqEmpresa}\n\n¿Qué te interesa del proyecto?\n${adqInteres}`
+    );
+    window.location.href = `mailto:cyberpiezas207@gmail.com?subject=${subject}&body=${body}`;
+  };
 
   const handleSystemClick = (system: POSSystem) => {
     if (system.status === "active" && system.path && isAuthenticated) {
@@ -425,6 +522,258 @@ export function CyberpiezasHome() {
                 Seleccionar
               </Button>
             </Card>
+          </div>
+        </div>
+
+        {/* ===== NUESTRA HISTORIA ===== */}
+        <div className="mb-32">
+          <div className="text-center mb-12">
+            <h2 className="text-5xl font-bold text-white mb-4">Nuestra Historia</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Cada negocio tiene una historia. Esta es la nuestra.
+            </p>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="flex gap-1.5 mb-8 max-w-2xl mx-auto px-4">
+            {storyChapters.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStoryChapter(i)}
+                className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                  i === storyChapter
+                    ? "bg-purple-400"
+                    : i < storyChapter
+                    ? "bg-purple-700"
+                    : "bg-slate-600"
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Tarjeta activa */}
+          <div className="max-w-2xl mx-auto px-4">
+            {(() => {
+              const ch = storyChapters[storyChapter];
+              return (
+                <div
+                  className={`rounded-2xl p-8 border transition-all duration-300 ${
+                    ch.highlight
+                      ? "bg-purple-900/40 border-purple-500/50"
+                      : "bg-slate-800/60 border-slate-700/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className={`text-4xl font-black ${
+                      ch.highlight ? "text-purple-300" : "text-slate-600"
+                    }`}>
+                      {ch.num}
+                    </span>
+                    <div>
+                      <p className="text-slate-400 text-sm uppercase tracking-widest">
+                        Capítulo {ch.num}
+                      </p>
+                      <h3 className="text-2xl font-bold text-white">{ch.title}</h3>
+                      <p className={`text-sm font-medium ${
+                        ch.highlight ? "text-purple-300" : "text-purple-400"
+                      }`}>
+                        {ch.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-slate-300 text-base leading-relaxed mb-6">
+                    {ch.text}
+                  </p>
+
+                  <blockquote className={`border-l-4 pl-4 italic text-sm ${
+                    ch.highlight
+                      ? "border-purple-400 text-purple-200"
+                      : "border-purple-600 text-slate-400"
+                  }`}>
+                    {ch.quote}
+                  </blockquote>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Botones de navegación */}
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              onClick={() => setStoryChapter((p) => Math.max(0, p - 1))}
+              disabled={storyChapter === 0}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Anterior
+            </Button>
+            <span className="text-slate-500 text-sm">
+              {storyChapter + 1} / {storyChapters.length}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setStoryChapter((p) => Math.min(storyChapters.length - 1, p + 1))}
+              disabled={storyChapter === storyChapters.length - 1}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30"
+            >
+              Siguiente
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+
+        {/* ===== ESTAMOS ABIERTOS A TI ===== */}
+        <div className="mb-32">
+          <div className="text-center mb-12">
+            <h2 className="text-5xl font-bold text-white mb-4">Estamos Abiertos a Ti</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Ya sea que quieras colaborar o conocer más sobre el proyecto, aquí hay un lugar para ti.
+            </p>
+          </div>
+
+          <div className="max-w-2xl mx-auto px-4">
+            {/* Pestañas */}
+            <div className="flex rounded-xl overflow-hidden border border-slate-700 mb-8">
+              <button
+                onClick={() => setOpenTab("colaborar")}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+                  openTab === "colaborar"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                Quiero colaborar
+              </button>
+              <button
+                onClick={() => setOpenTab("adquirir")}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+                  openTab === "adquirir"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                Me interesa adquirirlo
+              </button>
+            </div>
+
+            {/* Pestaña 1: Quiero colaborar */}
+            {openTab === "colaborar" && (
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 space-y-5">
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={colabNombre}
+                    onChange={(e) => setColabNombre(e.target.value)}
+                    placeholder="Tu nombre"
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Correo o WhatsApp</label>
+                  <input
+                    type="text"
+                    value={colabContacto}
+                    onChange={(e) => setColabContacto(e.target.value)}
+                    placeholder="ejemplo@correo.com o +52 777..."
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">¿En qué te gustaría colaborar?</label>
+                  <div className="flex flex-wrap gap-2">
+                    {colabChipOptions.map((chip) => (
+                      <button
+                        key={chip}
+                        onClick={() => toggleChip(chip)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          colabChips.includes(chip)
+                            ? "bg-purple-600 border-purple-500 text-white"
+                            : "bg-slate-700 border-slate-600 text-slate-300 hover:border-purple-500"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Cuéntanos más <span className="text-slate-500">(opcional)</span></label>
+                  <textarea
+                    value={colabMensaje}
+                    onChange={(e) => setColabMensaje(e.target.value)}
+                    rows={4}
+                    placeholder="Comparte lo que tienes en mente..."
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 resize-none"
+                  />
+                </div>
+                <Button
+                  onClick={handleColabSubmit}
+                  disabled={!colabNombre.trim() || !colabContacto.trim()}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-40"
+                >
+                  Enviar mensaje
+                </Button>
+              </div>
+            )}
+
+            {/* Pestaña 2: Me interesa adquirirlo */}
+            {openTab === "adquirir" && (
+              <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 space-y-5">
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={adqNombre}
+                    onChange={(e) => setAdqNombre(e.target.value)}
+                    placeholder="Tu nombre"
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Correo o WhatsApp</label>
+                  <input
+                    type="text"
+                    value={adqContacto}
+                    onChange={(e) => setAdqContacto(e.target.value)}
+                    placeholder="ejemplo@correo.com o +52 777..."
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">Empresa o perfil</label>
+                  <input
+                    type="text"
+                    value={adqEmpresa}
+                    onChange={(e) => setAdqEmpresa(e.target.value)}
+                    placeholder="Nombre de tu empresa, rol o perfil profesional"
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-1.5">¿Qué te interesa del proyecto?</label>
+                  <textarea
+                    value={adqInteres}
+                    onChange={(e) => setAdqInteres(e.target.value)}
+                    rows={4}
+                    placeholder="Cuéntanos qué te llamó la atención y qué buscas..."
+                    className="w-full bg-slate-900/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 resize-none"
+                  />
+                </div>
+                <p className="text-slate-500 text-xs text-center">
+                  Proceso discreto y serio. Toda conversación es confidencial.
+                </p>
+                <Button
+                  onClick={handleAdqSubmit}
+                  disabled={!adqNombre.trim() || !adqContacto.trim() || !adqInteres.trim()}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-40"
+                >
+                  Iniciar conversación
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
