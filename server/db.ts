@@ -2333,3 +2333,135 @@ export async function updateLocalUserLastLogin(id: number): Promise<void> {
     .set({ lastLogin: new Date() })
     .where(eq(localUsers.id, id));
 }
+
+// ============ ANALYTICS BOUTIQUE ============
+
+export async function getTopSellingProductsOfMonth(userId: number, limit: number = 5) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return await db
+    .select({
+      productName: saleDetails.productName,
+      totalQuantity: sql<number>`SUM(${saleDetails.quantity})`,
+      totalRevenue: sql<string>`SUM(${saleDetails.lineTotal})`,
+    })
+    .from(saleDetails)
+    .innerJoin(sales, eq(saleDetails.saleId, sales.id))
+    .where(
+      and(
+        eq(sales.userId, userId),
+        gte(sales.createdAt, monthStart),
+        lte(sales.createdAt, monthEnd)
+      )
+    )
+    .groupBy(saleDetails.productName)
+    .orderBy(desc(sql<number>`SUM(${saleDetails.quantity})`))
+    .limit(limit);
+}
+
+export async function getSalesByVariantAttributes(userId: number, days: number = 30) {
+  const db = await getDb();
+  if (!db) return { bySizes: [], byColors: [] };
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const rows = await db
+    .select({
+      size: saleDetails.size,
+      color: saleDetails.color,
+      totalQuantity: sql<number>`SUM(${saleDetails.quantity})`,
+    })
+    .from(saleDetails)
+    .innerJoin(sales, eq(saleDetails.saleId, sales.id))
+    .where(and(eq(sales.userId, userId), gte(sales.createdAt, since)))
+    .groupBy(saleDetails.size, saleDetails.color)
+    .orderBy(desc(sql<number>`SUM(${saleDetails.quantity})`));
+
+  const sizeMap = new Map<string, number>();
+  const colorMap = new Map<string, number>();
+  for (const row of rows) {
+    if (row.size) sizeMap.set(row.size, (sizeMap.get(row.size) || 0) + Number(row.totalQuantity));
+    if (row.color) colorMap.set(row.color, (colorMap.get(row.color) || 0) + Number(row.totalQuantity));
+  }
+  const bySizes = Array.from(sizeMap.entries())
+    .map(([size, qty]) => ({ size, totalQuantity: qty }))
+    .sort((a, b) => b.totalQuantity - a.totalQuantity)
+    .slice(0, 8);
+  const byColors = Array.from(colorMap.entries())
+    .map(([color, qty]) => ({ color, totalQuantity: qty }))
+    .sort((a, b) => b.totalQuantity - a.totalQuantity)
+    .slice(0, 8);
+  return { bySizes, byColors };
+}
+
+export async function getProductsWithoutMovement(userId: number, days: number = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const allProds = await db
+    .select({ id: products.id, name: products.name })
+    .from(products)
+    .where(eq(products.userId, userId));
+  if (allProds.length === 0) return [];
+  const activeSales = await db
+    .selectDistinct({ productName: saleDetails.productName })
+    .from(saleDetails)
+    .innerJoin(sales, eq(saleDetails.saleId, sales.id))
+    .where(and(eq(sales.userId, userId), gte(sales.createdAt, since)));
+  const activeNames = new Set(activeSales.map((s) => s.productName));
+  return allProds.filter((p) => !activeNames.has(p.name));
+}
+
+export async function getSalesPeriodComparison(userId: number) {
+  const db = await getDb();
+  if (!db) return { thisWeek: 0, lastWeek: 0, thisMonth: 0, lastMonth: 0, thisWeekRevenue: 0, lastWeekRevenue: 0, thisMonthRevenue: 0, lastMonthRevenue: 0 };
+  const now = new Date();
+  const thisWeekStart = new Date(now);
+  thisWeekStart.setDate(now.getDate() - now.getDay());
+  thisWeekStart.setHours(0, 0, 0, 0);
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  const lastWeekEnd = new Date(thisWeekStart);
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+  const query = async (start: Date, end: Date) => {
+    const rows = await db!
+      .select({ count: sql<number>`COUNT(${sales.id})`, revenue: sql<string>`COALESCE(SUM(${sales.total}), 0)` })
+      .from(sales)
+      .where(and(eq(sales.userId, userId), gte(sales.createdAt, start), lte(sales.createdAt, end)));
+    return { count: Number(rows[0]?.count || 0), revenue: Number(rows[0]?.revenue || 0) };
+  };
+  const [tw, lw, tm, lm] = await Promise.all([
+    query(thisWeekStart, now),
+    query(lastWeekStart, lastWeekEnd),
+    query(thisMonthStart, now),
+    query(lastMonthStart, lastMonthEnd),
+  ]);
+  return { thisWeek: tw.count, lastWeek: lw.count, thisMonth: tm.count, lastMonth: lm.count, thisWeekRevenue: tw.revenue, lastWeekRevenue: lw.revenue, thisMonthRevenue: tm.revenue, lastMonthRevenue: lm.revenue };
+}
+
+export async function getReturnsOfMonth(userId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, byReason: [] as { reason: string; count: number }[] };
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const returns = await db
+    .select({ id: saleReturns.id, reason: saleReturns.reason })
+    .from(saleReturns)
+    .innerJoin(sales, eq(saleReturns.saleId, sales.id))
+    .where(and(eq(sales.userId, userId), gte(saleReturns.createdAt, monthStart), lte(saleReturns.createdAt, monthEnd)));
+  const reasonMap = new Map<string, number>();
+  for (const r of returns) {
+    const key = r.reason || "Sin motivo";
+    reasonMap.set(key, (reasonMap.get(key) || 0) + 1);
+  }
+  const byReason = Array.from(reasonMap.entries())
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count);
+  return { total: returns.length, byReason };
+}

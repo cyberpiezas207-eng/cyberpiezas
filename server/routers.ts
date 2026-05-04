@@ -1444,6 +1444,27 @@ export const appRouter = router({
     lowStockAlerts: adminProcedure.query(async () => {
       return await db.getVariantsWithLowStock(5);
     }),
+    topProductsMonth: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getTopSellingProductsOfMonth(ctx.user.id, input.limit || 5);
+      }),
+    salesByVariant: protectedProcedure
+      .input(z.object({ days: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getSalesByVariantAttributes(ctx.user.id, input.days || 30);
+      }),
+    productsWithoutMovement: protectedProcedure
+      .input(z.object({ days: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getProductsWithoutMovement(ctx.user.id, input.days || 30);
+      }),
+    periodComparison: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getSalesPeriodComparison(ctx.user.id);
+    }),
+    returnsOfMonth: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getReturnsOfMonth(ctx.user.id);
+    }),
   }),
 
   // ============ INVENTORY ============
