@@ -54,7 +54,7 @@ import { NotificationBell } from "./NotificationBell";
 type AppRole = "admin" | "cashier";
 type ProgramCode = "boutique" | "abarrotes" | "celine";
 
-type MenuSection = "principal" | "operacion" | "administracion" | "cuenta";
+type MenuSection = "principal" | "operacion" | "administracion" | "cuenta" | "oculto";
 
 type MenuItem = {
   icon: typeof LayoutDashboard;
@@ -70,25 +70,37 @@ const sectionLabels: Record<MenuSection, string> = {
   operacion: "Operación",
   administracion: "Administración",
   cuenta: "Cuenta",
+  oculto: "",
 };
 
+// Secciones visibles en el menú ("cuenta" y "oculto" no se renderizan)
+const visibleSections: MenuSection[] = ["principal", "operacion", "administracion"];
+
 const menuItems: MenuItem[] = [
+  // ── Principal ──────────────────────────────────────────────
   { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
+
+  // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
   { icon: Package, label: "Productos", path: "/products", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
   { icon: Tags, label: "Categorías", path: "/categories", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
   { icon: Boxes, label: "Variantes", path: "/variants", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
   { icon: Store, label: "Sucursales", path: "/branches", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
   { icon: Store, label: "Inventario", path: "/inventory-reports", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
+
+  // ── Administración (visible) ───────────────────────────────
   { icon: Bell, label: "Notificaciones", path: "/notifications", section: "administracion", program: "boutique" },
-  { icon: Bell, label: "Preferencias de notificaciones", path: "/notifications/preferences", section: "administracion", program: "boutique" },
-  { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "operacion", program: "boutique" },
-  { icon: CreditCard, label: "Mi Suscripción", path: "/subscription", section: "cuenta", program: "boutique" },
-  { icon: CheckCircle2, label: "Revisión de Pagos", path: "/admin/payment-review", section: "administracion", roles: ["admin"] },
-  { icon: Settings2, label: "Configuración", path: "/settings/pos-hardware", section: "cuenta", program: "boutique" },
-  { icon: LayoutDashboard, label: "Dashboard interno", path: "/dashboard", section: "cuenta", roles: ["admin"], program: "boutique" },
-  { icon: Cloud, label: "Sincronización Offline", path: "/settings/offline-sync", section: "cuenta", program: "boutique" },
+  { icon: CreditCard, label: "Mi Suscripción", path: "/subscription", section: "administracion", program: "boutique" },
+  { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "administracion", program: "boutique" },
+  { icon: Settings2, label: "Configuración de tienda", path: "/settings/pos-hardware", section: "administracion", program: "boutique" },
+  { icon: FileText, label: "Términos y condiciones", path: "/terms", section: "administracion", program: "boutique" },
+
+  // ── Ocultos (código intacto, no se renderizan en el menú) ──
+  { icon: Bell, label: "Preferencias de notificaciones", path: "/notifications/preferences", section: "oculto", program: "boutique" },
+  { icon: CheckCircle2, label: "Revisión de Pagos", path: "/admin/payment-review", section: "oculto", roles: ["admin"] },
+  { icon: LayoutDashboard, label: "Dashboard interno", path: "/dashboard", section: "oculto", roles: ["admin"], program: "boutique" },
+  { icon: Cloud, label: "Sincronización Offline", path: "/settings/offline-sync", section: "oculto", program: "boutique" },
 ];
 
 export function filterMenuItemsByAccess(
@@ -243,7 +255,7 @@ function DashboardLayoutContent({
   }, [user]);
 
   const visibleMenuGroups = useMemo(() => {
-    return (["principal", "operacion", "administracion", "cuenta"] as MenuSection[])
+    return visibleSections
       .map((section) => ({
         section,
         label: sectionLabels[section],
