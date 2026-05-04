@@ -83,6 +83,8 @@ const menuItems: MenuItem[] = [
   { icon: Store, label: "Inventario", path: "/inventory-reports", section: "operacion", roles: ["admin", "cashier"], program: "boutique" },
   { icon: Bell, label: "Notificaciones", path: "/notifications", section: "administracion", program: "boutique" },
   { icon: Bell, label: "Preferencias de notificaciones", path: "/notifications/preferences", section: "administracion", program: "boutique" },
+  { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "operacion", program: "boutique" },
+  { icon: CreditCard, label: "Mi Acceso y Suscripción", path: "/gestion-acceso", section: "cuenta", program: "boutique" },
   { icon: CreditCard, label: "Planes y Acceso", path: "/plans", section: "cuenta" },
   { icon: CreditCard, label: "Mi Suscripción", path: "/subscription", section: "cuenta" },
   { icon: FileText, label: "Facturas y Pagos", path: "/billing", section: "cuenta" },

@@ -48,6 +48,8 @@ import PricingPlans from "@/pages/PricingPlans";
 import CheckoutPage from "@/pages/CheckoutPage";
 import SubscriptionPanel from "@/pages/SubscriptionPanel";
 import PaymentConfirmationPanel from "@/pages/PaymentConfirmationPanel";
+import CajerosYUsuarios from "@/pages/CajerosYUsuarios";
+import GestionAccesoSuscriptor from "@/pages/GestionAccesoSuscriptor";
 import ReferralPanel from "@/pages/ReferralPanel";
 import SubscribersManagement from "@/pages/SubscribersManagement";
 import { Route, Switch, useLocation } from "wouter";
@@ -261,6 +263,18 @@ function Router() {
       <Route path="/settings/offline-sync">
         <ProtectedRoute requiredRole="admin">
           <OfflineSyncSettings />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/cajeros-usuarios">
+        <ProtectedRoute requiredProgram="boutique">
+          <CajerosYUsuarios />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/gestion-acceso">
+        <ProtectedRoute requiredProgram="boutique">
+          <GestionAccesoSuscriptor />
         </ProtectedRoute>
       </Route>
 
