@@ -17,12 +17,13 @@ import { BARCODE_SCANNED_EVENT, calculatePosTaxSummary, getPosHardwareConfig, ge
 import { queueOfflineSale } from "@/lib/offlineSaleQueue";
 import { runPostSaleHardware, type PosCartItem } from "@/lib/posSaleHardware";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Banknote, Camera, CreditCard, History, Landmark, Plus, Printer, ScanLine, Search, Settings2, ShoppingCart, Smartphone, Store, Trash2, WalletCards } from "lucide-react";
+import { ArrowLeft, Banknote, Camera, CreditCard, History, Landmark, LayoutGrid, List, Plus, Printer, ScanLine, Search, Settings2, ShoppingCart, Smartphone, Store, Trash2, WalletCards, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface CartItem extends PosCartItem {
   variantId: number;
   unitPrice: number;
+  imageUrl?: string;
 }
 
 const paymentLabel: Record<"cash" | "card" | "transfer", string> = {
@@ -37,6 +38,20 @@ export default function POS() {
   const utils = trpc.useUtils();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [inlineVariant, setInlineVariant] = useState<{ productId: number; productName: string; imageUrl?: string } | null>(null);
+  const [inlineColor, setInlineColor] = useState<string>("");
+  const [inlineSize, setInlineSize] = useState<string>("");
+  const [inlineQty, setInlineQty] = useState<string>("1");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window === "undefined") return "grid";
+    return (window.localStorage.getItem("pos-view-mode") as "grid" | "list") ?? "grid";
+  });
+
+  const handleSetViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") window.localStorage.setItem("pos-view-mode", mode);
+  };
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer">("cash");
@@ -49,6 +64,14 @@ export default function POS() {
   const [transferReference, setTransferReference] = useState("");
   const [transferProof, setTransferProof] = useState<{ base64: string; fileName: string; mimeType: string; previewUrl: string } | null>(null);
 
+  // Cliente frecuente
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: number; name: string; phone?: string | null } | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+
   const branches = trpc.branches.list.useQuery();
   const myBranch = trpc.users.myBranch.useQuery();
   const products = trpc.products.list.useQuery();
@@ -59,6 +82,39 @@ export default function POS() {
   const todaySales = trpc.sales.listToday.useQuery(undefined, {
     refetchInterval: 30000,
   });
+  const customerSearchQuery = trpc.customers.search.useQuery(
+    { query: customerSearch },
+    { enabled: customerSearch.trim().length >= 2 },
+  );
+  const createCustomerMutation = trpc.customers.create.useMutation({
+    onSuccess: (newCustomer) => {
+      if (newCustomer) {
+        setSelectedCustomer({ id: newCustomer.id, name: newCustomer.name, phone: newCustomer.phone });
+      }
+      setIsAddingCustomer(false);
+      setIsCustomerPanelOpen(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+    },
+  });
+
+  const inlineVariantsQuery = trpc.variants.getByProductId.useQuery(
+    { productId: inlineVariant?.productId ?? 0, branchId: activeBranch?.id ?? undefined },
+    { enabled: inlineVariant !== null },
+  );
+
+  const inlineColors = useMemo(() => {
+    return Array.from(new Set((inlineVariantsQuery.data ?? []).map((v) => v.color))).filter(Boolean);
+  }, [inlineVariantsQuery.data]);
+
+  const inlineSizes = useMemo(() => {
+    if (!inlineColor) return [];
+    return (inlineVariantsQuery.data ?? [])
+      .filter((v) => v.color === inlineColor)
+      .map((v) => v.size)
+      .filter(Boolean);
+  }, [inlineVariantsQuery.data, inlineColor]);
+
   const createSale = trpc.sales.create.useMutation({
     onSuccess: async () => {
       await Promise.all([
@@ -69,7 +125,21 @@ export default function POS() {
     },
   });
 
-  const displayedProducts = searchQuery.trim().length > 0 ? searchResults.data : products.data;
+  // Categorías únicas extraídas de todos los productos cargados
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const p of products.data ?? []) {
+      if (p.category) cats.add(p.category);
+    }
+    return Array.from(cats).sort();
+  }, [products.data]);
+
+  // Productos base (búsqueda o listado completo) filtrados por categoría
+  const baseProducts = searchQuery.trim().length > 0 ? searchResults.data : products.data;
+  const displayedProducts = useMemo(() => {
+    if (!selectedCategory) return baseProducts;
+    return (baseProducts ?? []).filter((p) => p.category === selectedCategory);
+  }, [baseProducts, selectedCategory]);
   const selectedBranch = branches.data?.find((branch) => branch.id === Number(selectedBranchId));
   const assignedBranch = myBranch.data?.branch ?? null;
   const activeBranch = selectedBranch ?? assignedBranch ?? null;
@@ -141,9 +211,38 @@ export default function POS() {
       );
       return;
     }
+    // Abrir selector inline (resetear selección previa)
+    setInlineVariant({ productId: product.id, productName: product.name, imageUrl: (product as any).primaryImageUrl ?? undefined });
+    setInlineColor("");
+    setInlineSize("");
+    setInlineQty("1");
+  };
 
-    setSelectedProductForVariant(product);
-    setIsVariantSelectorOpen(true);
+  const handleInlineAddToCart = () => {
+    if (!inlineVariant) return;
+    const variants = inlineVariantsQuery.data ?? [];
+    // Si no hay variantes con color/talla, usar la primera disponible
+    let matched = variants.find(
+      (v) => v.color === inlineColor && v.size === inlineSize
+    );
+    if (!matched && variants.length === 1) matched = variants[0];
+    if (!matched) {
+      toast.error("Selecciona color y talla antes de agregar.");
+      return;
+    }
+    const qty = Math.max(1, parseInt(inlineQty) || 1);
+    const unitPrice = parseFloat(matched.price ?? "0");
+    handleAddVariantToCart({
+      variantId: matched.id,
+      productName: inlineVariant.productName,
+      size: matched.size ?? "",
+      color: matched.color ?? "",
+      quantity: qty,
+      unitPrice,
+      lineTotal: unitPrice * qty,
+      imageUrl: inlineVariant.imageUrl,
+    });
+    setInlineVariant(null);
   };
 
   const handleAddVariantToCart = (item: CartItem) => {
@@ -371,7 +470,7 @@ export default function POS() {
           {/* CATÁLOGO */}
           <div className="flex flex-col overflow-hidden">
             {/* Barra de búsqueda */}
-            <div className="p-4 border-b border-slate-700/50 bg-slate-900/50">
+            <div className="p-4 border-b border-slate-700/50 bg-slate-900/50 space-y-2">
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -381,6 +480,31 @@ export default function POS() {
                     onChange={(event) => setSearchQuery(event.target.value)}
                     className="pl-9 bg-slate-800/60 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500"
                   />
+                </div>
+                {/* Toggle vista */}
+                <div className="flex rounded-lg border border-slate-600 overflow-hidden shrink-0">
+                  <button
+                    onClick={() => handleSetViewMode("grid")}
+                    title="Vista cuadrícula"
+                    className={`px-2.5 py-2 transition-colors ${
+                      viewMode === "grid"
+                        ? "bg-purple-600 text-white"
+                        : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700"
+                    }`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleSetViewMode("list")}
+                    title="Vista lista"
+                    className={`px-2.5 py-2 transition-colors ${
+                      viewMode === "list"
+                        ? "bg-purple-600 text-white"
+                        : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700"
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
                 </div>
                 <Button
                   type="button"
@@ -394,44 +518,206 @@ export default function POS() {
               </div>
             </div>
 
-            {/* Lista de productos */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {/* Filtros rápidos por categoría */}
+            {availableCategories.length > 0 && (
+              <div className="px-4 py-2 border-b border-slate-700/50 bg-slate-900/30">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      selectedCategory === null
+                        ? "bg-purple-600 text-white"
+                        : "bg-slate-700/60 text-slate-300 hover:bg-slate-600/80"
+                    }`}
+                  >
+                    Todas
+                  </button>
+                  {availableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                      className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors capitalize ${
+                        selectedCategory === cat
+                          ? "bg-purple-600 text-white"
+                          : "bg-slate-700/60 text-slate-300 hover:bg-slate-600/80"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Catálogo de productos */}
+            <div className="flex-1 overflow-y-auto p-4">
               {(displayedProducts ?? []).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-500">
                   <ShoppingCart className="h-12 w-12 mb-3 opacity-30" />
                   <p className="text-sm">{emptyStateMessage}</p>
                 </div>
-              ) : (
-                (displayedProducts ?? []).map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 hover:border-purple-500/40 hover:bg-slate-800/70 transition-all"
-                  >
-                    {/* Imagen */}
-                    <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700/50 border border-slate-600/40">
-                      {product.primaryImageUrl ? (
-                        <img src={product.primaryImageUrl} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">—</div>
+              ) : viewMode === "grid" ? (
+                /* ===== VISTA CUADRÍCULA ===== */
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {(displayedProducts ?? []).map((product) => (
+                    <div key={product.id} className="flex flex-col">
+                      <button
+                        onClick={() => handleAddToCart({ id: product.id, name: product.name })}
+                        disabled={!activeBranch?.id}
+                        className={`group flex flex-col rounded-xl border overflow-hidden transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left ${
+                          inlineVariant?.productId === product.id
+                            ? "border-purple-500 bg-slate-800/80"
+                            : "border-slate-700/50 bg-slate-800/40 hover:border-purple-500/60 hover:bg-slate-800/70"
+                        }`}
+                      >
+                        <div className="aspect-square w-full bg-slate-700/50 overflow-hidden">
+                          {product.primaryImageUrl ? (
+                            <img src={product.primaryImageUrl} alt={product.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><ShoppingCart className="h-8 w-8 text-slate-600" /></div>
+                          )}
+                        </div>
+                        <div className="p-2.5 flex flex-col gap-1">
+                          <p className="text-white font-medium text-xs leading-tight line-clamp-2">{product.name}</p>
+                          <p className="text-purple-400 font-bold text-sm">${parseFloat(product.basePrice).toFixed(2)}</p>
+                          <div className="mt-1 flex items-center justify-center gap-1 rounded-lg bg-purple-600 group-hover:bg-purple-700 py-1.5 text-white text-xs font-semibold transition-colors">
+                            <Plus className="h-3.5 w-3.5" /> Agregar
+                          </div>
+                        </div>
+                      </button>
+                      {/* Selector inline de talla y color */}
+                      {inlineVariant?.productId === product.id && (
+                        <div className="mt-1 rounded-xl border border-purple-500/50 bg-slate-900/90 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-purple-300">Elige variante</p>
+                            <button onClick={() => setInlineVariant(null)} className="text-slate-500 hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                          </div>
+                          {inlineVariantsQuery.isLoading ? (
+                            <p className="text-xs text-slate-400">Cargando...</p>
+                          ) : (
+                            <>
+                              {inlineColors.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-slate-400 mb-1">Color</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {inlineColors.map((c) => (
+                                      <button key={c} onClick={() => { setInlineColor(c); setInlineSize(""); }}
+                                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                                          inlineColor === c ? "border-purple-500 bg-purple-600 text-white" : "border-slate-600 text-slate-300 hover:border-purple-400"
+                                        }`}>{c}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {inlineColor && inlineSizes.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-slate-400 mb-1">Talla</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {inlineSizes.map((s) => (
+                                      <button key={s} onClick={() => setInlineSize(s)}
+                                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                                          inlineSize === s ? "border-purple-500 bg-purple-600 text-white" : "border-slate-600 text-slate-300 hover:border-purple-400"
+                                        }`}>{s}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-slate-400 shrink-0">Cant.</p>
+                                <input type="number" min="1" value={inlineQty} onChange={(e) => setInlineQty(e.target.value)}
+                                  className="w-16 text-xs text-center bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-white" />
+                                <button onClick={handleInlineAddToCart}
+                                  className="flex-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-1.5 transition-colors">
+                                  + Al carrito
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm truncate">{product.name}</p>
-                      <p className="text-slate-400 text-xs">{product.sku} · {product.brand}</p>
-                      <p className="text-purple-400 font-bold text-sm mt-0.5">${parseFloat(product.basePrice).toFixed(2)}</p>
+                  ))}
+                </div>
+              ) : (
+                /* ===== VISTA LISTA ===== */
+                <div className="space-y-2">
+                  {(displayedProducts ?? []).map((product) => (
+                    <div key={product.id}>
+                      <div className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
+                        inlineVariant?.productId === product.id
+                          ? "border-purple-500 bg-slate-800/70"
+                          : "border-slate-700/50 bg-slate-800/40 hover:border-purple-500/40 hover:bg-slate-800/70"
+                      }`}>
+                        <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-700/50 border border-slate-600/40">
+                          {product.primaryImageUrl ? (
+                            <img src={product.primaryImageUrl} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">—</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium text-sm truncate">{product.name}</p>
+                          <p className="text-slate-400 text-xs">{product.sku} · {product.brand}</p>
+                          <p className="text-purple-400 font-bold text-sm mt-0.5">${parseFloat(product.basePrice).toFixed(2)}</p>
+                        </div>
+                        <Button size="sm" onClick={() => handleAddToCart({ id: product.id, name: product.name })} disabled={!activeBranch?.id}
+                          className="bg-purple-600 hover:bg-purple-700 text-white shrink-0 gap-1">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {/* Selector inline en vista lista */}
+                      {inlineVariant?.productId === product.id && (
+                        <div className="mt-1 rounded-xl border border-purple-500/50 bg-slate-900/90 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-purple-300">Elige variante</p>
+                            <button onClick={() => setInlineVariant(null)} className="text-slate-500 hover:text-white"><X className="h-3.5 w-3.5" /></button>
+                          </div>
+                          {inlineVariantsQuery.isLoading ? (
+                            <p className="text-xs text-slate-400">Cargando...</p>
+                          ) : (
+                            <>
+                              {inlineColors.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-slate-400 mb-1">Color</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {inlineColors.map((c) => (
+                                      <button key={c} onClick={() => { setInlineColor(c); setInlineSize(""); }}
+                                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                                          inlineColor === c ? "border-purple-500 bg-purple-600 text-white" : "border-slate-600 text-slate-300 hover:border-purple-400"
+                                        }`}>{c}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {inlineColor && inlineSizes.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-slate-400 mb-1">Talla</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {inlineSizes.map((s) => (
+                                      <button key={s} onClick={() => setInlineSize(s)}
+                                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                                          inlineSize === s ? "border-purple-500 bg-purple-600 text-white" : "border-slate-600 text-slate-300 hover:border-purple-400"
+                                        }`}>{s}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-slate-400 shrink-0">Cant.</p>
+                                <input type="number" min="1" value={inlineQty} onChange={(e) => setInlineQty(e.target.value)}
+                                  className="w-16 text-xs text-center bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-white" />
+                                <button onClick={handleInlineAddToCart}
+                                  className="flex-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-1.5 transition-colors">
+                                  + Al carrito
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {/* Botón agregar */}
-                    <Button
-                      size="sm"
-                      onClick={() => handleAddToCart({ id: product.id, name: product.name })}
-                      disabled={!activeBranch?.id}
-                      className="bg-purple-600 hover:bg-purple-700 text-white shrink-0 gap-1"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -439,12 +725,87 @@ export default function POS() {
           {/* CARRITO */}
           <div className="flex flex-col border-l border-slate-700/50 bg-slate-900/60 overflow-hidden">
             {/* Header carrito */}
-            <div className="px-4 py-3 border-b border-slate-700/50">
+            <div className="px-4 py-3 border-b border-slate-700/50 space-y-2">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-purple-400" />
                 <span className="text-white font-semibold text-sm">Carrito</span>
                 <span className="ml-auto text-slate-400 text-xs">{cart.length} {cart.length === 1 ? "artículo" : "artículos"}</span>
               </div>
+              {/* Botón cliente frecuente */}
+              {selectedCustomer ? (
+                <div className="flex items-center gap-2 rounded-lg bg-purple-900/40 border border-purple-500/40 px-3 py-1.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-purple-200 text-xs font-semibold truncate">{selectedCustomer.name}</p>
+                    {selectedCustomer.phone && <p className="text-purple-400 text-xs">{selectedCustomer.phone}</p>}
+                  </div>
+                  <button onClick={() => setSelectedCustomer(null)} className="text-purple-400 hover:text-white">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsCustomerPanelOpen((v) => !v)}
+                  className="w-full flex items-center gap-2 rounded-lg border border-dashed border-slate-600 hover:border-purple-500/60 px-3 py-1.5 text-slate-400 hover:text-purple-300 transition-colors text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Asignar cliente frecuente
+                </button>
+              )}
+              {/* Panel de búsqueda de cliente */}
+              {isCustomerPanelOpen && !selectedCustomer && (
+                <div className="rounded-xl border border-slate-700 bg-slate-800/90 p-3 space-y-2">
+                  {!isAddingCustomer ? (
+                    <>
+                      <Input
+                        placeholder="Buscar por nombre o teléfono..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        className="h-8 text-xs bg-slate-700/60 border-slate-600 text-white placeholder-slate-500"
+                        autoFocus
+                      />
+                      {customerSearch.trim().length >= 2 && (
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {customerSearchQuery.isLoading ? (
+                            <p className="text-xs text-slate-400 text-center py-2">Buscando...</p>
+                          ) : (customerSearchQuery.data ?? []).length === 0 ? (
+                            <p className="text-xs text-slate-500 text-center py-2">Sin resultados</p>
+                          ) : (
+                            (customerSearchQuery.data ?? []).map((c) => (
+                              <button key={c.id}
+                                onClick={() => { setSelectedCustomer({ id: c.id, name: c.name, phone: c.phone }); setIsCustomerPanelOpen(false); setCustomerSearch(""); }}
+                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-700 transition-colors">
+                                <p className="text-white text-xs font-medium">{c.name}</p>
+                                {c.phone && <p className="text-slate-400 text-xs">{c.phone}</p>}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                      <button onClick={() => setIsAddingCustomer(true)}
+                        className="w-full text-xs text-purple-400 hover:text-purple-300 py-1">
+                        + Agregar nuevo cliente
+                      </button>
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-purple-300">Nuevo cliente</p>
+                      <Input placeholder="Nombre *" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)}
+                        className="h-8 text-xs bg-slate-700/60 border-slate-600 text-white placeholder-slate-500" />
+                      <Input placeholder="Teléfono" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)}
+                        className="h-8 text-xs bg-slate-700/60 border-slate-600 text-white placeholder-slate-500" />
+                      <div className="flex gap-2">
+                        <button onClick={() => setIsAddingCustomer(false)} className="flex-1 text-xs text-slate-400 hover:text-white py-1">Cancelar</button>
+                        <button
+                          onClick={() => createCustomerMutation.mutate({ name: newCustomerName, phone: newCustomerPhone || undefined })}
+                          disabled={!newCustomerName.trim() || createCustomerMutation.isPending}
+                          className="flex-1 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-xs font-semibold py-1.5 transition-colors">
+                          {createCustomerMutation.isPending ? "Guardando..." : "Guardar"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Items del carrito */}
@@ -457,7 +818,17 @@ export default function POS() {
               ) : (
                 cart.map((item, index) => (
                   <div key={`${item.variantId}-${index}`} className="rounded-lg border border-slate-700/50 bg-slate-800/50 p-3">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      {/* Miniatura del producto */}
+                      <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-slate-700/50 border border-slate-600/40">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ShoppingCart className="h-4 w-4 text-slate-600" />
+                          </div>
+                        )}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-white text-sm font-medium truncate">{item.productName}</p>
                         <p className="text-slate-400 text-xs">{item.color} · {item.size}</p>
@@ -465,7 +836,7 @@ export default function POS() {
                       </div>
                       <button
                         onClick={() => handleRemoveFromCart(index)}
-                        className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                        className="text-slate-500 hover:text-red-400 transition-colors p-1 shrink-0"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -478,18 +849,36 @@ export default function POS() {
             {/* Resumen y cobro */}
             <div className="border-t border-slate-700/50 p-4 space-y-3 bg-slate-900/80">
               {/* Descuento */}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="discount" className="text-slate-400 text-xs shrink-0">Descuento %</Label>
-                <Input
-                  id="discount"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={discount}
-                  onChange={(event) => setDiscount(event.target.value)}
-                  className="bg-slate-800/60 border-slate-600 text-white text-sm text-right h-8"
-                />
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="discount" className="text-slate-400 text-xs shrink-0">Descuento %</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={discount}
+                    onChange={(event) => setDiscount(event.target.value)}
+                    className="bg-slate-800/60 border-slate-600 text-white text-sm text-right h-8"
+                  />
+                </div>
+                {/* Botones rápidos de descuento */}
+                <div className="grid grid-cols-4 gap-1">
+                  {[5, 10, 15, 20].map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => setDiscount(discount === String(pct) ? "0" : String(pct))}
+                      className={`rounded-lg py-1 text-xs font-semibold transition-colors ${
+                        discount === String(pct)
+                          ? "bg-purple-600 text-white"
+                          : "bg-slate-700/60 text-slate-300 hover:bg-slate-600/80"
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Método de pago */}
@@ -553,15 +942,19 @@ export default function POS() {
                 </div>
               </div>
 
-              {/* Botón cobrar */}
-              <Button
+              {/* Botón COBRAR destacado */}
+              <button
                 onClick={handleOpenCheckout}
                 disabled={cart.length === 0 || !activeBranch?.id}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-5 text-base gap-2 disabled:opacity-40"
+                className={`w-full rounded-xl py-4 flex items-center justify-center gap-3 font-bold text-lg tracking-wide transition-all ${
+                  cart.length === 0 || !activeBranch?.id
+                    ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
+                    : "bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white shadow-lg shadow-purple-900/60 active:scale-[0.98]"
+                }`}
               >
-                <Printer className="h-4 w-4" />
-                Cobrar ${total.toFixed(2)}
-              </Button>
+                <Printer className="h-5 w-5" />
+                {cart.length === 0 ? "CARRITO VACÍO" : `COBRAR $${total.toFixed(2)}`}
+              </button>
 
               {!activeBranch?.id && (
                 <p className="text-xs text-amber-400 text-center">

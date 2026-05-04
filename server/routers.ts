@@ -139,6 +139,7 @@ export const appRouter = router({
 
   notifications: notificationsRouter,
   paypal: paypalRouter,
+  customers: customersRouter,
   auth: router({
     login: publicProcedure
       .input(
@@ -1766,6 +1767,38 @@ export const appRouter = router({
       };
     }),
   }),
+});
+
+// ─── CUSTOMERS ROUTER ───────────────────────────────────────────────────────
+const customersRouter = router({
+  search: protectedProcedure
+    .input(z.object({ query: z.string() }))
+    .query(async ({ input, ctx }) => {
+      return await db.searchCustomers(ctx.user.id, input.query);
+    }),
+
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return await db.listCustomers(ctx.user.id);
+  }),
+
+  create: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        phone: z.string().optional(),
+        email: z.string().email().optional().or(z.literal("")),
+        notes: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      return await db.createCustomer({
+        userId: ctx.user.id,
+        name: input.name,
+        phone: input.phone || undefined,
+        email: input.email || undefined,
+        notes: input.notes || undefined,
+      });
+    }),
 });
 
 export type AppRouter = typeof appRouter;

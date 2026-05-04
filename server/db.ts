@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, like, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, gte, lte, like, desc, asc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -61,6 +61,9 @@ import {
   localUsers,
   type LocalUser,
   type InsertLocalUser,
+  customers,
+  type Customer,
+  type InsertCustomer,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -96,6 +99,18 @@ export async function runStartupMigrations(): Promise<void> {
   const migrations = [
     // Columna para persistir aceptación de términos y condiciones por usuario
     "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `termsAcceptedAt` timestamp NULL DEFAULT NULL",
+    // Tabla de clientes frecuentes para el POS
+    `CREATE TABLE IF NOT EXISTS \`customers\` (
+      \`id\` int AUTO_INCREMENT PRIMARY KEY,
+      \`userId\` int NOT NULL,
+      \`name\` varchar(255) NOT NULL,
+      \`phone\` varchar(40),
+      \`email\` varchar(320),
+      \`notes\` text,
+      \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      \`updatedAt\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+      FOREIGN KEY (\`userId\`) REFERENCES \`users\`(\`id\`)
+    )`,
   ];
   for (const migration of migrations) {
     try {
@@ -2504,4 +2519,52 @@ export async function getAllUsersWithProgramAccess() {
       status: access?.status ?? "pending",
     };
   });
+}
+
+// ─── CUSTOMERS ───────────────────────────────────────────────────────────────
+
+export async function searchCustomers(userId: number, query: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const q = `%${query}%`;
+  return await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        eq(customers.userId, userId),
+        or(
+          like(customers.name, q),
+          like(customers.phone, q),
+          like(customers.email, q),
+        ),
+      ),
+    )
+    .orderBy(asc(customers.name))
+    .limit(10);
+}
+
+export async function createCustomer(data: {
+  userId: number;
+  name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("No DB");
+  const result = await db.insert(customers).values(data);
+  const id = (result as any).insertId as number;
+  const rows = await db.select().from(customers).where(eq(customers.id, id));
+  return rows[0];
+}
+
+export async function listCustomers(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(customers)
+    .where(eq(customers.userId, userId))
+    .orderBy(asc(customers.name));
 }

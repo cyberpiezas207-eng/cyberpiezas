@@ -840,3 +840,20 @@ export const localUserSessions = mysqlTable("localUserSessions", {
 
 export type LocalUserSession = typeof localUserSessions.$inferSelect;
 export type InsertLocalUserSession = typeof localUserSessions.$inferInsert;
+
+/**
+ * Customers table for frequent buyer tracking in POS.
+ * Each customer belongs to a user (the store owner).
+ */
+export const customers = mysqlTable("customers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 40 }),
+  email: varchar("email", { length: 320 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = typeof customers.$inferInsert;
