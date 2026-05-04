@@ -17,7 +17,7 @@ import { BARCODE_SCANNED_EVENT, calculatePosTaxSummary, getPosHardwareConfig, ge
 import { queueOfflineSale } from "@/lib/offlineSaleQueue";
 import { runPostSaleHardware, type PosCartItem } from "@/lib/posSaleHardware";
 import { trpc } from "@/lib/trpc";
-import { Banknote, Camera, CreditCard, History, Landmark, Plus, Printer, ScanLine, Search, Settings2, ShoppingCart, Smartphone, Store, Trash2, WalletCards } from "lucide-react";
+import { ArrowLeft, Banknote, Camera, CreditCard, History, Landmark, Plus, Printer, ScanLine, Search, Settings2, ShoppingCart, Smartphone, Store, Trash2, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 
 interface CartItem extends PosCartItem {
@@ -326,6 +326,18 @@ export default function POS() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* Botón de retroceder */}
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Regresar
+          </Button>
+        </div>
         <section className="rounded-[2rem] border border-fuchsia-200/70 bg-[radial-gradient(circle_at_top_left,_rgba(217,70,239,0.16),_transparent_24%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(250,245,255,0.95))] p-6 shadow-[0_30px_80px_-40px_rgba(168,85,247,0.55)]">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>

@@ -78,7 +78,7 @@ const systems: POSSystem[] = [
 
 export function CyberpiezasHome() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const [showDemoModal, setShowDemoModal] = useState(false);
 
   const handleSystemClick = (system: POSSystem) => {
@@ -125,10 +125,7 @@ export function CyberpiezasHome() {
                 Ir al Panel
               </Button>
               <Button
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  window.location.href = "/";
-                }}
+                onClick={() => logout()}
                 variant="outline"
                 className="border-slate-600 hover:bg-slate-800 text-slate-300 hover:text-white"
                 title="Cerrar sesión"
