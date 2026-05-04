@@ -17,6 +17,7 @@ function AuthForm({ onSuccess }: { onSuccess: () => void }) {
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [error, setError] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: onSuccess,
@@ -36,6 +37,10 @@ function AuthForm({ onSuccess }: { onSuccess: () => void }) {
     if (mode === "login") {
       loginMutation.mutate({ email, password });
     } else {
+      if (!acceptTerms) {
+        setError("Debes aceptar los Términos y Condiciones para continuar");
+        return;
+      }
       registerMutation.mutate({ email, password, name, businessName });
     }
   };
@@ -108,6 +113,24 @@ function AuthForm({ onSuccess }: { onSuccess: () => void }) {
             />
           </div>
 
+          {mode === "register" && (
+            <div className="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 p-3">
+              <input
+                type="checkbox"
+                id="acceptTerms"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <label htmlFor="acceptTerms" className="text-sm text-muted-foreground cursor-pointer flex-1">
+                Acepto los{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                  Términos y Condiciones
+                </a>
+              </label>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -115,7 +138,7 @@ function AuthForm({ onSuccess }: { onSuccess: () => void }) {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full" disabled={isPending || (mode === "register" && !acceptTerms)}>
             {isPending
               ? "Un momento..."
               : mode === "login"

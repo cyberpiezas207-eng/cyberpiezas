@@ -92,7 +92,6 @@ const menuItems: MenuItem[] = [
   { icon: Settings2, label: "Configuración", path: "/settings/pos-hardware", section: "cuenta", program: "boutique" },
   { icon: LayoutDashboard, label: "Dashboard interno", path: "/dashboard", section: "cuenta", roles: ["admin"], program: "boutique" },
   { icon: Cloud, label: "Sincronización Offline", path: "/settings/offline-sync", section: "cuenta", program: "boutique" },
-  { icon: CheckCircle2, label: "Términos y Condiciones", path: "/terms", section: "cuenta" },
 ];
 
 export function filterMenuItemsByAccess(

@@ -755,6 +755,22 @@ export default function POSHardwareSettings() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Términos y Condiciones */}
+          <Card className="bg-slate-800/30 border-slate-700/50">
+            <CardContent className="pt-6">
+              <p className="text-xs text-slate-500 text-center">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-400 hover:text-primary underline underline-offset-2 transition-colors"
+                >
+                  Ver Términos y Condiciones
+                </a>
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </DashboardLayout>
