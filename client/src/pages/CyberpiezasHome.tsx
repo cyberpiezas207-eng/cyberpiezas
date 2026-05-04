@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Heart, Zap, TrendingUp, ArrowRight, Check, ChevronLeft, X } from "lucide-react";
+import { Heart, Zap, TrendingUp, ArrowRight, Check, ChevronLeft, X, LogOut } from "lucide-react";
 
 interface POSSystem {
   id: string;
@@ -117,12 +117,25 @@ export function CyberpiezasHome() {
               Iniciar Sesión
             </Button>
           ) : (
-            <Button
-              onClick={() => setLocation("/dashboard")}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              Ir al Panel
-            </Button>
+            <div className="flex gap-3 items-center">
+              <Button
+                onClick={() => setLocation("/dashboard")}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                Ir al Panel
+              </Button>
+              <Button
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  window.location.href = "/";
+                }}
+                variant="outline"
+                className="border-slate-600 hover:bg-slate-800 text-slate-300 hover:text-white"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           )}
         </div>
       </nav>
