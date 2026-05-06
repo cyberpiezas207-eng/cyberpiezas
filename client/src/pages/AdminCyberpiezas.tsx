@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   ShieldCheck,
@@ -19,81 +20,52 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useLocation } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [searchQuery, setSearchQuery] = useState("");
-  // Estado para mostrar el email de bienvenida en pantalla (sin abrir pestaña)
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
 
-  // Cargar todos los usuarios registrados
-  const { data: allUsers = [], isLoading } = trpc.users.getAllUsers.useQuery();
-
-  // Mutation para activar/desactivar acceso al programa boutique
-  const upsertAccess = trpc.programAccess.upsert.useMutation({
-    onSuccess: async () => {
-      await utils.users.getAllUsers.invalidate();
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
+  const usersQuery = trpc.users.list.useQuery();
+  const upsertAccess = trpc.users.upsertAccess.useMutation({
+    onSuccess: () => {
+      utils.users.list.invalidate();
+      toast.success("Acceso actualizado correctamente");
     },
   });
 
-  const handleConfirm = async (userId: number, userName: string, userEmail: string) => {
-    try {
-      await upsertAccess.mutateAsync({
-        userId,
-        programCode: "boutique",
-        status: "active",
-        accessSource: "admin_override",
-      });
-      toast.success(`✓ Acceso activado para ${userName}`);
-      // Mostrar el email de bienvenida en pantalla sin abrir pestaña
-      const subject = "[CyberPiezas] Tu acceso ha sido activado";
-      const body =
-        `Hola ${userName},\n\n` +
-        `¡Bienvenido a CyberPiezas! Tu acceso ha sido confirmado y ya puedes ingresar al sistema.\n\n` +
-        `Ingresa en: https://cyberpiezas.com\n\n` +
-        `Si tienes dudas, responde este correo.\n\n` +
-        `— Deivid\nCyberPiezas`;
-      setWelcomeEmail({ to: userEmail, subject, body });
-    } catch (err: unknown) {
-      const trpcErr = err as { data?: { code?: string }; message?: string };
-      if (trpcErr?.data?.code === "FORBIDDEN") {
-        toast.error("Sin permisos: verifica que OWNER_OPEN_ID en Railway coincide con tu cuenta.");
-      } else {
-        toast.error(`Error al confirmar: ${trpcErr?.message ?? "Error desconocido"}`);
-      }
+  const allUsers = usersQuery.data ?? [];
+  const filteredUsers = allUsers.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.businessName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const pendingUsers = filteredUsers.filter((u) => !u.access || u.access.status === "pending");
+  const activeUsers = filteredUsers.filter((u) => u.access?.status === "active");
+
+  const handleConfirm = (userId: number, userName: string, userEmail: string) => {
+    if (confirm(`¿Confirmar acceso para ${userName}?`)) {
+      upsertAccess.mutate({ userId, status: "active" });
+      // Preparar correo automáticamente al confirmar
+      handleSendEmail(userEmail, userName);
     }
   };
 
-  const handleReject = async (userId: number, userName: string) => {
-    if (!confirm(`¿Desactivar el acceso de ${userName}?`)) return;
-    try {
-      await upsertAccess.mutateAsync({
-        userId,
-        programCode: "boutique",
-        status: "inactive",
-        accessSource: "admin_override",
-      });
-      toast.success(`Acceso desactivado para ${userName}`);
-    } catch (err: unknown) {
-      const trpcErr = err as { data?: { code?: string }; message?: string };
-      if (trpcErr?.data?.code === "FORBIDDEN") {
-        toast.error("Sin permisos: verifica que OWNER_OPEN_ID en Railway coincide con tu cuenta.");
-      } else {
-        toast.error(`Error: ${trpcErr?.message ?? "Error desconocido"}`);
-      }
+  const handleReject = (userId: number, userName: string) => {
+    if (confirm(`¿Desactivar acceso para ${userName}?`)) {
+      upsertAccess.mutate({ userId, status: "pending" });
     }
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
-    const subject = "[CyberPiezas] Mensaje del equipo";
-    const body = `Hola ${userName},\n\n`;
-    setWelcomeEmail({ to: userEmail, subject, body });
+    // Destinatario fijo según requerimiento
+    const to = "cyberpiezas207@gmail.com";
+    // Asunto y cuerpo vacíos para edición libre
+    setWelcomeEmail({ to, subject: "", body: "" });
   };
 
   const handleCopyEmail = () => {
@@ -104,50 +76,19 @@ export default function AdminCyberpiezas() {
     });
   };
 
-  // Filtrar usuarios por búsqueda
-  const filteredUsers = useMemo(() => {
-    const q = searchQuery.toLowerCase();
-    return allUsers.filter((row: any) => {
-      const u = row.user ?? row;
-      return (
-        !q ||
-        u.name?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q) ||
-        u.businessName?.toLowerCase().includes(q)
-      );
-    });
-  }, [allUsers, searchQuery]);
-
-  // Separar por estado — usar row.status que viene del servidor (de userProgramAccess)
-  const pendingUsers = filteredUsers.filter((row: any) => {
-    const status = row.status ?? "pending";
-    return status === "pending" || status === "inactive" || status === "suspended" || status === "expired";
-  });
-  const activeUsers = filteredUsers.filter((row: any) => {
-    return row.status === "active";
-  });
-  const inactiveUsers = filteredUsers.filter((row: any) => {
-    return row.status === "inactive" || row.status === "suspended" || row.status === "expired";
-  });
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
         return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Activo</Badge>;
       case "pending":
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendiente</Badge>;
-      case "inactive":
-      case "suspended":
-      case "expired":
-        return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">Inactivo</Badge>;
       default:
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendiente</Badge>;
+        return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">{status}</Badge>;
     }
   };
 
   const UserRow = ({ row }: { row: any }) => {
     const u = row.user ?? row;
-    // status viene del servidor (de userProgramAccess), no de la tabla users
     const status = row.status ?? "pending";
     return (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:border-purple-500/30 transition-colors">
@@ -201,80 +142,62 @@ export default function AdminCyberpiezas() {
     );
   };
 
-  // Layout propio aislado — sin DashboardLayout de boutique
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 text-white">
-      {/* Header fijo */}
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-950/80 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocation("/cyberpiezas")}
-            className="text-slate-400 hover:text-white gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Regresar
+  if (user?.role !== "admin") {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <ShieldCheck className="w-16 h-16 text-red-500 mb-4 opacity-20" />
+          <h1 className="text-2xl font-bold text-white mb-2">Acceso restringido</h1>
+          <p className="text-slate-400 max-w-md">Esta sección es exclusiva para administradores de CyberPiezas.</p>
+          <Button onClick={() => window.history.back()} variant="link" className="mt-4 text-purple-400">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Volver
           </Button>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-purple-400" />
-            <span className="font-semibold text-white">Panel CyberPiezas</span>
-          </div>
-          <span className="text-xs text-slate-500 ml-auto">Solo visible para ti</span>
         </div>
-      </header>
+      </DashboardLayout>
+    );
+  }
 
-      {/* Contenido */}
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-
-        {/* Acceso restringido */}
-        {user?.role !== "admin" && (
-          <div className="flex items-center justify-center h-64">
-            <p className="text-slate-400">Acceso restringido al administrador.</p>
+  return (
+    <DashboardLayout>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <ShieldCheck className="w-8 h-8 text-purple-500" />
+              Panel CyberPiezas
+            </h1>
+            <p className="text-slate-400 mt-1">Gestión de suscriptores y accesos a la plataforma.</p>
           </div>
-        )}
-
-        {user?.role === "admin" && (
-          <>
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-                <p className="text-sm text-slate-400">Total registrados</p>
-                <p className="text-3xl font-bold text-white mt-1">{allUsers.length}</p>
-              </div>
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
-                <p className="text-sm text-yellow-400/80">Pendientes de confirmar</p>
-                <p className="text-3xl font-bold text-yellow-400 mt-1">{pendingUsers.length}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-                <p className="text-sm text-emerald-400/80">Activos</p>
-                <p className="text-3xl font-bold text-emerald-400 mt-1">{activeUsers.length}</p>
-              </div>
-            </div>
-
-            {/* Búsqueda */}
-            <div className="relative">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
-                placeholder="Buscar por nombre, negocio o email..."
+                placeholder="Buscar suscriptor..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500/50"
+                className="pl-9 bg-white/5 border-white/10 text-white"
               />
             </div>
+            <Button variant="outline" size="icon" onClick={() => utils.users.list.invalidate()} className="border-white/10 text-slate-400">
+              <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </div>
 
-            {isLoading && (
-              <div className="flex items-center gap-2 text-slate-400">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Cargando suscriptores...</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {usersQuery.isLoading && (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <RefreshCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
+                <p>Cargando suscriptores...</p>
               </div>
             )}
 
             {/* Modal de correo en pantalla */}
             {welcomeEmail && (
-              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 space-y-3">
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-purple-300">✉ Correo preparado</p>
+                  <p className="font-semibold text-purple-300">✉ Preparar correo</p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
                       <Copy className="w-3.5 h-3.5" /> Copiar
@@ -284,11 +207,34 @@ export default function AdminCyberpiezas() {
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm text-slate-300 space-y-1">
-                  <p><span className="text-slate-500">Para:</span> {welcomeEmail.to}</p>
-                  <p><span className="text-slate-500">Asunto:</span> {welcomeEmail.subject}</p>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500 uppercase font-bold">Para:</label>
+                    <Input 
+                      value={welcomeEmail.to} 
+                      onChange={(e) => setWelcomeEmail({...welcomeEmail, to: e.target.value})}
+                      className="bg-black/20 border-white/10 text-slate-300 h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500 uppercase font-bold">Asunto:</label>
+                    <Input 
+                      placeholder="Escribe el asunto..."
+                      value={welcomeEmail.subject} 
+                      onChange={(e) => setWelcomeEmail({...welcomeEmail, subject: e.target.value})}
+                      className="bg-black/20 border-white/10 text-slate-300 h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500 uppercase font-bold">Mensaje:</label>
+                    <Textarea 
+                      placeholder="Escribe el contenido del correo..."
+                      value={welcomeEmail.body} 
+                      onChange={(e) => setWelcomeEmail({...welcomeEmail, body: e.target.value})}
+                      className="bg-black/20 border-white/10 text-slate-300 min-h-[120px] font-sans"
+                    />
+                  </div>
                 </div>
-                <pre className="text-sm text-slate-300 whitespace-pre-wrap bg-black/20 rounded-lg p-3 font-sans">{welcomeEmail.body}</pre>
               </div>
             )}
 
@@ -318,7 +264,7 @@ export default function AdminCyberpiezas() {
                     <CheckCircle2 className="w-5 h-5" />
                     Suscriptores activos ({activeUsers.length})
                   </CardTitle>
-                  <CardDescription className="text-slate-400">Usuarios con acceso confirmado al sistema.</CardDescription>
+                  <CardDescription className="text-slate-400">Usuarios con acceso confirmado a la plataforma.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {activeUsers.map((row: any, i: number) => (
@@ -328,54 +274,36 @@ export default function AdminCyberpiezas() {
               </Card>
             )}
 
-            {/* Inactivos */}
-            {inactiveUsers.length > 0 && (
-              <Card className="bg-white/5 border-white/10">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-400">
-                    <XCircle className="w-5 h-5" />
-                    Inactivos / Suspendidos ({inactiveUsers.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {inactiveUsers.map((row: any, i: number) => (
-                    <UserRow key={(row.user ?? row).id ?? i} row={row} />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {!isLoading && allUsers.length === 0 && (
-              <div className="text-center py-16 text-slate-500">
-                <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Aún no hay usuarios registrados.</p>
+            {!usersQuery.isLoading && filteredUsers.length === 0 && (
+              <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                <p className="text-slate-500">No se encontraron suscriptores con ese criterio.</p>
               </div>
             )}
+          </div>
 
-            {/* Gestión de Acceso de Suscriptores */}
-            <Card className="bg-white/5 border-white/10">
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-purple-600/20 to-blue-600/20 border-purple-500/20">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-purple-400">
-                  <ShieldCheck className="w-5 h-5" />
-                  Gestión de Acceso de Suscriptores
-                </CardTitle>
-                <CardDescription className="text-slate-400">
-                  Administra los accesos, suscripciones, anualidades y requisitos pendientes de cada suscriptor.
-                </CardDescription>
+                <CardTitle className="text-lg text-white">Resumen de Red</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Button
-                  onClick={() => setLocation("/gestion-acceso")}
-                  className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  Abrir Gestión de Acceso
-                </Button>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Total registros</span>
+                  <span className="text-2xl font-bold text-white">{allUsers.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Activos</span>
+                  <span className="text-xl font-semibold text-emerald-400">{activeUsers.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Pendientes</span>
+                  <span className="text-xl font-semibold text-yellow-400">{pendingUsers.length}</span>
+                </div>
               </CardContent>
             </Card>
-          </>
-        )}
-      </main>
-    </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
