@@ -9,6 +9,7 @@ import BranchesManagement from "@/pages/BranchesManagement";
 import CategoriesManagement from "@/pages/CategoriesManagement";
 import Dashboard from "@/pages/Dashboard";
 import Home from "@/pages/Home";
+import IncomeTracker from "@/pages/IncomeTracker";
 import InventoryReports from "@/pages/InventoryReports";
 import InvoicesAndPayments from "@/pages/InvoicesAndPayments";
 import NotFound from "@/pages/NotFound";
@@ -31,6 +32,7 @@ import TermsAndConditions from "@/pages/TermsAndConditions";
 import { LicenseRequest } from "@/pages/LicenseRequest";
 import VariantsManagement from "@/pages/VariantsManagement";
 import { CyberpiezasHome } from "@/pages/CyberpiezasHome";
+import IncomeTracker from "@/pages/IncomeTracker";
 import SubscriptionPage from "@/pages/SubscriptionPage";
 import PublicStore from "@/pages/PublicStore";
 import StoreCheckout from "@/pages/StoreCheckout";
@@ -72,6 +74,7 @@ function Router() {
     <Switch>
       <Route path="/sistemas" component={SystemsPanel} />
       <Route path="/cyberpiezas" component={CyberpiezasHome} />
+      <Route path="/mis-ingresos" component={IncomeTracker} />
       <Route path="/" component={SystemsPanel} />
       <Route path="/dvr-quotation" component={DVRQuotation} />
       <Route path="/celine">
