@@ -902,3 +902,5 @@ export const personalOperations = mysqlTable("personalOperations", {
 
 export type PersonalOperation = typeof personalOperations.$inferSelect;
 export type InsertPersonalOperation = typeof personalOperations.$inferInsert;
+
+
