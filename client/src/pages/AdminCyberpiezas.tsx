@@ -22,7 +22,7 @@ import {
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
-import IncomeTracker from "./IncomeTracker";
+import OperationsView from "./OperationsView";
 
 type TabKey = "suscriptores" | "operaciones";
 
@@ -162,7 +162,6 @@ export default function AdminCyberpiezas() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header fijo */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <ShieldCheck className="w-8 h-8 text-purple-500" />
@@ -171,7 +170,6 @@ export default function AdminCyberpiezas() {
           <p className="text-slate-400 mt-1">Tu centro privado de administración y operaciones.</p>
         </div>
 
-        {/* PESTAÑAS */}
         <div className="flex gap-1 mb-6 border-b border-white/10">
           <button
             onClick={() => setActiveTab("suscriptores")}
@@ -203,7 +201,6 @@ export default function AdminCyberpiezas() {
           </button>
         </div>
 
-        {/* CONTENIDO DE PESTAÑA: SUSCRIPTORES */}
         {activeTab === "suscriptores" && (
           <>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -218,12 +215,7 @@ export default function AdminCyberpiezas() {
                     className="pl-9 bg-white/5 border-white/10 text-white"
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => utils.users.list.invalidate()}
-                  className="border-white/10 text-slate-400"
-                >
+                <Button variant="outline" size="icon" onClick={() => utils.users.list.invalidate()} className="border-white/10 text-slate-400">
                   <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
                 </Button>
               </div>
@@ -243,50 +235,24 @@ export default function AdminCyberpiezas() {
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-purple-300">✉ Preparar correo</p>
                       <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCopyEmail}
-                          className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1"
-                        >
+                        <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
                           <Copy className="w-3.5 h-3.5" /> Copiar
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setWelcomeEmail(null)}
-                          className="text-slate-400 hover:text-white"
-                        >
-                          ✕
-                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">✕</Button>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-xs text-slate-500 uppercase font-bold">Para:</label>
-                        <Input
-                          value={welcomeEmail.to}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
-                          className="bg-black/20 border-white/10 text-slate-300 h-9"
-                        />
+                        <Input value={welcomeEmail.to} onChange={(e) => setWelcomeEmail({...welcomeEmail, to: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-slate-500 uppercase font-bold">Asunto:</label>
-                        <Input
-                          placeholder="Escribe el asunto..."
-                          value={welcomeEmail.subject}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
-                          className="bg-black/20 border-white/10 text-slate-300 h-9"
-                        />
+                        <Input placeholder="Escribe el asunto..." value={welcomeEmail.subject} onChange={(e) => setWelcomeEmail({...welcomeEmail, subject: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-slate-500 uppercase font-bold">Mensaje:</label>
-                        <Textarea
-                          placeholder="Escribe el contenido del correo..."
-                          value={welcomeEmail.body}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
-                          className="bg-black/20 border-white/10 text-slate-300 min-h-[120px] font-sans"
-                        />
+                        <Textarea placeholder="Escribe el contenido del correo..." value={welcomeEmail.body} onChange={(e) => setWelcomeEmail({...welcomeEmail, body: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 min-h-[120px] font-sans" />
                       </div>
                     </div>
                   </div>
@@ -299,9 +265,7 @@ export default function AdminCyberpiezas() {
                         <Users className="w-5 h-5" />
                         Pendientes de confirmación ({pendingUsers.length})
                       </CardTitle>
-                      <CardDescription className="text-slate-400">
-                        Estos usuarios se registraron pero aún no tienen acceso activo.
-                      </CardDescription>
+                      <CardDescription className="text-slate-400">Estos usuarios se registraron pero aún no tienen acceso activo.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {pendingUsers.map((row: any, i: number) => (
@@ -318,9 +282,7 @@ export default function AdminCyberpiezas() {
                         <CheckCircle2 className="w-5 h-5" />
                         Suscriptores activos ({activeUsers.length})
                       </CardTitle>
-                      <CardDescription className="text-slate-400">
-                        Usuarios con acceso confirmado a la plataforma.
-                      </CardDescription>
+                      <CardDescription className="text-slate-400">Usuarios con acceso confirmado a la plataforma.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {activeUsers.map((row: any, i: number) => (
@@ -362,27 +324,10 @@ export default function AdminCyberpiezas() {
           </>
         )}
 
-        {/* CONTENIDO DE PESTAÑA: MIS OPERACIONES */}
         {activeTab === "operaciones" && (
-          <div className="-mt-2">
-            <OperationsEmbedded />
-          </div>
+          <OperationsView showHeader={false} />
         )}
       </div>
     </DashboardLayout>
-  );
-}
-
-// ─── Wrapper que monta el IncomeTracker SIN su propio DashboardLayout ───
-function OperationsEmbedded() {
-  return (
-    <div className="rounded-2xl bg-black/20 border border-white/10 p-1">
-      <iframe
-        src="/mis-ingresos?embedded=1"
-        className="w-full rounded-xl"
-        style={{ minHeight: "calc(100vh - 280px)", border: "none" }}
-        title="Mis Operaciones"
-      />
-    </div>
   );
 }
