@@ -173,6 +173,7 @@ export const appRouter = router({
   notifications: notificationsRouter,
   paypal: paypalRouter,
   customers: customersRouter,
+  personalOperations: personalOperationsRouter,
   auth: router({
     login: publicProcedure
       .input(
