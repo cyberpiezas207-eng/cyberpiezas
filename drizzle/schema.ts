@@ -860,3 +860,45 @@ export const customers = mysqlTable("customers", {
 });
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
+
+
+/**
+ * Personal compraventa operations table — only for the platform admin.
+ * Each row is one product: bought from a supplier, optionally sold to a buyer.
+ * Contact info (supplier and buyer) lives inside the row, not in a separate table.
+ * Multi-tenant safe: filtered by ownerId on every query.
+ */
+export const personalOperations = mysqlTable("personalOperations", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+  
+  // Producto
+  productName: varchar("productName", { length: 255 }).notNull(),
+  productDescription: text("productDescription"),
+  
+  // Compra (siempre requerida)
+  acquiredAt: timestamp("acquiredAt").notNull(),
+  acquiredCost: decimal("acquiredCost", { precision: 10, scale: 2 }).notNull(),
+  supplierName: varchar("supplierName", { length: 255 }),
+  supplierPhone: varchar("supplierPhone", { length: 40 }),
+  supplierLocation: varchar("supplierLocation", { length: 255 }),
+  
+  // Venta (nullable = todavía está en inventario)
+  soldAt: timestamp("soldAt"),
+  soldPrice: decimal("soldPrice", { precision: 10, scale: 2 }),
+  buyerName: varchar("buyerName", { length: 255 }),
+  buyerPhone: varchar("buyerPhone", { length: 40 }),
+  buyerLocation: varchar("buyerLocation", { length: 255 }),
+  
+  // Estado
+  status: mysqlEnum("status", ["in_inventory", "sold"]).default("in_inventory").notNull(),
+  
+  // Extras
+  notes: text("notes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PersonalOperation = typeof personalOperations.$inferSelect;
+export type InsertPersonalOperation = typeof personalOperations.$inferInsert;
