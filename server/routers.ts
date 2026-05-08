@@ -10,6 +10,7 @@ import { sdk } from "./_core/sdk";
 import { notificationsRouter } from "./routers/notifications";
 import { paypalRouter } from "./routers/paypal";
 import { personalOperationsRouter } from "./routers/personalOperations";
+import { personalOperationsRouter } from "./routers/personalOperations";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
