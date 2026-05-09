@@ -369,6 +369,11 @@ export const personalOperationsRouter = router({
       };
     }),
   // ─── STATS: con cálculo polimórfico (producto vs servicio) ────────────
+ // ─── LIST SUBSCRIBERS: trae TODOS los usuarios excepto el admin ───────
+  listSubscribers: ownerOnlyProcedure.query(async ({ ctx }) => {
+    const all = await db.getAllUsersWithProgramAccess();
+    return all.filter((u: any) => u.id !== ctx.user.id);
+  }),
   stats: ownerOnlyProcedure.query(async ({ ctx }) => {
     const database = await db.getDb();
     if (!database) {
