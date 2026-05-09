@@ -495,7 +495,9 @@ function DashboardLayoutContent({
                   {activeMenuItem?.label ?? "Módulo principal"}
                 </span>
                 <span className="hidden text-xs text-muted-foreground md:block">
-                  Gestión centralizada para ventas, inventario y operación diaria.
+                  {isAdminPanel
+                    ? "Centro privado de administración y operaciones."
+                    : "Gestión centralizada para ventas, inventario y operación diaria."}
                 </span>
               </div>
             </div>
@@ -536,7 +538,7 @@ function DashboardLayoutContent({
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Acción requerida</p>
               <h2 className="text-2xl font-bold text-foreground">Debes aceptar los términos y condiciones para continuar</h2>
               <p className="text-sm leading-6 text-muted-foreground">
-                Antes de seguir usando Boutique POS, confirma que aceptas las reglas de uso, restricciones de licencia y condiciones legales del sistema.
+                Antes de seguir usando el sistema, confirma que aceptas las reglas de uso, restricciones de licencia y condiciones legales del sistema.
               </p>
             </div>
             <div className="mt-5 max-h-64 overflow-y-auto rounded-2xl border border-border bg-muted/40 p-4 text-sm leading-6 text-foreground">
