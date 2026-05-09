@@ -33,7 +33,6 @@ import TermsAndConditions from "@/pages/TermsAndConditions";
 import { LicenseRequest } from "@/pages/LicenseRequest";
 import VariantsManagement from "@/pages/VariantsManagement";
 import { CyberpiezasHome } from "@/pages/CyberpiezasHome";
-import IncomeTracker from "@/pages/IncomeTracker";
 import SubscriptionPage from "@/pages/SubscriptionPage";
 import PublicStore from "@/pages/PublicStore";
 import StoreCheckout from "@/pages/StoreCheckout";
@@ -209,9 +208,14 @@ function Router() {
       </Route>
 
       <Route path="/admin-cyberpiezas">
-        <Route path="/veterinaria-pos" component={VeterinariaPOS} />
         <ProtectedRoute requiredRole="admin">
           <AdminCyberpiezas />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/veterinaria-pos">
+        <ProtectedRoute requiredProgram="veterinaria">
+          <VeterinariaPOS />
         </ProtectedRoute>
       </Route>
 
