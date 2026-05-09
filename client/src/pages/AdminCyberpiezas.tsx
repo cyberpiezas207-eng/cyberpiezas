@@ -108,8 +108,7 @@ const upsertAccess = trpc.users.upsertAccess.useMutation({
       (u.businessName ?? "").toLowerCase().includes(q)
     );
   });
-
-  const pendingUsers = filteredUsers.filter((u: any) => {
+ const pendingUsers = filteredUsers.filter((u: any) => {
     const access = u.access ?? u.programAccess?.[0];
     return !access || access.status === "pending";
   });
