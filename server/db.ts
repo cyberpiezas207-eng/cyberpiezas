@@ -2578,24 +2578,35 @@ export async function getAllUsersWithProgramAccess() {
 
   if (allUsers.length === 0) return [];
 
+  // Traer TODOS los accesos a TODOS los programas
   const allAccess = await db
     .select()
-    .from(userProgramAccess)
-    .where(eq(userProgramAccess.programCode, "boutique"));
+    .from(userProgramAccess);
 
-  const accessByUserId = new Map<number, typeof allAccess[number]>();
+  // Agrupar accesos por userId y por programCode
+  const accessByUserAndProgram = new Map<number, Record<string, typeof allAccess[number]>>();
   for (const a of allAccess) {
-    accessByUserId.set(a.userId, a);
+    if (!accessByUserAndProgram.has(a.userId)) {
+      accessByUserAndProgram.set(a.userId, {});
+    }
+    accessByUserAndProgram.get(a.userId)![a.programCode] = a;
   }
 
   return allUsers.map((u) => {
-    const access = accessByUserId.get(u.id) ?? null;
+    const userAccesses = accessByUserAndProgram.get(u.id) ?? {};
+    // Mantener compatibilidad: programAccess apunta a boutique (legacy)
+    const boutiqueAccess = userAccesses["boutique"] ?? null;
     return {
       user: u,
-      programAccess: access,
-      // status derivado: si tiene registro en userProgramAccess, usar ese status;
-      // si no tiene registro, se considera "pending"
-      status: access?.status ?? "pending",
+      programAccess: boutiqueAccess,
+      // Nuevo: objeto con TODOS los accesos por programa
+      programAccesses: {
+        boutique: userAccesses["boutique"] ?? null,
+        abarrotes: userAccesses["abarrotes"] ?? null,
+        veterinaria: userAccesses["veterinaria"] ?? null,
+        celine: userAccesses["celine"] ?? null,
+      },
+      status: boutiqueAccess?.status ?? "pending",
     };
   });
 }
