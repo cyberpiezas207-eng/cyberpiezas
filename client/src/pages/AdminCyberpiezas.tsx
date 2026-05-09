@@ -33,7 +33,7 @@ export default function AdminCyberpiezas() {
   const [searchQuery, setSearchQuery] = useState("");
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
 
-  const usersQuery = trpc.users.list.useQuery();
+ const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
   const upsertAccess = trpc.users.upsertAccess.useMutation({
     onSuccess: () => {
       utils.users.list.invalidate();
