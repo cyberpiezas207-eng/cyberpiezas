@@ -30,7 +30,6 @@ import OperationsView from "./OperationsView";
 
 type TabKey = "suscriptores" | "operaciones";
 
-// ─── Generar color de avatar según el nombre ─────────────────────────
 const avatarColors = [
   "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
   "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
@@ -51,7 +50,6 @@ function getInitials(name: string) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-// ─── Mapear plan a label en español ──────────────────────────────────
 function getPlanLabel(plan?: string | null) {
   switch (plan) {
     case "free": return "Gratis";
@@ -80,20 +78,21 @@ export default function AdminCyberpiezas() {
   const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
   const [searchQuery, setSearchQuery] = useState("");
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
-  
-const [processingUserId, setProcessingUserId] = useState<number | null>(null);
+  const [processingUserId, setProcessingUserId] = useState<number | null>(null);
+
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
-const upsertAccess = trpc.users.upsertAccess.useMutation({
+  const upsertAccess = trpc.users.upsertAccess.useMutation({
     onSuccess: () => {
       utils.users.list.invalidate();
       toast.success("Acceso actualizado correctamente");
       setProcessingUserId(null);
     },
-    
+    onError: (err) => {
       toast.error(err.message || "Error al actualizar el acceso");
       setProcessingUserId(null);
     },
-      });
+  });
+
   const allUsers: any[] = (usersQuery.data as any[]) ?? [];
   const filteredUsers = allUsers.filter((u: any) => {
     const q = searchQuery.toLowerCase();
@@ -103,7 +102,8 @@ const upsertAccess = trpc.users.upsertAccess.useMutation({
       (u.businessName ?? "").toLowerCase().includes(q)
     );
   });
- const pendingUsers = filteredUsers.filter((u: any) => {
+
+  const pendingUsers = filteredUsers.filter((u: any) => {
     const access = u.access ?? u.programAccess?.[0];
     return !access || access.status === "pending";
   });
@@ -112,7 +112,7 @@ const upsertAccess = trpc.users.upsertAccess.useMutation({
     return access?.status === "active";
   });
 
-const handleConfirm = (userId: number, userName: string, userEmail: string) => {
+  const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     if (confirm(`¿Confirmar acceso para ${userName}?`)) {
       setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "active" });
@@ -120,7 +120,7 @@ const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     }
   };
 
-const handleReject = (userId: number, userName: string) => {
+  const handleReject = (userId: number, userName: string) => {
     if (confirm(`¿Desactivar acceso para ${userName}?`)) {
       setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "pending" });
@@ -143,26 +143,24 @@ const handleReject = (userId: number, userName: string) => {
     });
   };
 
-  // ─── Tarjeta grande de suscriptor ─────────────────────────────────
   const SubscriberCard = ({ row }: { row: any }) => {
     const u = row.user ?? row;
     const access = row.access ?? row.programAccess?.[0];
     const status = access?.status ?? "pending";
     const initials = getInitials(u.name || u.email || "?");
     const avatarColor = getAvatarColor(u.name || u.email || "?");
+    const isThisUserProcessing = processingUserId === u.id;
 
     return (
       <Card className="bg-white/5 border-white/10 hover:border-purple-500/40 transition-all">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-5">
-            {/* Avatar */}
             <div
               className={`flex-shrink-0 w-20 h-20 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg`}
             >
               {initials}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
@@ -221,7 +219,6 @@ const handleReject = (userId: number, userName: string) => {
                 </div>
               </div>
 
-              {/* Acciones */}
               <div className="flex flex-wrap gap-2 pt-3">
                 <Button
                   size="sm"
@@ -236,22 +233,22 @@ const handleReject = (userId: number, userName: string) => {
                   <Button
                     size="sm"
                     onClick={() => handleConfirm(u.id, u.name || "usuario", u.email)}
-                  processingUserId === u.id
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    disabled={isThisUserProcessing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Confirmar acceso
+                    {isThisUserProcessing ? "Procesando..." : "Confirmar acceso"}
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleReject(u.id, u.name || "usuario")}
-                    processingUserId === u.id
-                    className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1.5"
+                    disabled={isThisUserProcessing}
+                    className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1.5 disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" />
-                    Desactivar
+                    {isThisUserProcessing ? "Procesando..." : "Desactivar"}
                   </Button>
                 )}
               </div>
