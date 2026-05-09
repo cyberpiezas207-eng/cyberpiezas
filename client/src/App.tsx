@@ -22,6 +22,8 @@ import { OfflineSyncSettings } from "@/pages/OfflineSyncSettings";
 import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
+import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
+import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
 import SubscriptionManagement from "@/pages/SubscriptionManagement";
 import POS from "@/pages/POS";
 import POSHardwareSettings from "@/pages/POSHardwareSettings";
@@ -213,9 +215,21 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/veterinaria-pos">
+      <Route path="/veterinaria-pos/:tab?">
         <ProtectedRoute requiredProgram="veterinaria">
           <VeterinariaPOS />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/vet-cajeros">
+        <ProtectedRoute requiredProgram="veterinaria">
+          <VeterinariaCajeros />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/vet-suscripcion">
+        <ProtectedRoute requiredProgram="veterinaria">
+          <VeterinariaSubscription />
         </ProtectedRoute>
       </Route>
 
