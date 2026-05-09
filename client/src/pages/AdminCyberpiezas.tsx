@@ -80,12 +80,23 @@ export default function AdminCyberpiezas() {
   const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
   const [searchQuery, setSearchQuery] = useState("");
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
-
+  
+const [processingUserId, setProcessingUserId] = useState<number | null>(null);
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
-  const upsertAccess = trpc.users.upsertAccess.useMutation({
+const upsertAccess = trpc.users.upsertAccess.useMutation({
     onSuccess: () => {
-      utils.personalOperations.listSubscribers.invalidate();
+      utils.users.list.invalidate();
       toast.success("Acceso actualizado correctamente");
+      setProcessingUserId(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Error al actualizar el acceso");
+      setProcessingUserId(null);
+    },
+  });
+    onError: (err) => {
+      toast.error(err.message || "Error al actualizar el acceso");
+      setProcessingUserId(null);
     },
   });
 
@@ -108,15 +119,17 @@ export default function AdminCyberpiezas() {
     return access?.status === "active";
   });
 
-  const handleConfirm = (userId: number, userName: string, userEmail: string) => {
+const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     if (confirm(`¿Confirmar acceso para ${userName}?`)) {
+      setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "active" });
       handleSendEmail(userEmail, userName);
     }
   };
 
-  const handleReject = (userId: number, userName: string) => {
+const handleReject = (userId: number, userName: string) => {
     if (confirm(`¿Desactivar acceso para ${userName}?`)) {
+      setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "pending" });
     }
   };
@@ -230,7 +243,7 @@ export default function AdminCyberpiezas() {
                   <Button
                     size="sm"
                     onClick={() => handleConfirm(u.id, u.name || "usuario", u.email)}
-                    disabled={upsertAccess.isPending}
+                  processingUserId === u.id
                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -241,7 +254,7 @@ export default function AdminCyberpiezas() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleReject(u.id, u.name || "usuario")}
-                    disabled={upsertAccess.isPending}
+                    processingUserId === u.id
                     className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1.5"
                   >
                     <XCircle className="w-3.5 h-3.5" />
