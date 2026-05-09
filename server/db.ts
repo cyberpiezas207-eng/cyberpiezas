@@ -2172,7 +2172,7 @@ export async function getActiveProgramAccessByUserId(userId: number): Promise<Us
 
 export async function getProgramAccessEntry(
   userId: number,
-  programCode: "boutique" | "abarrotes" | "celine",
+  programCode: "boutique" | "abarrotes" | "celine" | "veterinaria",
 ): Promise<UserProgramAccess | undefined> {
   const db = await getDb();
   if (!db) return undefined;
