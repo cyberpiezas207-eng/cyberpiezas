@@ -22,6 +22,7 @@ import {
   Store,
   CreditCard,
   Phone,
+  Send,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -30,7 +31,6 @@ import OperationsView from "./OperationsView";
 
 type TabKey = "suscriptores" | "operaciones";
 
-// ─── Generar color de avatar según el nombre ─────────────────────────
 const avatarColors = [
   "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
   "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
@@ -51,7 +51,6 @@ function getInitials(name: string) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-// ─── Mapear plan a label en español ──────────────────────────────────
 function getPlanLabel(plan?: string | null) {
   switch (plan) {
     case "free": return "Gratis";
@@ -65,12 +64,12 @@ function getPlanLabel(plan?: string | null) {
 
 function getPlanColor(plan?: string | null) {
   switch (plan) {
-    case "free": return "bg-slate-500/20 text-slate-300 border-slate-500/30";
-    case "basic": return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    case "professional": return "bg-purple-500/20 text-purple-300 border-purple-500/30";
-    case "premium": return "bg-amber-500/20 text-amber-300 border-amber-500/30";
-    case "annual": return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-    default: return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+    case "free": return "bg-slate-500/20 text-slate-200 border-slate-500/30";
+    case "basic": return "bg-blue-500/20 text-blue-200 border-blue-500/30";
+    case "professional": return "bg-purple-500/20 text-purple-200 border-purple-500/30";
+    case "premium": return "bg-amber-500/20 text-amber-200 border-amber-500/30";
+    case "annual": return "bg-emerald-500/20 text-emerald-200 border-emerald-500/30";
+    default: return "bg-slate-500/20 text-slate-300 border-slate-500/30";
   }
 }
 
@@ -80,12 +79,19 @@ export default function AdminCyberpiezas() {
   const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
   const [searchQuery, setSearchQuery] = useState("");
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
+  // 🔧 FIX: Trackear qué usuario está siendo procesado para no afectar a los demás botones
+  const [processingUserId, setProcessingUserId] = useState<number | null>(null);
 
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
   const upsertAccess = trpc.users.upsertAccess.useMutation({
     onSuccess: () => {
       utils.personalOperations.listSubscribers.invalidate();
       toast.success("Acceso actualizado correctamente");
+      setProcessingUserId(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Error al actualizar el acceso");
+      setProcessingUserId(null);
     },
   });
 
@@ -110,6 +116,7 @@ export default function AdminCyberpiezas() {
 
   const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     if (confirm(`¿Confirmar acceso para ${userName}?`)) {
+      setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "active" });
       handleSendEmail(userEmail, userName);
     }
@@ -117,15 +124,16 @@ export default function AdminCyberpiezas() {
 
   const handleReject = (userId: number, userName: string) => {
     if (confirm(`¿Desactivar acceso para ${userName}?`)) {
+      setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "pending" });
     }
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
     setWelcomeEmail({
-      to: userEmail || "cyberpiezas207@gmail.com",
+      to: userEmail || "",
       subject: `Bienvenido a CyberPiezas, ${userName}`,
-      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas.\n\n[Escribe tu mensaje aquí]\n\nSaludos,\nDavid Antonio`,
+      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas. Tu acceso ya fue activado.\n\n[Escribe tu mensaje aquí]\n\nSaludos,\nDavid Antonio\nCyberPiezas`,
     });
   };
 
@@ -137,26 +145,33 @@ export default function AdminCyberpiezas() {
     });
   };
 
-  // ─── Tarjeta grande de suscriptor ─────────────────────────────────
+  // 🔧 FIX: Construir mailto link real (abre el cliente de email del usuario)
+  const buildMailtoLink = () => {
+    if (!welcomeEmail) return "#";
+    const subject = encodeURIComponent(welcomeEmail.subject);
+    const body = encodeURIComponent(welcomeEmail.body);
+    return `mailto:${welcomeEmail.to}?subject=${subject}&body=${body}`;
+  };
+
   const SubscriberCard = ({ row }: { row: any }) => {
     const u = row.user ?? row;
     const access = row.access ?? row.programAccess?.[0];
     const status = access?.status ?? "pending";
     const initials = getInitials(u.name || u.email || "?");
     const avatarColor = getAvatarColor(u.name || u.email || "?");
+    // 🔧 FIX: Solo deshabilitar el botón del usuario que está siendo procesado
+    const isThisUserProcessing = processingUserId === u.id;
 
     return (
       <Card className="bg-white/5 border-white/10 hover:border-purple-500/40 transition-all">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-5">
-            {/* Avatar */}
             <div
               className={`flex-shrink-0 w-20 h-20 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg`}
             >
               {initials}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
@@ -188,7 +203,7 @@ export default function AdminCyberpiezas() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-400 pt-2 border-t border-white/5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-300 pt-2 border-t border-white/5">
                 <div className="flex items-center gap-1.5 truncate">
                   <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="truncate">{u.email || "Sin email"}</span>
@@ -209,43 +224,42 @@ export default function AdminCyberpiezas() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-slate-500 uppercase tracking-wider">
+                  <span className="text-slate-400 uppercase tracking-wider">
                     Login: {u.loginMethod || "—"}
                   </span>
                 </div>
               </div>
 
-              {/* Acciones */}
               <div className="flex flex-wrap gap-2 pt-3">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => handleSendEmail(u.email, u.name || "usuario")}
-                  className="border-white/20 hover:bg-white/10 text-slate-300 gap-1.5"
+                  className="border-white/20 hover:bg-white/10 text-slate-200 gap-1.5"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  Enviar email
+                  Preparar email
                 </Button>
                 {status !== "active" ? (
                   <Button
                     size="sm"
                     onClick={() => handleConfirm(u.id, u.name || "usuario", u.email)}
-                    disabled={upsertAccess.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    disabled={isThisUserProcessing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Confirmar acceso
+                    {isThisUserProcessing ? "Procesando..." : "Confirmar acceso"}
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleReject(u.id, u.name || "usuario")}
-                    disabled={upsertAccess.isPending}
-                    className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1.5"
+                    disabled={isThisUserProcessing}
+                    className="border-red-600/50 hover:bg-red-600/20 text-red-300 gap-1.5 disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" />
-                    Desactivar
+                    {isThisUserProcessing ? "Procesando..." : "Desactivar"}
                   </Button>
                 )}
               </div>
@@ -324,14 +338,14 @@ export default function AdminCyberpiezas() {
                     placeholder="Buscar por nombre, email, negocio..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-white/5 border-white/10 text-white"
+                    className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                   />
                 </div>
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => utils.personalOperations.listSubscribers.invalidate()}
-                  className="border-white/10 text-slate-400"
+                  className="border-white/20 text-slate-300"
                 >
                   <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
                 </Button>
@@ -347,31 +361,80 @@ export default function AdminCyberpiezas() {
                   </div>
                 )}
 
+                {/* 🔧 FIX: Modal de email con MEJOR CONTRASTE + botón mailto real */}
                 {welcomeEmail && (
-                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 space-y-4">
+                  <div className="rounded-xl border border-purple-500/40 bg-purple-950/40 p-5 space-y-4 backdrop-blur-sm">
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold text-purple-300">✉ Preparar correo</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
-                          <Copy className="w-3.5 h-3.5" /> Copiar
+                      <p className="font-semibold text-purple-200 text-base">✉ Preparar correo</p>
+                      <div className="flex gap-2 flex-wrap">
+                        
+                          href={buildMailtoLink()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Abrir en Mail
+                        </a>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCopyEmail}
+                          className="border-purple-400/50 text-purple-100 bg-purple-900/30 hover:bg-purple-700/40 gap-1"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          Copiar
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">✕</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setWelcomeEmail(null)}
+                          className="text-slate-300 hover:text-white hover:bg-white/10"
+                        >
+                          ✕
+                        </Button>
                       </div>
                     </div>
+
                     <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Para:</label>
-                        <Input value={welcomeEmail.to} onChange={(e) => setWelcomeEmail({...welcomeEmail, to: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+                          Para:
+                        </label>
+                        <Input
+                          value={welcomeEmail.to}
+                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
+                          className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
+                          placeholder="destinatario@ejemplo.com"
+                        />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Asunto:</label>
-                        <Input placeholder="Escribe el asunto..." value={welcomeEmail.subject} onChange={(e) => setWelcomeEmail({...welcomeEmail, subject: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+                          Asunto:
+                        </label>
+                        <Input
+                          placeholder="Escribe el asunto..."
+                          value={welcomeEmail.subject}
+                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
+                          className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
+                        />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Mensaje:</label>
-                        <Textarea placeholder="Escribe el contenido del correo..." value={welcomeEmail.body} onChange={(e) => setWelcomeEmail({...welcomeEmail, body: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 min-h-[120px] font-sans" />
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+                          Mensaje:
+                        </label>
+                        <Textarea
+                          placeholder="Escribe el contenido del correo..."
+                          value={welcomeEmail.body}
+                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
+                          className="bg-slate-900/80 border-purple-500/30 text-white min-h-[140px] font-sans placeholder:text-slate-500"
+                        />
                       </div>
                     </div>
+
+                    <p className="text-xs text-purple-300/80 italic">
+                      💡 "Abrir en Mail" usa tu cliente de correo (Gmail, Outlook, etc). "Copiar" copia el contenido para pegar donde quieras.
+                    </p>
                   </div>
                 )}
 
