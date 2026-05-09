@@ -32,8 +32,14 @@ import OperationsView from "./OperationsView";
 type TabKey = "suscriptores" | "operaciones";
 
 const avatarColors = [
-  "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
-  "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-cyan-500",
+  "bg-rose-500",
+  "bg-indigo-500",
 ];
 
 function getAvatarColor(name: string) {
@@ -53,23 +59,35 @@ function getInitials(name: string) {
 
 function getPlanLabel(plan?: string | null) {
   switch (plan) {
-    case "free": return "Gratis";
-    case "basic": return "Básico";
-    case "professional": return "Profesional";
-    case "premium": return "Premium";
-    case "annual": return "Anual";
-    default: return plan ?? "—";
+    case "free":
+      return "Gratis";
+    case "basic":
+      return "Básico";
+    case "professional":
+      return "Profesional";
+    case "premium":
+      return "Premium";
+    case "annual":
+      return "Anual";
+    default:
+      return plan ?? "—";
   }
 }
 
 function getPlanColor(plan?: string | null) {
   switch (plan) {
-    case "free": return "bg-slate-500/20 text-slate-200 border-slate-500/30";
-    case "basic": return "bg-blue-500/20 text-blue-200 border-blue-500/30";
-    case "professional": return "bg-purple-500/20 text-purple-200 border-purple-500/30";
-    case "premium": return "bg-amber-500/20 text-amber-200 border-amber-500/30";
-    case "annual": return "bg-emerald-500/20 text-emerald-200 border-emerald-500/30";
-    default: return "bg-slate-500/20 text-slate-300 border-slate-500/30";
+    case "free":
+      return "bg-slate-500/20 text-slate-200 border-slate-500/30";
+    case "basic":
+      return "bg-blue-500/20 text-blue-200 border-blue-500/30";
+    case "professional":
+      return "bg-purple-500/20 text-purple-200 border-purple-500/30";
+    case "premium":
+      return "bg-amber-500/20 text-amber-200 border-amber-500/30";
+    case "annual":
+      return "bg-emerald-500/20 text-emerald-200 border-emerald-500/30";
+    default:
+      return "bg-slate-500/20 text-slate-300 border-slate-500/30";
   }
 }
 
@@ -78,8 +96,11 @@ export default function AdminCyberpiezas() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
   const [searchQuery, setSearchQuery] = useState("");
-  const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
-  // 🔧 FIX: Trackear qué usuario está siendo procesado para no afectar a los demás botones
+  const [welcomeEmail, setWelcomeEmail] = useState<{
+    to: string;
+    subject: string;
+    body: string;
+  } | null>(null);
   const [processingUserId, setProcessingUserId] = useState<number | null>(null);
 
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
@@ -145,7 +166,6 @@ export default function AdminCyberpiezas() {
     });
   };
 
-  // 🔧 FIX: Construir mailto link real (abre el cliente de email del usuario)
   const buildMailtoLink = () => {
     if (!welcomeEmail) return "#";
     const subject = encodeURIComponent(welcomeEmail.subject);
@@ -159,7 +179,6 @@ export default function AdminCyberpiezas() {
     const status = access?.status ?? "pending";
     const initials = getInitials(u.name || u.email || "?");
     const avatarColor = getAvatarColor(u.name || u.email || "?");
-    // 🔧 FIX: Solo deshabilitar el botón del usuario que está siendo procesado
     const isThisUserProcessing = processingUserId === u.id;
 
     return (
@@ -270,14 +289,99 @@ export default function AdminCyberpiezas() {
     );
   };
 
+  const EmailModal = () => {
+    if (!welcomeEmail) return null;
+    return (
+      <div className="rounded-xl border border-purple-500/40 bg-purple-950/40 p-5 space-y-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="font-semibold text-purple-200 text-base">✉ Preparar correo</p>
+          <div className="flex gap-2 flex-wrap items-center">
+            
+              href={buildMailtoLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Abrir en Mail
+            </a>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCopyEmail}
+              className="border-purple-400/50 text-purple-100 bg-purple-900/30 hover:bg-purple-700/40 gap-1"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copiar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setWelcomeEmail(null)}
+              className="text-slate-300 hover:text-white hover:bg-white/10"
+            >
+              ✕
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+              Para:
+            </label>
+            <Input
+              value={welcomeEmail.to}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
+              placeholder="destinatario@ejemplo.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+              Asunto:
+            </label>
+            <Input
+              placeholder="Escribe el asunto..."
+              value={welcomeEmail.subject}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
+              Mensaje:
+            </label>
+            <Textarea
+              placeholder="Escribe el contenido del correo..."
+              value={welcomeEmail.body}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white min-h-[140px] font-sans placeholder:text-slate-500"
+            />
+          </div>
+        </div>
+
+        <p className="text-xs text-purple-300 italic">
+          💡 "Abrir en Mail" usa tu cliente de correo (Gmail, Outlook, etc). "Copiar" copia el contenido para pegar donde quieras.
+        </p>
+      </div>
+    );
+  };
+
   if (user?.role !== "admin") {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
           <ShieldCheck className="w-16 h-16 text-red-500 mb-4 opacity-20" />
           <h1 className="text-2xl font-bold text-white mb-2">Acceso restringido</h1>
-          <p className="text-slate-400 max-w-md">Esta sección es exclusiva para administradores de CyberPiezas.</p>
-          <Button onClick={() => window.history.back()} variant="link" className="mt-4 text-purple-400">
+          <p className="text-slate-400 max-w-md">
+            Esta sección es exclusiva para administradores de CyberPiezas.
+          </p>
+          <Button
+            onClick={() => window.history.back()}
+            variant="link"
+            className="mt-4 text-purple-400"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" /> Volver
           </Button>
         </div>
@@ -293,7 +397,9 @@ export default function AdminCyberpiezas() {
             <ShieldCheck className="w-8 h-8 text-purple-500" />
             Panel CyberPiezas
           </h1>
-          <p className="text-slate-400 mt-1">Tu centro privado de administración y operaciones.</p>
+          <p className="text-slate-400 mt-1">
+            Tu centro privado de administración y operaciones.
+          </p>
         </div>
 
         <div className="flex gap-1 mb-6 border-b border-white/10">
@@ -330,7 +436,9 @@ export default function AdminCyberpiezas() {
         {activeTab === "suscriptores" && (
           <>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <p className="text-slate-400">Gestión de suscriptores y accesos a la plataforma.</p>
+              <p className="text-slate-400">
+                Gestión de suscriptores y accesos a la plataforma.
+              </p>
               <div className="flex items-center gap-3">
                 <div className="relative flex-1 md:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -344,10 +452,16 @@ export default function AdminCyberpiezas() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => utils.personalOperations.listSubscribers.invalidate()}
+                  onClick={() =>
+                    utils.personalOperations.listSubscribers.invalidate()
+                  }
                   className="border-white/20 text-slate-300"
                 >
-                  <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`w-4 h-4 ${
+                      usersQuery.isFetching ? "animate-spin" : ""
+                    }`}
+                  />
                 </Button>
               </div>
             </div>
@@ -361,82 +475,7 @@ export default function AdminCyberpiezas() {
                   </div>
                 )}
 
-                {/* 🔧 FIX: Modal de email con MEJOR CONTRASTE + botón mailto real */}
-                {welcomeEmail && (
-                  <div className="rounded-xl border border-purple-500/40 bg-purple-950/40 p-5 space-y-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-purple-200 text-base">✉ Preparar correo</p>
-                      <div className="flex gap-2 flex-wrap">
-                        
-                          href={buildMailtoLink()}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          Abrir en Mail
-                        </a>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCopyEmail}
-                          className="border-purple-400/50 text-purple-100 bg-purple-900/30 hover:bg-purple-700/40 gap-1"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          Copiar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setWelcomeEmail(null)}
-                          className="text-slate-300 hover:text-white hover:bg-white/10"
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
-                          Para:
-                        </label>
-                        <Input
-                          value={welcomeEmail.to}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
-                          className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
-                          placeholder="destinatario@ejemplo.com"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
-                          Asunto:
-                        </label>
-                        <Input
-                          placeholder="Escribe el asunto..."
-                          value={welcomeEmail.subject}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
-                          className="bg-slate-900/80 border-purple-500/30 text-white h-10 placeholder:text-slate-500"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-purple-200 uppercase font-bold tracking-wider">
-                          Mensaje:
-                        </label>
-                        <Textarea
-                          placeholder="Escribe el contenido del correo..."
-                          value={welcomeEmail.body}
-                          onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
-                          className="bg-slate-900/80 border-purple-500/30 text-white min-h-[140px] font-sans placeholder:text-slate-500"
-                        />
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-purple-300/80 italic">
-                      💡 "Abrir en Mail" usa tu cliente de correo (Gmail, Outlook, etc). "Copiar" copia el contenido para pegar donde quieras.
-                    </p>
-                  </div>
-                )}
+                <EmailModal />
 
                 {pendingUsers.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
@@ -479,7 +518,9 @@ export default function AdminCyberpiezas() {
                 {!usersQuery.isLoading && filteredUsers.length === 0 && (
                   <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
                     <Users className="w-12 h-12 mx-auto mb-4 text-slate-600" />
-                    <p className="text-slate-400 font-medium mb-1">No hay suscriptores aún</p>
+                    <p className="text-slate-400 font-medium mb-1">
+                      No hay suscriptores aún
+                    </p>
                     <p className="text-sm text-slate-500">
                       Cuando alguien se registre en tu plataforma, aparecerá aquí.
                     </p>
@@ -495,15 +536,21 @@ export default function AdminCyberpiezas() {
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Total registros</span>
-                      <span className="text-2xl font-bold text-white">{allUsers.length}</span>
+                      <span className="text-2xl font-bold text-white">
+                        {allUsers.length}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Activos</span>
-                      <span className="text-xl font-semibold text-emerald-400">{activeUsers.length}</span>
+                      <span className="text-xl font-semibold text-emerald-400">
+                        {activeUsers.length}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Pendientes</span>
-                      <span className="text-xl font-semibold text-yellow-400">{pendingUsers.length}</span>
+                      <span className="text-xl font-semibold text-yellow-400">
+                        {pendingUsers.length}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -512,9 +559,7 @@ export default function AdminCyberpiezas() {
           </>
         )}
 
-        {activeTab === "operaciones" && (
-          <OperationsView showHeader={false} />
-        )}
+        {activeTab === "operaciones" && <OperationsView showHeader={false} />}
       </div>
     </DashboardLayout>
   );
