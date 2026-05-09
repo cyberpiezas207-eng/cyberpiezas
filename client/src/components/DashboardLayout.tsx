@@ -260,12 +260,24 @@ function DashboardLayoutContent({
     return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "violet";
   });
 
-  const branding = brandingQuery.data ?? {
+ // Detectar si estamos en el Panel Admin para mostrar branding contextual
+  const isAdminPanel = location === "/admin-cyberpiezas";
+
+  const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
     appSubtitle: "Centro de operación",
     bannerImageUrl: null,
     bannerAltText: null,
   };
+
+  const branding = isAdminPanel
+    ? {
+        appTitle: "CyberPiezas",
+        appSubtitle: "Centro de administración",
+        bannerImageUrl: baseBranding.bannerImageUrl,
+        bannerAltText: baseBranding.bannerAltText,
+      }
+    : baseBranding; 
 
   const visibleMenuItems = useMemo(() => {
     return filterMenuItemsByAccess(
