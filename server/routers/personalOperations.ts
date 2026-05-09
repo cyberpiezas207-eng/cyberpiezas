@@ -321,7 +321,53 @@ export const personalOperationsRouter = router({
 
       return { success: true };
     }),
+// ─── CREATE TEST SUBSCRIBER: solo para tests del panel admin ──────────
+  createTestSubscriber: ownerOnlyProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(255),
+        email: z.string().email(),
+        businessName: z.string().max(255).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const database = await db.getDb();
+      if (!database) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
 
+      // Verificar que no exista ya el email
+      const existingUsers = await db.getAllUsersWithProgramAccess();
+      const exists = existingUsers.find((u) => u.email === input.email);
+      if (exists) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `Ya existe un usuario con email ${input.email}`,
+        });
+      }
+
+      // Generar openId aleatorio para test users
+      const fakeOpenId = `test_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+      const { users } = await import("../../drizzle/schema");
+
+      const result = await database.insert(users).values({
+        openId: fakeOpenId,
+        name: input.name,
+        email: input.email,
+        businessName: input.businessName || `Negocio de ${input.name}`,
+        loginMethod: "test",
+        role: "cashier",
+        subscriptionPlan: "free",
+        subscriptionStatus: "pending_review",
+      });
+
+      return {
+        success: true,
+        insertId: (result as { insertId?: number })?.insertId,
+        message: `Suscriptor de prueba creado: ${input.name}`,
+      };
+    }),
   // ─── STATS: con cálculo polimórfico (producto vs servicio) ────────────
   stats: ownerOnlyProcedure.query(async ({ ctx }) => {
     const database = await db.getDb();
