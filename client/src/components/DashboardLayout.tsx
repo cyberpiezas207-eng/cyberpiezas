@@ -43,6 +43,7 @@ import {
   ShoppingCart,
   Store,
   Sun,
+  Stethoscope,
   Tags,
   Users,
 } from "lucide-react";
@@ -54,7 +55,7 @@ import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
 
 type AppRole = "admin" | "cashier";
-type ProgramCode = "boutique" | "abarrotes" | "celine";
+type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria";
 
 type MenuSection = "principal" | "operacion" | "administracion" | "cuenta" | "oculto";
 
@@ -82,6 +83,7 @@ const menuItems: MenuItem[] = [
   // ── Principal ──────────────────────────────────────────────
   { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
+  { icon: Stethoscope, label: "Veterinaria POS", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
 
   // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
@@ -263,6 +265,9 @@ function DashboardLayoutContent({
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
   const isAdminPanel = location === "/admin-cyberpiezas";
 
+  // Detectar si estamos en Veterinaria POS
+  const isVeterinariaZone = location === "/veterinaria-pos";
+
   const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
     appSubtitle: "Centro de operación",
@@ -274,6 +279,13 @@ function DashboardLayoutContent({
     ? {
         appTitle: "CyberPiezas",
         appSubtitle: "Centro de administración",
+        bannerImageUrl: baseBranding.bannerImageUrl,
+        bannerAltText: baseBranding.bannerAltText,
+      }
+    : isVeterinariaZone
+    ? {
+        appTitle: "Veterinaria",
+        appSubtitle: "Centro de operación",
         bannerImageUrl: baseBranding.bannerImageUrl,
         bannerAltText: baseBranding.bannerAltText,
       }
@@ -298,8 +310,18 @@ function DashboardLayoutContent({
       });
     }
 
+    // En zona Veterinaria: mostrar SOLO items de veterinaria + Centro + Mi Suscripcion
+    if (isVeterinariaZone) {
+      return allItems.filter((item) => {
+        if (item.path === "/cyberpiezas") return true;
+        if (item.path === "/veterinaria-pos") return true;
+        if (item.path === "/subscription") return true;
+        return false;
+      });
+    }
+
     return allItems;
-  }, [user, isCyberpiezasZone]);
+  }, [user, isCyberpiezasZone, isVeterinariaZone]);
 
   const visibleMenuGroups = useMemo(() => {
     return visibleSections
