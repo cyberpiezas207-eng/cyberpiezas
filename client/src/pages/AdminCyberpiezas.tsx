@@ -98,7 +98,7 @@ const upsertAccess = trpc.users.upsertAccess.useMutation({
       toast.error(err.message || "Error al actualizar el acceso");
       setProcessingUserId(null);
     },
-      
+      });
   const allUsers: any[] = (usersQuery.data as any[]) ?? [];
   const filteredUsers = allUsers.filter((u: any) => {
     const q = searchQuery.toLowerCase();
