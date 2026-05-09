@@ -674,7 +674,7 @@ export const userProgramAccess = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     userId: int("userId").notNull().references(() => users.id),
-    programCode: mysqlEnum("programCode", ["boutique", "abarrotes", "celine"]).notNull(),
+    programCode: mysqlEnum("programCode", ["boutique", "abarrotes", "celine", "veterinaria"]).notNull(),
     status: mysqlEnum("status", ["active", "pending", "inactive", "suspended", "expired"]).default("active").notNull(),
     accessSource: mysqlEnum("accessSource", ["subscription", "manual_license", "trial", "referral", "admin_override"]).default("subscription").notNull(),
     startsAt: timestamp("startsAt").defaultNow().notNull(),
@@ -915,3 +915,246 @@ export type PersonalOperation = typeof personalOperations.$inferSelect;
 export type InsertPersonalOperation = typeof personalOperations.$inferInsert;
 
 
+
+// ============================================================================
+// VETERINARIA — sistema completo de gestión veterinaria
+// ============================================================================
+
+/**
+ * Configuración del negocio veterinario.
+ * Datos del veterinario, clínica, datos fiscales, logo para recibos.
+ */
+export const vetClinicSettings = mysqlTable("vetClinicSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id).unique(),
+
+  // Datos de la clínica
+  clinicName: varchar("clinicName", { length: 255 }),
+  doctorName: varchar("doctorName", { length: 255 }),
+  professionalLicense: varchar("professionalLicense", { length: 100 }),
+  university: varchar("university", { length: 255 }),
+
+  // Contacto
+  phone: varchar("phone", { length: 40 }),
+  email: varchar("email", { length: 320 }),
+  address: text("address"),
+
+  // Datos fiscales (para recibos formales)
+  rfc: varchar("rfc", { length: 13 }),
+  fiscalName: varchar("fiscalName", { length: 255 }),
+
+  // Visual
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#7c3aed"),
+
+  // Para pie de recibos
+  receiptFooter: text("receiptFooter"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VetClinicSettings = typeof vetClinicSettings.$inferSelect;
+export type InsertVetClinicSettings = typeof vetClinicSettings.$inferInsert;
+
+/**
+ * Mascotas - vinculadas a clientes (que son compartidos entre programas).
+ */
+export const pets = mysqlTable("pets", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+  customerId: int("customerId").notNull().references(() => customers.id),
+
+  // Datos básicos
+  name: varchar("name", { length: 100 }).notNull(),
+  species: mysqlEnum("species", ["perro", "gato", "ave", "reptil", "roedor", "exotico", "otro"]).default("perro").notNull(),
+  breed: varchar("breed", { length: 100 }),
+  birthDate: timestamp("birthDate"),
+  sex: mysqlEnum("sex", ["macho", "hembra", "desconocido"]).default("desconocido").notNull(),
+  sterilized: boolean("sterilized").default(false).notNull(),
+  color: varchar("color", { length: 100 }),
+  microchip: varchar("microchip", { length: 50 }),
+  weight: decimal("weight", { precision: 6, scale: 2 }),
+
+  // Visual
+  photoUrl: varchar("photoUrl", { length: 500 }),
+
+  // Médico básico para alertas
+  allergies: text("allergies"),
+  chronicConditions: text("chronicConditions"),
+  notes: text("notes"),
+
+  isActive: boolean("isActive").default(true).notNull(),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Pet = typeof pets.$inferSelect;
+export type InsertPet = typeof pets.$inferInsert;
+
+/**
+ * Catálogo de productos del veterinario (medicamentos, alimento, accesorios).
+ */
+export const vetProducts = mysqlTable("vetProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: mysqlEnum("category", ["medicamento", "alimento", "accesorio", "higiene", "vitamina", "otro"]).default("otro").notNull(),
+
+  // Precio y costo (para utilidad)
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  cost: decimal("cost", { precision: 10, scale: 2 }),
+
+  // Inventario
+  stock: int("stock").default(0).notNull(),
+  lowStockAlert: int("lowStockAlert").default(5).notNull(),
+
+  // Identificación
+  sku: varchar("sku", { length: 100 }),
+  barcode: varchar("barcode", { length: 100 }),
+
+  // Específico para medicamentos
+  requiresPrescription: boolean("requiresPrescription").default(false).notNull(),
+  expirationDate: timestamp("expirationDate"),
+  batchNumber: varchar("batchNumber", { length: 100 }),
+
+  isActive: boolean("isActive").default(true).notNull(),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VetProduct = typeof vetProducts.$inferSelect;
+export type InsertVetProduct = typeof vetProducts.$inferInsert;
+
+/**
+ * Catálogo de servicios del veterinario (consulta, vacunas, baño, etc).
+ */
+export const vetServices = mysqlTable("vetServices", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: mysqlEnum("category", ["consulta", "vacuna", "desparasitacion", "estetica", "cirugia", "hospitalizacion", "domicilio", "otro"]).default("consulta").notNull(),
+
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  durationMinutes: int("durationMinutes").default(30).notNull(),
+
+  isActive: boolean("isActive").default(true).notNull(),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VetService = typeof vetServices.$inferSelect;
+export type InsertVetService = typeof vetServices.$inferInsert;
+
+/**
+ * Ventas de la veterinaria (productos + servicios).
+ * customerId y petId son opcionales para venta rápida sin registro.
+ */
+export const vetSales = mysqlTable("vetSales", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+  customerId: int("customerId").references(() => customers.id),
+  petId: int("petId").references(() => pets.id),
+
+  // Totales
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  discount: decimal("discount", { precision: 10, scale: 2 }).default("0").notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+
+  // Pago
+  paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "tarjeta", "transferencia", "credito", "otro"]).default("efectivo").notNull(),
+  paymentStatus: mysqlEnum("paymentStatus", ["pagado", "pendiente", "parcial", "cancelado"]).default("pagado").notNull(),
+
+  notes: text("notes"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VetSale = typeof vetSales.$inferSelect;
+export type InsertVetSale = typeof vetSales.$inferInsert;
+
+/**
+ * Items de cada venta veterinaria (productos o servicios).
+ * Snapshot al momento de la venta para historial intacto.
+ */
+export const vetSaleItems = mysqlTable("vetSaleItems", {
+  id: int("id").autoincrement().primaryKey(),
+  saleId: int("saleId").notNull().references(() => vetSales.id),
+
+  itemType: mysqlEnum("itemType", ["product", "service"]).notNull(),
+  productId: int("productId").references(() => vetProducts.id),
+  serviceId: int("serviceId").references(() => vetServices.id),
+
+  // Snapshot del item en la venta
+  description: varchar("description", { length: 255 }).notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).default("1").notNull(),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type VetSaleItem = typeof vetSaleItems.$inferSelect;
+export type InsertVetSaleItem = typeof vetSaleItems.$inferInsert;
+
+/**
+ * Visitas / Expediente clínico de cada mascota.
+ * Cada vez que la mascota viene a consulta o tratamiento.
+ */
+export const vetVisits = mysqlTable("vetVisits", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+  petId: int("petId").notNull().references(() => pets.id),
+  customerId: int("customerId").notNull().references(() => customers.id),
+
+  visitDate: timestamp("visitDate").defaultNow().notNull(),
+  reason: varchar("reason", { length: 500 }).notNull(),
+
+  // Datos al momento de la visita
+  weight: decimal("weight", { precision: 6, scale: 2 }),
+  temperature: decimal("temperature", { precision: 4, scale: 2 }),
+
+  // Diagnóstico y tratamiento
+  symptoms: text("symptoms"),
+  diagnosis: text("diagnosis"),
+  treatment: text("treatment"),
+  prescribedMedications: text("prescribedMedications"),
+  recommendations: text("recommendations"),
+
+  // Próxima visita (recordatorio)
+  nextVisitDate: timestamp("nextVisitDate"),
+  nextVisitReason: varchar("nextVisitReason", { length: 500 }),
+
+  // Vínculo opcional con la venta de esta visita
+  saleId: int("saleId").references(() => vetSales.id),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VetVisit = typeof vetVisits.$inferSelect;
+export type InsertVetVisit = typeof vetVisits.$inferInsert;
+
+/**
+ * Vacunas aplicadas - separado para tener catálogo y próximas dosis.
+ */
+export const vetVaccinations = mysqlTable("vetVaccinations", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull().references(() => users.id),
+  petId: int("petId").notNull().references(() => pets.id),
+  visitId: int("visitId").references(() => vetVisits.id),
+
+  vaccineName: varchar("vaccineName", { length: 255 }).notNull(),
+  brand: varchar("brand", { length: 100 }),
+  batchNumber: varchar("batchNumber", { length: 100 }),
+
+  appliedDate: timestamp("appliedDate").defaultNow().notNull(),
+  nextDoseDate: timestamp("nextDoseDate"),
+
+  notes: text("notes"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type VetVaccination = typeof vetVaccinations.$inferSelect;
+export type InsertVetVaccination = typeof vetVaccinations.$inferInsert;
