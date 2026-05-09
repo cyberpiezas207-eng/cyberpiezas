@@ -331,7 +331,14 @@ function DashboardLayoutContent({
       });
     }
 
-    return allItems;
+    // Default (zona Boutique): ocultar items que pertenecen a otras zonas
+    return allItems.filter((item) => {
+      // Ocultar items de Veterinaria cuando NO estamos en su zona
+      if (item.path?.startsWith("/veterinaria-pos")) return false;
+      if (item.path === "/vet-cajeros") return false;
+      if (item.path === "/vet-suscripcion") return false;
+      return true;
+    });
   }, [user, isCyberpiezasZone, isVeterinariaZone]);
 
   const visibleMenuGroups = useMemo(() => {
