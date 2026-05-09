@@ -37,6 +37,7 @@ import {
   Moon,
   Package,
   PanelLeft,
+  PawPrint,
   ReceiptText,
   Settings2,
   ShieldCheck,
@@ -44,7 +45,9 @@ import {
   Store,
   Sun,
   Stethoscope,
+  Syringe,
   Tags,
+  UserCircle,
   Users,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
@@ -83,7 +86,14 @@ const menuItems: MenuItem[] = [
   // ── Principal ──────────────────────────────────────────────
   { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
-  { icon: Stethoscope, label: "Veterinaria POS", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
+  { icon: Stethoscope, label: "Punto de Venta", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
+  { icon: PawPrint, label: "Mascotas", path: "/veterinaria-pos/mascotas", section: "operacion", program: "veterinaria" },
+  { icon: UserCircle, label: "Clientes", path: "/veterinaria-pos/clientes", section: "operacion", program: "veterinaria" },
+  { icon: Package, label: "Productos", path: "/veterinaria-pos/productos", section: "operacion", program: "veterinaria" },
+  { icon: Syringe, label: "Servicios", path: "/veterinaria-pos/servicios", section: "operacion", program: "veterinaria" },
+  { icon: Settings2, label: "Configuracion clinica", path: "/veterinaria-pos/configuracion", section: "administracion", program: "veterinaria" },
+  { icon: Users, label: "Cajeros y Usuarios", path: "/vet-cajeros", section: "administracion", program: "veterinaria" },
+  { icon: CreditCard, label: "Mi Suscripcion", path: "/vet-suscripcion", section: "administracion", program: "veterinaria" },
 
   // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
@@ -265,8 +275,8 @@ function DashboardLayoutContent({
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
   const isAdminPanel = location === "/admin-cyberpiezas";
 
-  // Detectar si estamos en Veterinaria POS
-  const isVeterinariaZone = location === "/veterinaria-pos";
+  // Detectar si estamos en Veterinaria POS (cualquier sub-ruta)
+  const isVeterinariaZone = location.startsWith("/veterinaria-pos");
 
   const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
@@ -310,12 +320,13 @@ function DashboardLayoutContent({
       });
     }
 
-    // En zona Veterinaria: mostrar SOLO items de veterinaria + Centro + Mi Suscripcion
+    // En zona Veterinaria: mostrar SOLO items de veterinaria + Centro
     if (isVeterinariaZone) {
       return allItems.filter((item) => {
         if (item.path === "/cyberpiezas") return true;
-        if (item.path === "/veterinaria-pos") return true;
-        if (item.path === "/subscription") return true;
+        if (item.path?.startsWith("/veterinaria-pos")) return true;
+        if (item.path === "/vet-cajeros") return true;
+        if (item.path === "/vet-suscripcion") return true;
         return false;
       });
     }
