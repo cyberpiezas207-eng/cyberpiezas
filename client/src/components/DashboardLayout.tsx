@@ -279,11 +279,27 @@ function DashboardLayoutContent({
       }
     : baseBranding; 
 
+  // Detectar si estamos en zona Admin/CyberPiezas
+  const isCyberpiezasZone =
+    location === "/admin-cyberpiezas" || location === "/cyberpiezas";
+
   const visibleMenuItems = useMemo(() => {
-    return filterMenuItemsByAccess(
+    const allItems = filterMenuItemsByAccess(
       user as { role?: string | null; programAccess?: Array<{ programCode: ProgramCode; status: string }> } | null | undefined,
     );
-  }, [user]);
+
+    // En zona Admin: mostrar SOLO items relevantes
+    if (isCyberpiezasZone) {
+      return allItems.filter((item) => {
+        if (item.path === "/cyberpiezas" || item.path === "/admin-cyberpiezas") {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    return allItems;
+  }, [user, isCyberpiezasZone]);
 
   const visibleMenuGroups = useMemo(() => {
     return visibleSections
