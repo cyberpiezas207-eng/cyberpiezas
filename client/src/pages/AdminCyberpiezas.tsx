@@ -294,7 +294,7 @@ export default function AdminCyberpiezas() {
     return (
       <div className="rounded-xl border border-purple-500/40 bg-purple-950/40 p-5 space-y-4 backdrop-blur-sm">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="font-semibold text-purple-200 text-base">✉ Preparar correo</p>
+          <p className="font-semibold text-purple-200 text-base">Preparar correo</p>
           <div className="flex gap-2 flex-wrap items-center">
             
               href={buildMailtoLink()}
@@ -320,7 +320,7 @@ export default function AdminCyberpiezas() {
               onClick={() => setWelcomeEmail(null)}
               className="text-slate-300 hover:text-white hover:bg-white/10"
             >
-              ✕
+              X
             </Button>
           </div>
         </div>
@@ -362,13 +362,12 @@ export default function AdminCyberpiezas() {
         </div>
 
         <p className="text-xs text-purple-300 italic">
-          💡 "Abrir en Mail" usa tu cliente de correo (Gmail, Outlook, etc). "Copiar" copia el contenido para pegar donde quieras.
+          Tip: "Abrir en Mail" usa tu cliente de correo. "Copiar" copia el contenido para pegar donde quieras.
         </p>
       </div>
     );
   };
-
-  if (user?.role !== "admin") {
+if (user?.role !== "admin") {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
