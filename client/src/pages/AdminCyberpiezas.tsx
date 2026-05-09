@@ -18,6 +18,10 @@ import {
   ArrowLeft,
   Copy,
   Briefcase,
+  Calendar,
+  Store,
+  CreditCard,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,6 +30,50 @@ import OperationsView from "./OperationsView";
 
 type TabKey = "suscriptores" | "operaciones";
 
+// ─── Generar color de avatar según el nombre ─────────────────────────
+const avatarColors = [
+  "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
+  "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
+];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return avatarColors[Math.abs(hash) % avatarColors.length];
+}
+
+function getInitials(name: string) {
+  if (!name) return "?";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// ─── Mapear plan a label en español ──────────────────────────────────
+function getPlanLabel(plan?: string | null) {
+  switch (plan) {
+    case "free": return "Gratis";
+    case "basic": return "Básico";
+    case "professional": return "Profesional";
+    case "premium": return "Premium";
+    case "annual": return "Anual";
+    default: return plan ?? "—";
+  }
+}
+
+function getPlanColor(plan?: string | null) {
+  switch (plan) {
+    case "free": return "bg-slate-500/20 text-slate-300 border-slate-500/30";
+    case "basic": return "bg-blue-500/20 text-blue-300 border-blue-500/30";
+    case "professional": return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+    case "premium": return "bg-amber-500/20 text-amber-300 border-amber-500/30";
+    case "annual": return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+    default: return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+  }
+}
+
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -33,24 +81,32 @@ export default function AdminCyberpiezas() {
   const [searchQuery, setSearchQuery] = useState("");
   const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
 
- const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
+  const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
   const upsertAccess = trpc.users.upsertAccess.useMutation({
     onSuccess: () => {
-      utils.users.list.invalidate();
+      utils.personalOperations.listSubscribers.invalidate();
       toast.success("Acceso actualizado correctamente");
     },
   });
 
-  const allUsers = usersQuery.data ?? [];
-  const filteredUsers = allUsers.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.businessName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const allUsers: any[] = (usersQuery.data as any[]) ?? [];
+  const filteredUsers = allUsers.filter((u: any) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      (u.name ?? "").toLowerCase().includes(q) ||
+      (u.email ?? "").toLowerCase().includes(q) ||
+      (u.businessName ?? "").toLowerCase().includes(q)
+    );
+  });
 
-  const pendingUsers = filteredUsers.filter((u) => !u.access || u.access.status === "pending");
-  const activeUsers = filteredUsers.filter((u) => u.access?.status === "active");
+  const pendingUsers = filteredUsers.filter((u: any) => {
+    const access = u.access ?? u.programAccess?.[0];
+    return !access || access.status === "pending";
+  });
+  const activeUsers = filteredUsers.filter((u: any) => {
+    const access = u.access ?? u.programAccess?.[0];
+    return access?.status === "active";
+  });
 
   const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     if (confirm(`¿Confirmar acceso para ${userName}?`)) {
@@ -66,8 +122,11 @@ export default function AdminCyberpiezas() {
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
-    const to = "cyberpiezas207@gmail.com";
-    setWelcomeEmail({ to, subject: "", body: "" });
+    setWelcomeEmail({
+      to: userEmail || "cyberpiezas207@gmail.com",
+      subject: `Bienvenido a CyberPiezas, ${userName}`,
+      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas.\n\n[Escribe tu mensaje aquí]\n\nSaludos,\nDavid Antonio`,
+    });
   };
 
   const handleCopyEmail = () => {
@@ -78,69 +137,122 @@ export default function AdminCyberpiezas() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Activo</Badge>;
-      case "pending":
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendiente</Badge>;
-      default:
-        return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">{status}</Badge>;
-    }
-  };
-
-  const UserRow = ({ row }: { row: any }) => {
+  // ─── Tarjeta grande de suscriptor ─────────────────────────────────
+  const SubscriberCard = ({ row }: { row: any }) => {
     const u = row.user ?? row;
-    const status = row.status ?? "pending";
+    const access = row.access ?? row.programAccess?.[0];
+    const status = access?.status ?? "pending";
+    const initials = getInitials(u.name || u.email || "?");
+    const avatarColor = getAvatarColor(u.name || u.email || "?");
+
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:border-purple-500/30 transition-colors">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-white truncate">{u.name || "Sin nombre"}</p>
-            {getStatusBadge(status)}
+      <Card className="bg-white/5 border-white/10 hover:border-purple-500/40 transition-all">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-5">
+            {/* Avatar */}
+            <div
+              className={`flex-shrink-0 w-20 h-20 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg`}
+            >
+              {initials}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="text-lg font-bold text-white truncate">
+                    {u.name || "Sin nombre"}
+                  </h3>
+                  {u.businessName && (
+                    <p className="text-sm text-purple-300 flex items-center gap-1.5 mt-0.5">
+                      <Store className="w-3.5 h-3.5" />
+                      {u.businessName}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  {status === "active" ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Activo
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                      Pendiente
+                    </Badge>
+                  )}
+                  <Badge className={`${getPlanColor(u.subscriptionPlan)} text-xs`}>
+                    <CreditCard className="w-3 h-3 mr-1" />
+                    {getPlanLabel(u.subscriptionPlan)}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-400 pt-2 border-t border-white/5">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{u.email || "Sin email"}</span>
+                </div>
+                {u.phone && (
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{u.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    Registro:{" "}
+                    {u.createdAt
+                      ? format(new Date(u.createdAt), "dd 'de' MMM, yyyy", { locale: es })
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-slate-500 uppercase tracking-wider">
+                    Login: {u.loginMethod || "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex flex-wrap gap-2 pt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleSendEmail(u.email, u.name || "usuario")}
+                  className="border-white/20 hover:bg-white/10 text-slate-300 gap-1.5"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Enviar email
+                </Button>
+                {status !== "active" ? (
+                  <Button
+                    size="sm"
+                    onClick={() => handleConfirm(u.id, u.name || "usuario", u.email)}
+                    disabled={upsertAccess.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Confirmar acceso
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReject(u.id, u.name || "usuario")}
+                    disabled={upsertAccess.isPending}
+                    className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1.5"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Desactivar
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-          {u.businessName && (
-            <p className="text-sm text-purple-300 mt-0.5">🏪 {u.businessName}</p>
-          )}
-          <p className="text-sm text-slate-400 truncate">{u.email}</p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Registro: {u.createdAt ? format(new Date(u.createdAt), "dd/MM/yyyy", { locale: es }) : "—"}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSendEmail(u.email, u.name || "usuario")}
-            className="border-white/20 hover:bg-white/10 text-slate-300 gap-1"
-            title="Preparar correo"
-          >
-            <Mail className="w-3.5 h-3.5" />
-          </Button>
-          {status !== "active" ? (
-            <Button
-              size="sm"
-              onClick={() => handleConfirm(u.id, u.name || "usuario", u.email)}
-              disabled={upsertAccess.isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Confirmar
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleReject(u.id, u.name || "usuario")}
-              disabled={upsertAccess.isPending}
-              className="border-red-600/50 hover:bg-red-600/20 text-red-400 gap-1"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              Desactivar
-            </Button>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -209,13 +321,18 @@ export default function AdminCyberpiezas() {
                 <div className="relative flex-1 md:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <Input
-                    placeholder="Buscar suscriptor..."
+                    placeholder="Buscar por nombre, email, negocio..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 bg-white/5 border-white/10 text-white"
                   />
                 </div>
-                <Button variant="outline" size="icon" onClick={() => utils.users.list.invalidate()} className="border-white/10 text-slate-400">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => utils.personalOperations.listSubscribers.invalidate()}
+                  className="border-white/10 text-slate-400"
+                >
                   <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
                 </Button>
               </div>
@@ -265,11 +382,13 @@ export default function AdminCyberpiezas() {
                         <Users className="w-5 h-5" />
                         Pendientes de confirmación ({pendingUsers.length})
                       </CardTitle>
-                      <CardDescription className="text-slate-400">Estos usuarios se registraron pero aún no tienen acceso activo.</CardDescription>
+                      <CardDescription className="text-slate-400">
+                        Estos usuarios se registraron pero aún no tienen acceso activo.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {pendingUsers.map((row: any, i: number) => (
-                        <UserRow key={(row.user ?? row).id ?? i} row={row} />
+                        <SubscriberCard key={(row.user ?? row).id ?? i} row={row} />
                       ))}
                     </CardContent>
                   </Card>
@@ -282,11 +401,13 @@ export default function AdminCyberpiezas() {
                         <CheckCircle2 className="w-5 h-5" />
                         Suscriptores activos ({activeUsers.length})
                       </CardTitle>
-                      <CardDescription className="text-slate-400">Usuarios con acceso confirmado a la plataforma.</CardDescription>
+                      <CardDescription className="text-slate-400">
+                        Usuarios con acceso confirmado a la plataforma.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {activeUsers.map((row: any, i: number) => (
-                        <UserRow key={(row.user ?? row).id ?? i} row={row} />
+                        <SubscriberCard key={(row.user ?? row).id ?? i} row={row} />
                       ))}
                     </CardContent>
                   </Card>
@@ -294,7 +415,11 @@ export default function AdminCyberpiezas() {
 
                 {!usersQuery.isLoading && filteredUsers.length === 0 && (
                   <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                    <p className="text-slate-500">No se encontraron suscriptores con ese criterio.</p>
+                    <Users className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                    <p className="text-slate-400 font-medium mb-1">No hay suscriptores aún</p>
+                    <p className="text-sm text-slate-500">
+                      Cuando alguien se registre en tu plataforma, aparecerá aquí.
+                    </p>
                   </div>
                 )}
               </div>
