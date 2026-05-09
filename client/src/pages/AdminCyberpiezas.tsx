@@ -117,7 +117,8 @@ export default function AdminCyberpiezas() {
   });
 
   const allUsers: any[] = (usersQuery.data as any[]) ?? [];
-  const filteredUsers = allUsers.filter((u: any) => {
+  const filteredUsers = allUsers.filter((row: any) => {
+    const u = row.user ?? row;
     const q = searchQuery.toLowerCase();
     return (
       (u.name ?? "").toLowerCase().includes(q) ||
@@ -126,12 +127,12 @@ export default function AdminCyberpiezas() {
     );
   });
 
-  const pendingUsers = filteredUsers.filter((u: any) => {
-    const access = u.access ?? u.programAccess?.[0];
+  const pendingUsers = filteredUsers.filter((row: any) => {
+    const access = row.access ?? row.programAccess;
     return !access || access.status === "pending";
   });
-  const activeUsers = filteredUsers.filter((u: any) => {
-    const access = u.access ?? u.programAccess?.[0];
+  const activeUsers = filteredUsers.filter((row: any) => {
+    const access = row.access ?? row.programAccess;
     return access?.status === "active";
   });
 
@@ -193,7 +194,7 @@ export default function AdminCyberpiezas() {
 
   const SubscriberCard = ({ row }: { row: any }) => {
     const u = row.user ?? row;
-    const access = row.access ?? row.programAccess?.[0];
+    const access = row.access ?? row.programAccess;
     const status = access?.status ?? "pending";
     const initials = getInitials(u.name || u.email || "?");
     const avatarColor = getAvatarColor(u.name || u.email || "?");
