@@ -28,13 +28,14 @@ const systems: POSSystem[] = [
     features: ["Inventario", "Ventas rápidas", "Reportes", "Control de acceso"],
   },
   {
-    id: "garrote",
-    name: "Sistema POS Garrote",
-    description: "Punto de venta para ferreterías y tiendas de herramientas",
-    icon: "🔧",
-    status: "coming-soon",
+    id: "abarrotes",
+    name: "Sistema POS Abarrotes",
+    description: "Tiendas de abarrotes con codigo de barras y bascula",
+    icon: "🛒",
+    status: "active",
+    path: "/abarrotes-pos",
     color: "from-orange-500 to-red-500",
-    features: ["Gestión de stock", "Inventario por categoría", "Reportes"],
+    features: ["Codigo de barras", "Productos a granel", "Inventario"],
   },
   {
     id: "restaurant",
@@ -64,13 +65,14 @@ const systems: POSSystem[] = [
     features: ["Bebidas personalizadas", "Combos", "Reportes"],
   },
   {
-    id: "farmacia",
-    name: "Sistema POS Farmacia",
-    description: "Gestión de medicamentos y productos farmacéuticos",
-    icon: "💊",
-    status: "coming-soon",
-    color: "from-red-500 to-pink-500",
-    features: ["Control de medicinas", "Recetas", "Inventario"],
+    id: "veterinaria",
+    name: "Sistema POS Veterinaria",
+    description: "Clinicas veterinarias con expediente clinico y vacunas",
+    icon: "🐾",
+    status: "active",
+    path: "/veterinaria-pos",
+    color: "from-emerald-500 to-cyan-500",
+    features: ["Mascotas", "Expediente clinico", "Vacunas", "POS"],
   },
 ];
 
@@ -187,8 +189,7 @@ export default function SystemsPanel() {
       {/* Footer Note */}
       <div className="max-w-7xl mx-auto mt-16 text-center">
         <p className="text-slate-400 text-sm">
-          🎉 Sistema POS Boutique disponible ahora. Los demás sistemas estarán
-          disponibles pronto.
+          🎉 3 sistemas POS disponibles: Boutique, Abarrotes y Veterinaria. Los demas estaran disponibles pronto.
         </p>
       </div>
     </div>
