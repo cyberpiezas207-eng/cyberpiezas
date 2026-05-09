@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gte, isNull, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { ENV } from "../_core/env";
 import { personalOperations } from "../../drizzle/schema";
 import * as db from "../db";
 
-// 🔒 Procedure que SOLO permite acceso al dueño principal (cyberpiezas207)
+// 🔒 Procedure que SOLO permite acceso al dueño principal
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.openId !== ENV.ownerOpenId) {
     throw new TRPCError({
@@ -17,13 +17,23 @@ const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-// Validación común para los datos de venta (todos opcionales pero relacionados)
+// Schema para campos de venta (productos)
 const saleFieldsSchema = z.object({
   soldAt: z.coerce.date().optional().nullable(),
   soldPrice: z.string().optional().nullable(),
   buyerName: z.string().max(255).optional().nullable(),
   buyerPhone: z.string().max(40).optional().nullable(),
   buyerLocation: z.string().max(255).optional().nullable(),
+});
+
+// Schema para campos de servicio
+const serviceFieldsSchema = z.object({
+  serviceTitle: z.string().max(255).optional().nullable(),
+  serviceFee: z.string().optional().nullable(),
+  serviceDate: z.coerce.date().optional().nullable(),
+  customerName: z.string().max(255).optional().nullable(),
+  customerPhone: z.string().max(40).optional().nullable(),
+  customerLocation: z.string().max(255).optional().nullable(),
 });
 
 export const personalOperationsRouter = router({
@@ -33,6 +43,7 @@ export const personalOperationsRouter = router({
       z
         .object({
           status: z.enum(["in_inventory", "sold", "all"]).default("all"),
+          type: z.enum(["product", "service", "all"]).default("all"),
         })
         .optional(),
     )
@@ -43,12 +54,19 @@ export const personalOperationsRouter = router({
       }
 
       const filterStatus = input?.status ?? "all";
+      const filterType = input?.type ?? "all";
       const conditions = [eq(personalOperations.ownerId, ctx.user.id)];
 
       if (filterStatus === "in_inventory") {
         conditions.push(eq(personalOperations.status, "in_inventory"));
       } else if (filterStatus === "sold") {
         conditions.push(eq(personalOperations.status, "sold"));
+      }
+
+      if (filterType === "product") {
+        conditions.push(eq(personalOperations.operationType, "product"));
+      } else if (filterType === "service") {
+        conditions.push(eq(personalOperations.operationType, "service"));
       }
 
       return await database
@@ -58,24 +76,26 @@ export const personalOperationsRouter = router({
         .orderBy(desc(personalOperations.createdAt));
     }),
 
-  // ─── CREATE: registra una compra (con o sin venta) ────────────────────
+  // ─── CREATE: registra una operación (producto o servicio) ─────────────
   create: ownerOnlyProcedure
     .input(
       z
         .object({
-          productName: z.string().min(1).max(255),
-          productDescription: z.string().max(2000).optional().nullable(),
+          operationType: z.enum(["product", "service"]).default("product"),
 
-          // Compra (siempre requerida)
-          acquiredAt: z.coerce.date(),
-          acquiredCost: z.string().min(1),
+          // Campos de producto (opcionales si es servicio)
+          productName: z.string().max(255).optional().nullable(),
+          productDescription: z.string().max(2000).optional().nullable(),
+          acquiredAt: z.coerce.date().optional().nullable(),
+          acquiredCost: z.string().optional().nullable(),
           supplierName: z.string().max(255).optional().nullable(),
           supplierPhone: z.string().max(40).optional().nullable(),
           supplierLocation: z.string().max(255).optional().nullable(),
 
           notes: z.string().max(2000).optional().nullable(),
         })
-        .merge(saleFieldsSchema),
+        .merge(saleFieldsSchema)
+        .merge(serviceFieldsSchema),
     )
     .mutation(async ({ input, ctx }) => {
       const database = await db.getDb();
@@ -83,24 +103,62 @@ export const personalOperationsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
 
-      // Si tiene precio de venta y fecha de venta, queda como "sold"
-      const hasSaleData = !!(input.soldAt && input.soldPrice);
-      const status = hasSaleData ? "sold" : "in_inventory";
+      // Validación según tipo
+      if (input.operationType === "product") {
+        if (!input.productName || !input.acquiredCost || !input.acquiredAt) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Producto: nombre, fecha de compra y precio son obligatorios.",
+          });
+        }
+      } else {
+        if (!input.serviceTitle || !input.serviceFee || !input.serviceDate) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Servicio: título, fecha y precio cobrado son obligatorios.",
+          });
+        }
+      }
+
+      // Status según el tipo
+      let status: "in_inventory" | "sold";
+      if (input.operationType === "service") {
+        // Los servicios siempre cuentan como "sold" (ya se prestó y se cobró)
+        status = "sold";
+      } else {
+        // Productos: si tiene venta, está vendido; si no, en inventario
+        const hasSaleData = !!(input.soldAt && input.soldPrice);
+        status = hasSaleData ? "sold" : "in_inventory";
+      }
 
       const result = await database.insert(personalOperations).values({
         ownerId: ctx.user.id,
-        productName: input.productName,
+        operationType: input.operationType,
+
+        // Producto
+        productName: input.productName ?? null,
         productDescription: input.productDescription ?? null,
-        acquiredAt: input.acquiredAt,
-        acquiredCost: input.acquiredCost,
+        acquiredAt: input.acquiredAt ?? null,
+        acquiredCost: input.acquiredCost ?? null,
         supplierName: input.supplierName ?? null,
         supplierPhone: input.supplierPhone ?? null,
         supplierLocation: input.supplierLocation ?? null,
-        soldAt: hasSaleData ? input.soldAt : null,
-        soldPrice: hasSaleData ? input.soldPrice : null,
-        buyerName: hasSaleData ? input.buyerName ?? null : null,
-        buyerPhone: hasSaleData ? input.buyerPhone ?? null : null,
-        buyerLocation: hasSaleData ? input.buyerLocation ?? null : null,
+
+        // Venta del producto
+        soldAt: input.soldAt ?? null,
+        soldPrice: input.soldPrice ?? null,
+        buyerName: input.buyerName ?? null,
+        buyerPhone: input.buyerPhone ?? null,
+        buyerLocation: input.buyerLocation ?? null,
+
+        // Servicio
+        serviceTitle: input.serviceTitle ?? null,
+        serviceFee: input.serviceFee ?? null,
+        serviceDate: input.serviceDate ?? null,
+        customerName: input.customerName ?? null,
+        customerPhone: input.customerPhone ?? null,
+        customerLocation: input.customerLocation ?? null,
+
         status,
         notes: input.notes ?? null,
       });
@@ -108,22 +166,26 @@ export const personalOperationsRouter = router({
       return { success: true, insertId: (result as { insertId?: number })?.insertId };
     }),
 
-  // ─── UPDATE: actualiza datos de una operación ─────────────────────────
+  // ─── UPDATE: actualiza datos ──────────────────────────────────────────
   update: ownerOnlyProcedure
     .input(
       z
         .object({
           id: z.number().int().positive(),
-          productName: z.string().min(1).max(255).optional(),
+          operationType: z.enum(["product", "service"]).optional(),
+
+          productName: z.string().max(255).optional().nullable(),
           productDescription: z.string().max(2000).optional().nullable(),
-          acquiredAt: z.coerce.date().optional(),
-          acquiredCost: z.string().optional(),
+          acquiredAt: z.coerce.date().optional().nullable(),
+          acquiredCost: z.string().optional().nullable(),
           supplierName: z.string().max(255).optional().nullable(),
           supplierPhone: z.string().max(40).optional().nullable(),
           supplierLocation: z.string().max(255).optional().nullable(),
+
           notes: z.string().max(2000).optional().nullable(),
         })
-        .merge(saleFieldsSchema),
+        .merge(saleFieldsSchema)
+        .merge(serviceFieldsSchema),
     )
     .mutation(async ({ input, ctx }) => {
       const database = await db.getDb();
@@ -131,7 +193,6 @@ export const personalOperationsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
 
-      // Verificar ownership ANTES de modificar
       const [existing] = await database
         .select()
         .from(personalOperations)
@@ -152,18 +213,22 @@ export const personalOperationsRouter = router({
       const { id, ...rest } = input;
       const updates: Record<string, unknown> = {};
 
-      // Solo incluir campos que vinieron en el input
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined) {
           updates[key] = value;
         }
       }
 
-      // Si se actualiza precio o fecha de venta, ajustar status
-      const willHaveSale =
-        (updates.soldAt ?? existing.soldAt) &&
-        (updates.soldPrice ?? existing.soldPrice);
-      updates.status = willHaveSale ? "sold" : "in_inventory";
+      // Recalcular status según tipo
+      const finalType = (updates.operationType as string) ?? existing.operationType;
+      if (finalType === "service") {
+        updates.status = "sold";
+      } else {
+        const willHaveSale =
+          (updates.soldAt ?? existing.soldAt) &&
+          (updates.soldPrice ?? existing.soldPrice);
+        updates.status = willHaveSale ? "sold" : "in_inventory";
+      }
 
       await database
         .update(personalOperations)
@@ -173,7 +238,7 @@ export const personalOperationsRouter = router({
       return { success: true };
     }),
 
-  // ─── MARK AS SOLD: marca una operación en inventario como vendida ─────
+  // ─── MARK AS SOLD: solo aplica a productos ────────────────────────────
   markAsSold: ownerOnlyProcedure
     .input(
       z.object({
@@ -205,6 +270,13 @@ export const personalOperationsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
+      if (existing.operationType !== "product") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Solo los productos pueden marcarse como vendidos.",
+        });
+      }
+
       await database
         .update(personalOperations)
         .set({
@@ -220,7 +292,7 @@ export const personalOperationsRouter = router({
       return { success: true };
     }),
 
-  // ─── DELETE: elimina una operación ────────────────────────────────────
+  // ─── DELETE ───────────────────────────────────────────────────────────
   delete: ownerOnlyProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
@@ -250,7 +322,7 @@ export const personalOperationsRouter = router({
       return { success: true };
     }),
 
-  // ─── STATS: estadísticas para los KPIs y gráficas ─────────────────────
+  // ─── STATS: con cálculo polimórfico (producto vs servicio) ────────────
   stats: ownerOnlyProcedure.query(async ({ ctx }) => {
     const database = await db.getDb();
     if (!database) {
@@ -261,7 +333,6 @@ export const personalOperationsRouter = router({
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    // Todas las operaciones del owner
     const allOps = await database
       .select()
       .from(personalOperations)
@@ -271,21 +342,37 @@ export const personalOperationsRouter = router({
     let profitMonth = 0;
     let inInventoryCount = 0;
     let inInventoryCost = 0;
+    let servicesMonth = 0;
+    let productsMonth = 0;
 
     for (const op of allOps) {
-      // En inventario (no vendido)
-      if (op.status === "in_inventory") {
+      // PRODUCTO en inventario (no vendido)
+      if (op.operationType === "product" && op.status === "in_inventory") {
         inInventoryCount += 1;
-        inInventoryCost += Number(op.acquiredCost);
+        inInventoryCost += Number(op.acquiredCost ?? 0);
         continue;
       }
 
-      // Vendido en el mes actual
-      if (op.soldAt && op.soldAt >= monthStart) {
+      // PRODUCTO vendido este mes
+      if (op.operationType === "product" && op.soldAt && op.soldAt >= monthStart) {
         const sold = Number(op.soldPrice ?? 0);
-        const cost = Number(op.acquiredCost);
+        const cost = Number(op.acquiredCost ?? 0);
         revenueMonth += sold;
         profitMonth += sold - cost;
+        productsMonth += 1;
+        continue;
+      }
+
+      // SERVICIO de este mes
+      if (
+        op.operationType === "service" &&
+        op.serviceDate &&
+        op.serviceDate >= monthStart
+      ) {
+        const fee = Number(op.serviceFee ?? 0);
+        revenueMonth += fee;
+        profitMonth += fee; // Sin costo: utilidad = lo cobrado
+        servicesMonth += 1;
       }
     }
 
@@ -295,6 +382,8 @@ export const personalOperationsRouter = router({
       inInventoryCount,
       inInventoryCost: inInventoryCost.toFixed(2),
       totalOperations: allOps.length,
+      productsMonth,
+      servicesMonth,
     };
   }),
 });
