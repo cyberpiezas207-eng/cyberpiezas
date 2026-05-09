@@ -21,6 +21,7 @@ import AdminPaymentReview from "@/pages/AdminPaymentReview";
 import { OfflineSyncSettings } from "@/pages/OfflineSyncSettings";
 import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
+import VeterinariaPOS from "@/pages/VeterinariaPOS";
 import SubscriptionManagement from "@/pages/SubscriptionManagement";
 import POS from "@/pages/POS";
 import POSHardwareSettings from "@/pages/POSHardwareSettings";
@@ -208,6 +209,7 @@ function Router() {
       </Route>
 
       <Route path="/admin-cyberpiezas">
+        <Route path="/veterinaria-pos" component={VeterinariaPOS} />
         <ProtectedRoute requiredRole="admin">
           <AdminCyberpiezas />
         </ProtectedRoute>
