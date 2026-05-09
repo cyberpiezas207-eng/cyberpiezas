@@ -32,8 +32,14 @@ import OperationsView from "./OperationsView";
 type TabKey = "suscriptores" | "operaciones";
 
 const avatarColors = [
-  "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
-  "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-cyan-500",
+  "bg-rose-500",
+  "bg-indigo-500",
 ];
 
 function getAvatarColor(name: string) {
@@ -53,23 +59,35 @@ function getInitials(name: string) {
 
 function getPlanLabel(plan?: string | null) {
   switch (plan) {
-    case "free": return "Gratis";
-    case "basic": return "Básico";
-    case "professional": return "Profesional";
-    case "premium": return "Premium";
-    case "annual": return "Anual";
-    default: return plan ?? "—";
+    case "free":
+      return "Gratis";
+    case "basic":
+      return "Basico";
+    case "professional":
+      return "Profesional";
+    case "premium":
+      return "Premium";
+    case "annual":
+      return "Anual";
+    default:
+      return plan ?? "-";
   }
 }
 
 function getPlanColor(plan?: string | null) {
   switch (plan) {
-    case "free": return "bg-slate-500/20 text-slate-300 border-slate-500/30";
-    case "basic": return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    case "professional": return "bg-purple-500/20 text-purple-300 border-purple-500/30";
-    case "premium": return "bg-amber-500/20 text-amber-300 border-amber-500/30";
-    case "annual": return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-    default: return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+    case "free":
+      return "bg-slate-500/20 text-slate-300 border-slate-500/30";
+    case "basic":
+      return "bg-blue-500/20 text-blue-300 border-blue-500/30";
+    case "professional":
+      return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+    case "premium":
+      return "bg-amber-500/20 text-amber-300 border-amber-500/30";
+    case "annual":
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+    default:
+      return "bg-slate-500/20 text-slate-400 border-slate-500/30";
   }
 }
 
@@ -78,7 +96,11 @@ export default function AdminCyberpiezas() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
   const [searchQuery, setSearchQuery] = useState("");
-  const [welcomeEmail, setWelcomeEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
+  const [welcomeEmail, setWelcomeEmail] = useState<{
+    to: string;
+    subject: string;
+    body: string;
+  } | null>(null);
   const [processingUserId, setProcessingUserId] = useState<number | null>(null);
 
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
@@ -114,7 +136,7 @@ export default function AdminCyberpiezas() {
   });
 
   const handleConfirm = (userId: number, userName: string, userEmail: string) => {
-    if (confirm(`¿Confirmar acceso para ${userName}?`)) {
+    if (confirm("Confirmar acceso para " + userName + "?")) {
       setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "active" });
       handleSendEmail(userEmail, userName);
@@ -122,7 +144,7 @@ export default function AdminCyberpiezas() {
   };
 
   const handleReject = (userId: number, userName: string) => {
-    if (confirm(`¿Desactivar acceso para ${userName}?`)) {
+    if (confirm("Desactivar acceso para " + userName + "?")) {
       setProcessingUserId(userId);
       upsertAccess.mutate({ userId, status: "pending" });
     }
@@ -131,22 +153,34 @@ export default function AdminCyberpiezas() {
   const handleSendEmail = (userEmail: string, userName: string) => {
     setWelcomeEmail({
       to: userEmail || "",
-      subject: `Bienvenido a CyberPiezas, ${userName}`,
-      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas. Tu acceso ya fue activado.\n\nSaludos,\nDavid Antonio\nCyberPiezas`,
+      subject: "Bienvenido a CyberPiezas, " + userName,
+      body:
+        "Hola " +
+        userName +
+        ",\n\nGracias por registrarte en CyberPiezas. Tu acceso ya fue activado.\n\nSaludos,\nDavid Antonio\nCyberPiezas",
     });
   };
 
   const handleCopyEmail = () => {
     if (!welcomeEmail) return;
-    const text = `Para: ${welcomeEmail.to}\nAsunto: ${welcomeEmail.subject}\n\n${welcomeEmail.body}`;
+    const text =
+      "Para: " +
+      welcomeEmail.to +
+      "\nAsunto: " +
+      welcomeEmail.subject +
+      "\n\n" +
+      welcomeEmail.body;
     navigator.clipboard.writeText(text).then(() => {
       toast.success("Correo copiado al portapapeles");
     });
   };
 
-  const buildMailtoLink = () => {
-    if (!welcomeEmail) return "#";
-    return `mailto:${encodeURIComponent(welcomeEmail.to)}?subject=${encodeURIComponent(welcomeEmail.subject)}&body=${encodeURIComponent(welcomeEmail.body)}`;
+  const handleOpenMail = () => {
+    if (!welcomeEmail) return;
+    const to = encodeURIComponent(welcomeEmail.to);
+    const subject = encodeURIComponent(welcomeEmail.subject);
+    const body = encodeURIComponent(welcomeEmail.body);
+    window.location.href = "mailto:" + to + "?subject=" + subject + "&body=" + body;
   };
 
   const SubscriberCard = ({ row }: { row: any }) => {
@@ -162,7 +196,11 @@ export default function AdminCyberpiezas() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-5">
             <div
-              className={`flex-shrink-0 w-20 h-20 rounded-2xl ${avatarColor} flex items-center justify-center text-white text-3xl font-bold shadow-lg`}
+              className={
+                "flex-shrink-0 w-20 h-20 rounded-2xl " +
+                avatarColor +
+                " flex items-center justify-center text-white text-3xl font-bold shadow-lg"
+              }
             >
               {initials}
             </div>
@@ -191,7 +229,7 @@ export default function AdminCyberpiezas() {
                       Pendiente
                     </Badge>
                   )}
-                  <Badge className={`${getPlanColor(u.subscriptionPlan)} text-xs`}>
+                  <Badge className={getPlanColor(u.subscriptionPlan) + " text-xs"}>
                     <CreditCard className="w-3 h-3 mr-1" />
                     {getPlanLabel(u.subscriptionPlan)}
                   </Badge>
@@ -215,12 +253,12 @@ export default function AdminCyberpiezas() {
                     Registro:{" "}
                     {u.createdAt
                       ? format(new Date(u.createdAt), "dd 'de' MMM, yyyy", { locale: es })
-                      : "—"}
+                      : "-"}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs">
                   <span className="text-slate-500 uppercase tracking-wider">
-                    Login: {u.loginMethod || "—"}
+                    Login: {u.loginMethod || "-"}
                   </span>
                 </div>
               </div>
@@ -265,69 +303,20 @@ export default function AdminCyberpiezas() {
     );
   };
 
-  const EmailModal = () => {
-    if (!welcomeEmail) return null;
-    return (
-      <div className="rounded-xl border border-purple-500/40 bg-purple-950/30 p-5 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="font-semibold text-purple-200">Preparar correo</p>
-          <div className="flex gap-2 flex-wrap">
-            
-              href={buildMailtoLink()}
-              className="inline-flex items-center gap-1 h-8 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Abrir en Mail
-            </a>
-            <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-200 hover:bg-purple-500/20 gap-1">
-              <Copy className="w-3.5 h-3.5" /> Copiar
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-300 hover:text-white">
-              X
-            </Button>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs text-purple-200 uppercase font-bold">Para:</label>
-            <Input
-              value={welcomeEmail.to}
-              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
-              className="bg-slate-900/80 border-purple-500/30 text-white h-9 placeholder:text-slate-500"
-              placeholder="destinatario@ejemplo.com"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-purple-200 uppercase font-bold">Asunto:</label>
-            <Input
-              placeholder="Escribe el asunto..."
-              value={welcomeEmail.subject}
-              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
-              className="bg-slate-900/80 border-purple-500/30 text-white h-9 placeholder:text-slate-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-purple-200 uppercase font-bold">Mensaje:</label>
-            <Textarea
-              placeholder="Escribe el contenido del correo..."
-              value={welcomeEmail.body}
-              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
-              className="bg-slate-900/80 border-purple-500/30 text-white min-h-[120px] font-sans placeholder:text-slate-500"
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (user?.role !== "admin") {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
           <ShieldCheck className="w-16 h-16 text-red-500 mb-4 opacity-20" />
           <h1 className="text-2xl font-bold text-white mb-2">Acceso restringido</h1>
-          <p className="text-slate-400 max-w-md">Esta sección es exclusiva para administradores de CyberPiezas.</p>
-          <Button onClick={() => window.history.back()} variant="link" className="mt-4 text-purple-400">
+          <p className="text-slate-400 max-w-md">
+            Esta seccion es exclusiva para administradores de CyberPiezas.
+          </p>
+          <Button
+            onClick={() => window.history.back()}
+            variant="link"
+            className="mt-4 text-purple-400"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" /> Volver
           </Button>
         </div>
@@ -343,17 +332,20 @@ export default function AdminCyberpiezas() {
             <ShieldCheck className="w-8 h-8 text-purple-500" />
             Panel CyberPiezas
           </h1>
-          <p className="text-slate-400 mt-1">Tu centro privado de administración y operaciones.</p>
+          <p className="text-slate-400 mt-1">
+            Tu centro privado de administracion y operaciones.
+          </p>
         </div>
 
         <div className="flex gap-1 mb-6 border-b border-white/10">
           <button
             onClick={() => setActiveTab("suscriptores")}
-            className={`px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative ${
-              activeTab === "suscriptores"
+            className={
+              "px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative " +
+              (activeTab === "suscriptores"
                 ? "text-purple-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+                : "text-slate-400 hover:text-slate-200")
+            }
           >
             <Users className="w-4 h-4" />
             Suscriptores
@@ -363,11 +355,12 @@ export default function AdminCyberpiezas() {
           </button>
           <button
             onClick={() => setActiveTab("operaciones")}
-            className={`px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative ${
-              activeTab === "operaciones"
+            className={
+              "px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative " +
+              (activeTab === "operaciones"
                 ? "text-purple-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+                : "text-slate-400 hover:text-slate-200")
+            }
           >
             <Briefcase className="w-4 h-4" />
             Mis Operaciones
@@ -378,9 +371,11 @@ export default function AdminCyberpiezas() {
         </div>
 
         {activeTab === "suscriptores" && (
-          <>
+          <div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <p className="text-slate-400">Gestión de suscriptores y accesos a la plataforma.</p>
+              <p className="text-slate-400">
+                Gestion de suscriptores y accesos a la plataforma.
+              </p>
               <div className="flex items-center gap-3">
                 <div className="relative flex-1 md:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -394,10 +389,17 @@ export default function AdminCyberpiezas() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => utils.personalOperations.listSubscribers.invalidate()}
+                  onClick={() =>
+                    utils.personalOperations.listSubscribers.invalidate()
+                  }
                   className="border-white/10 text-slate-400"
                 >
-                  <RefreshCw className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={
+                      "w-4 h-4 " +
+                      (usersQuery.isFetching ? "animate-spin" : "")
+                    }
+                  />
                 </Button>
               </div>
             </div>
@@ -411,17 +413,90 @@ export default function AdminCyberpiezas() {
                   </div>
                 )}
 
-                <EmailModal />
+                {welcomeEmail && (
+                  <div className="rounded-xl border border-purple-500/40 bg-purple-950/30 p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-purple-200">Preparar correo</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={handleOpenMail}
+                          className="bg-purple-600 hover:bg-purple-700 text-white gap-1"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Abrir en Mail
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCopyEmail}
+                          className="border-purple-500/40 text-purple-200 hover:bg-purple-500/20 gap-1"
+                        >
+                          <Copy className="w-3.5 h-3.5" /> Copiar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setWelcomeEmail(null)}
+                          className="text-slate-300 hover:text-white"
+                        >
+                          X
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-purple-200 uppercase font-bold">
+                          Para:
+                        </label>
+                        <Input
+                          value={welcomeEmail.to}
+                          onChange={(e) =>
+                            setWelcomeEmail({ ...welcomeEmail, to: e.target.value })
+                          }
+                          className="bg-slate-900/80 border-purple-500/30 text-white h-9"
+                          placeholder="destinatario@ejemplo.com"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-purple-200 uppercase font-bold">
+                          Asunto:
+                        </label>
+                        <Input
+                          placeholder="Escribe el asunto..."
+                          value={welcomeEmail.subject}
+                          onChange={(e) =>
+                            setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })
+                          }
+                          className="bg-slate-900/80 border-purple-500/30 text-white h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-purple-200 uppercase font-bold">
+                          Mensaje:
+                        </label>
+                        <Textarea
+                          placeholder="Escribe el contenido del correo..."
+                          value={welcomeEmail.body}
+                          onChange={(e) =>
+                            setWelcomeEmail({ ...welcomeEmail, body: e.target.value })
+                          }
+                          className="bg-slate-900/80 border-purple-500/30 text-white min-h-[120px] font-sans"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {pendingUsers.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-yellow-400">
                         <Users className="w-5 h-5" />
-                        Pendientes de confirmación ({pendingUsers.length})
+                        Pendientes de confirmacion ({pendingUsers.length})
                       </CardTitle>
                       <CardDescription className="text-slate-400">
-                        Estos usuarios se registraron pero aún no tienen acceso activo.
+                        Estos usuarios se registraron pero aun no tienen acceso activo.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -454,9 +529,11 @@ export default function AdminCyberpiezas() {
                 {!usersQuery.isLoading && filteredUsers.length === 0 && (
                   <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
                     <Users className="w-12 h-12 mx-auto mb-4 text-slate-600" />
-                    <p className="text-slate-400 font-medium mb-1">No hay suscriptores aún</p>
+                    <p className="text-slate-400 font-medium mb-1">
+                      No hay suscriptores aun
+                    </p>
                     <p className="text-sm text-slate-500">
-                      Cuando alguien se registre en tu plataforma, aparecerá aquí.
+                      Cuando alguien se registre en tu plataforma, aparecera aqui.
                     </p>
                   </div>
                 )}
@@ -470,26 +547,30 @@ export default function AdminCyberpiezas() {
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Total registros</span>
-                      <span className="text-2xl font-bold text-white">{allUsers.length}</span>
+                      <span className="text-2xl font-bold text-white">
+                        {allUsers.length}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Activos</span>
-                      <span className="text-xl font-semibold text-emerald-400">{activeUsers.length}</span>
+                      <span className="text-xl font-semibold text-emerald-400">
+                        {activeUsers.length}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Pendientes</span>
-                      <span className="text-xl font-semibold text-yellow-400">{pendingUsers.length}</span>
+                      <span className="text-xl font-semibold text-yellow-400">
+                        {pendingUsers.length}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
-          </>
+          </div>
         )}
 
-        {activeTab === "operaciones" && (
-          <OperationsView showHeader={false} />
-        )}
+        {activeTab === "operaciones" && <OperationsView showHeader={false} />}
       </div>
     </DashboardLayout>
   );
