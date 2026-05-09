@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Phone,
   MapPin,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,10 +30,15 @@ import {
 } from "recharts";
 
 type FilterStatus = "all" | "in_inventory" | "sold";
+type FilterType = "all" | "product" | "service";
+type OperationType = "product" | "service";
 
 const today = () => new Date().toISOString().split("T")[0];
 
 const emptyForm = {
+  operationType: "product" as OperationType,
+
+  // Producto
   productName: "",
   productDescription: "",
   acquiredAt: today(),
@@ -45,6 +51,15 @@ const emptyForm = {
   buyerName: "",
   buyerPhone: "",
   buyerLocation: "",
+
+  // Servicio
+  serviceTitle: "",
+  serviceFee: "",
+  serviceDate: today(),
+  customerName: "",
+  customerPhone: "",
+  customerLocation: "",
+
   notes: "",
 };
 
@@ -70,7 +85,8 @@ export type OperationsViewProps = {
 };
 
 export default function OperationsView({ showHeader = true }: OperationsViewProps) {
-  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -80,7 +96,10 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
   const [form, setForm] = useState(emptyForm);
   const [sellForm, setSellForm] = useState(emptySellForm);
 
-  const operations = trpc.personalOperations.list.useQuery({ status: filter });
+  const operations = trpc.personalOperations.list.useQuery({
+    status: filterStatus,
+    type: filterType,
+  });
   const stats = trpc.personalOperations.stats.useQuery();
   const createOp = trpc.personalOperations.create.useMutation();
   const updateOp = trpc.personalOperations.update.useMutation();
@@ -91,26 +110,43 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
     if (!operations.data) return [];
     if (!search.trim()) return operations.data;
     const q = search.toLowerCase();
-    return operations.data.filter(
-      (op) =>
-        op.productName.toLowerCase().includes(q) ||
-        (op.supplierName ?? "").toLowerCase().includes(q) ||
-        (op.buyerName ?? "").toLowerCase().includes(q),
-    );
+    return operations.data.filter((op) => {
+      const name = op.operationType === "service" ? op.serviceTitle : op.productName;
+      const contactName = op.operationType === "service" ? op.customerName : op.supplierName;
+      const buyerName = op.buyerName ?? "";
+      return (
+        (name ?? "").toLowerCase().includes(q) ||
+        (contactName ?? "").toLowerCase().includes(q) ||
+        buyerName.toLowerCase().includes(q)
+      );
+    });
   }, [operations.data, search]);
 
   const chartData = useMemo(() => {
     if (!operations.data) return [];
-    const sold = operations.data
-      .filter((op) => op.soldAt && op.soldPrice)
-      .sort((a, b) => new Date(a.soldAt!).getTime() - new Date(b.soldAt!).getTime());
+    // Mezclar productos vendidos + servicios prestados, ordenados por fecha
+    const events: Array<{ date: Date; profit: number }> = [];
+    for (const op of operations.data) {
+      if (op.operationType === "product" && op.soldAt && op.soldPrice) {
+        events.push({
+          date: new Date(op.soldAt),
+          profit: Number(op.soldPrice) - Number(op.acquiredCost ?? 0),
+        });
+      }
+      if (op.operationType === "service" && op.serviceDate && op.serviceFee) {
+        events.push({
+          date: new Date(op.serviceDate),
+          profit: Number(op.serviceFee),
+        });
+      }
+    }
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     let acc = 0;
-    return sold.slice(-30).map((op) => {
-      const profit = Number(op.soldPrice) - Number(op.acquiredCost);
-      acc += profit;
+    return events.slice(-30).map((e) => {
+      acc += e.profit;
       return {
-        date: formatDate(op.soldAt),
+        date: formatDate(e.date),
         utilidad: acc,
       };
     });
@@ -118,27 +154,47 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.productName.trim() || !form.acquiredCost.trim()) {
-      toast.error("Producto y precio de compra son obligatorios");
-      return;
+
+    if (form.operationType === "product") {
+      if (!form.productName.trim() || !form.acquiredCost.trim()) {
+        toast.error("Producto y precio de compra son obligatorios");
+        return;
+      }
+    } else {
+      if (!form.serviceTitle.trim() || !form.serviceFee.trim()) {
+        toast.error("Título del servicio y precio cobrado son obligatorios");
+        return;
+      }
     }
+
     try {
       await createOp.mutateAsync({
-        productName: form.productName,
+        operationType: form.operationType,
+
+        productName: form.productName || undefined,
         productDescription: form.productDescription || undefined,
-        acquiredAt: new Date(form.acquiredAt),
-        acquiredCost: form.acquiredCost,
+        acquiredAt: form.operationType === "product" ? new Date(form.acquiredAt) : undefined,
+        acquiredCost: form.acquiredCost || undefined,
         supplierName: form.supplierName || undefined,
         supplierPhone: form.supplierPhone || undefined,
         supplierLocation: form.supplierLocation || undefined,
+
         soldAt: form.soldAt ? new Date(form.soldAt) : undefined,
         soldPrice: form.soldPrice || undefined,
         buyerName: form.buyerName || undefined,
         buyerPhone: form.buyerPhone || undefined,
         buyerLocation: form.buyerLocation || undefined,
+
+        serviceTitle: form.serviceTitle || undefined,
+        serviceFee: form.serviceFee || undefined,
+        serviceDate: form.operationType === "service" ? new Date(form.serviceDate) : undefined,
+        customerName: form.customerName || undefined,
+        customerPhone: form.customerPhone || undefined,
+        customerLocation: form.customerLocation || undefined,
+
         notes: form.notes || undefined,
       });
-      toast.success("Operación registrada");
+      toast.success(form.operationType === "service" ? "Servicio registrado" : "Operación registrada");
       setForm(emptyForm);
       setIsCreateOpen(false);
       operations.refetch();
@@ -151,6 +207,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
   const handleOpenEdit = (op: any) => {
     setEditingId(op.id);
     setForm({
+      operationType: (op.operationType ?? "product") as OperationType,
       productName: op.productName ?? "",
       productDescription: op.productDescription ?? "",
       acquiredAt: op.acquiredAt ? new Date(op.acquiredAt).toISOString().split("T")[0] : today(),
@@ -163,6 +220,12 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
       buyerName: op.buyerName ?? "",
       buyerPhone: op.buyerPhone ?? "",
       buyerLocation: op.buyerLocation ?? "",
+      serviceTitle: op.serviceTitle ?? "",
+      serviceFee: op.serviceFee ?? "",
+      serviceDate: op.serviceDate ? new Date(op.serviceDate).toISOString().split("T")[0] : today(),
+      customerName: op.customerName ?? "",
+      customerPhone: op.customerPhone ?? "",
+      customerLocation: op.customerLocation ?? "",
       notes: op.notes ?? "",
     });
     setIsEditOpen(true);
@@ -174,19 +237,26 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
     try {
       await updateOp.mutateAsync({
         id: editingId,
-        productName: form.productName,
-        productDescription: form.productDescription || undefined,
-        acquiredAt: new Date(form.acquiredAt),
-        acquiredCost: form.acquiredCost,
-        supplierName: form.supplierName || undefined,
-        supplierPhone: form.supplierPhone || undefined,
-        supplierLocation: form.supplierLocation || undefined,
+        operationType: form.operationType,
+        productName: form.productName || null,
+        productDescription: form.productDescription || null,
+        acquiredAt: form.operationType === "product" && form.acquiredAt ? new Date(form.acquiredAt) : null,
+        acquiredCost: form.acquiredCost || null,
+        supplierName: form.supplierName || null,
+        supplierPhone: form.supplierPhone || null,
+        supplierLocation: form.supplierLocation || null,
         soldAt: form.soldAt ? new Date(form.soldAt) : null,
         soldPrice: form.soldPrice || null,
         buyerName: form.buyerName || null,
         buyerPhone: form.buyerPhone || null,
         buyerLocation: form.buyerLocation || null,
-        notes: form.notes || undefined,
+        serviceTitle: form.serviceTitle || null,
+        serviceFee: form.serviceFee || null,
+        serviceDate: form.operationType === "service" && form.serviceDate ? new Date(form.serviceDate) : null,
+        customerName: form.customerName || null,
+        customerPhone: form.customerPhone || null,
+        customerLocation: form.customerLocation || null,
+        notes: form.notes || null,
       });
       toast.success("Operación actualizada");
       setIsEditOpen(false);
@@ -248,7 +318,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
           <div>
             <h1 className="text-4xl font-bold text-primary mb-2">Mis Operaciones</h1>
             <p className="text-muted-foreground">
-              Control personal de compraventa · Solo visible para ti
+              Productos y servicios · Solo visible para ti
             </p>
           </div>
           <Button
@@ -279,6 +349,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
         </div>
       )}
 
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-border">
           <CardContent className="pt-6">
@@ -288,6 +359,9 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
                 <p className="text-sm text-muted-foreground">Ingresos del mes</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(Number(stats.data?.revenueMonth ?? 0))}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.data?.productsMonth ?? 0} productos · {stats.data?.servicesMonth ?? 0} servicios
                 </p>
               </div>
             </div>
@@ -330,7 +404,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
         <Card className="border-border">
           <CardHeader>
             <CardTitle className="text-primary">Utilidad acumulada</CardTitle>
-            <CardDescription>Últimas {chartData.length} ventas</CardDescription>
+            <CardDescription>Últimas {chartData.length} operaciones (productos + servicios)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -364,39 +438,64 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
 
       <Card className="border-border">
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
             <div>
               <CardTitle className="text-primary">Historial de operaciones</CardTitle>
               <CardDescription>
                 {filteredOps.length} {filteredOps.length === 1 ? "operación" : "operaciones"}
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col gap-2 w-full md:w-auto">
               <Input
-                placeholder="Buscar producto, proveedor..."
+                placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full sm:w-64"
+                className="w-full md:w-64"
               />
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
-                  variant={filter === "all" ? "default" : "outline"}
+                  variant={filterType === "all" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFilter("all")}
+                  onClick={() => setFilterType("all")}
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={filterType === "product" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterType("product")}
+                  className="gap-1"
+                >
+                  <Package className="h-3 w-3" /> Productos
+                </Button>
+                <Button
+                  variant={filterType === "service" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterType("service")}
+                  className="gap-1"
+                >
+                  <Wrench className="h-3 w-3" /> Servicios
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  variant={filterStatus === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterStatus("all")}
                 >
                   Todas
                 </Button>
                 <Button
-                  variant={filter === "in_inventory" ? "default" : "outline"}
+                  variant={filterStatus === "in_inventory" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFilter("in_inventory")}
+                  onClick={() => setFilterStatus("in_inventory")}
                 >
                   Inventario
                 </Button>
                 <Button
-                  variant={filter === "sold" ? "default" : "outline"}
+                  variant={filterStatus === "sold" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setFilter("sold")}
+                  onClick={() => setFilterStatus("sold")}
                 >
                   Vendidas
                 </Button>
@@ -413,126 +512,33 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
             </p>
           ) : (
             <div className="space-y-3">
-              {filteredOps.map((op: any) => {
-                const profit = op.soldPrice
-                  ? Number(op.soldPrice) - Number(op.acquiredCost)
-                  : null;
-                return (
-                  <Card key={op.id} className="border-border">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                            <h3 className="font-semibold text-foreground">{op.productName}</h3>
-                            {op.status === "in_inventory" ? (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                                En inventario
-                              </span>
-                            ) : (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Vendida
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="text-sm text-muted-foreground">
-                            <span className="font-medium">Compra:</span>{" "}
-                            {formatCurrency(Number(op.acquiredCost))} · {formatDate(op.acquiredAt)}
-                            {op.supplierName && <span> · de {op.supplierName}</span>}
-                            {op.supplierPhone && (
-                              <span className="inline-flex items-center gap-1 ml-2">
-                                <Phone className="h-3 w-3" /> {op.supplierPhone}
-                              </span>
-                            )}
-                            {op.supplierLocation && (
-                              <span className="inline-flex items-center gap-1 ml-2">
-                                <MapPin className="h-3 w-3" /> {op.supplierLocation}
-                              </span>
-                            )}
-                          </div>
-
-                          {op.status === "sold" && (
-                            <div className="text-sm text-muted-foreground">
-                              <span className="font-medium">Venta:</span>{" "}
-                              {formatCurrency(Number(op.soldPrice))} · {formatDate(op.soldAt)}
-                              {op.buyerName && <span> · a {op.buyerName}</span>}
-                              {op.buyerPhone && (
-                                <span className="inline-flex items-center gap-1 ml-2">
-                                  <Phone className="h-3 w-3" /> {op.buyerPhone}
-                                </span>
-                              )}
-                              {op.buyerLocation && (
-                                <span className="inline-flex items-center gap-1 ml-2">
-                                  <MapPin className="h-3 w-3" /> {op.buyerLocation}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {profit !== null && (
-                            <p
-                              className={`text-sm font-semibold ${
-                                profit >= 0 ? "text-green-600" : "text-red-600"
-                              }`}
-                            >
-                              Utilidad: {formatCurrency(profit)}
-                            </p>
-                          )}
-
-                          {op.notes && (
-                            <p className="text-xs text-muted-foreground italic">{op.notes}</p>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          {op.status === "in_inventory" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenSell(op)}
-                              className="bg-green-600 hover:bg-green-700 text-white gap-1"
-                            >
-                              <CheckCircle2 className="h-3 w-3" />
-                              Vender
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenEdit(op)}
-                            className="gap-1"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                            Editar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(op.id, op.productName)}
-                            disabled={deleteOp.isPending}
-                            className="text-destructive gap-1"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {filteredOps.map((op: any) => (
+                <OperationCard
+                  key={op.id}
+                  op={op}
+                  onEdit={() => handleOpenEdit(op)}
+                  onSell={() => handleOpenSell(op)}
+                  onDelete={() =>
+                    handleDelete(
+                      op.id,
+                      op.operationType === "service" ? op.serviceTitle : op.productName,
+                    )
+                  }
+                  isPendingDelete={deleteOp.isPending}
+                />
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Create dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-primary">Nueva operación</DialogTitle>
             <DialogDescription>
-              Registra una compra. Si ya la vendiste, llena también la sección de venta.
+              Elige si es un producto o un servicio y captura los datos.
             </DialogDescription>
           </DialogHeader>
           <OperationForm
@@ -546,6 +552,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
         </DialogContent>
       </Dialog>
 
+      {/* Edit dialog */}
       <Dialog
         open={isEditOpen}
         onOpenChange={(open) => {
@@ -556,7 +563,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-primary">Editar operación</DialogTitle>
-            <DialogDescription>Modifica los datos de la operación.</DialogDescription>
+            <DialogDescription>Modifica los datos.</DialogDescription>
           </DialogHeader>
           <OperationForm
             form={form}
@@ -572,6 +579,7 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
         </DialogContent>
       </Dialog>
 
+      {/* Sell dialog */}
       <Dialog
         open={isSellOpen}
         onOpenChange={(open) => {
@@ -657,6 +665,161 @@ export default function OperationsView({ showHeader = true }: OperationsViewProp
   );
 }
 
+// ─── Tarjeta individual de operación ──────────────────────────────────
+function OperationCard({
+  op,
+  onEdit,
+  onSell,
+  onDelete,
+  isPendingDelete,
+}: {
+  op: any;
+  onEdit: () => void;
+  onSell: () => void;
+  onDelete: () => void;
+  isPendingDelete: boolean;
+}) {
+  const isService = op.operationType === "service";
+  const profit = isService
+    ? op.serviceFee
+      ? Number(op.serviceFee)
+      : null
+    : op.soldPrice
+      ? Number(op.soldPrice) - Number(op.acquiredCost ?? 0)
+      : null;
+
+  return (
+    <Card className="border-border">
+      <CardContent className="pt-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isService ? (
+                <Wrench className="h-5 w-5 text-purple-500" />
+              ) : (
+                <Package className="h-5 w-5 text-muted-foreground" />
+              )}
+              <h3 className="font-semibold text-foreground">
+                {isService ? op.serviceTitle : op.productName}
+              </h3>
+              {isService ? (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded flex items-center gap-1">
+                  <Wrench className="h-3 w-3" />
+                  Servicio
+                </span>
+              ) : op.status === "in_inventory" ? (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                  En inventario
+                </span>
+              ) : (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Vendida
+                </span>
+              )}
+            </div>
+
+            {/* Datos según tipo */}
+            {isService ? (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium">Servicio:</span>{" "}
+                {formatCurrency(Number(op.serviceFee ?? 0))} · {formatDate(op.serviceDate)}
+                {op.customerName && <span> · cliente {op.customerName}</span>}
+                {op.customerPhone && (
+                  <span className="inline-flex items-center gap-1 ml-2">
+                    <Phone className="h-3 w-3" /> {op.customerPhone}
+                  </span>
+                )}
+                {op.customerLocation && (
+                  <span className="inline-flex items-center gap-1 ml-2">
+                    <MapPin className="h-3 w-3" /> {op.customerLocation}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium">Compra:</span>{" "}
+                  {formatCurrency(Number(op.acquiredCost ?? 0))} · {formatDate(op.acquiredAt)}
+                  {op.supplierName && <span> · de {op.supplierName}</span>}
+                  {op.supplierPhone && (
+                    <span className="inline-flex items-center gap-1 ml-2">
+                      <Phone className="h-3 w-3" /> {op.supplierPhone}
+                    </span>
+                  )}
+                  {op.supplierLocation && (
+                    <span className="inline-flex items-center gap-1 ml-2">
+                      <MapPin className="h-3 w-3" /> {op.supplierLocation}
+                    </span>
+                  )}
+                </div>
+                {op.status === "sold" && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">Venta:</span>{" "}
+                    {formatCurrency(Number(op.soldPrice))} · {formatDate(op.soldAt)}
+                    {op.buyerName && <span> · a {op.buyerName}</span>}
+                    {op.buyerPhone && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <Phone className="h-3 w-3" /> {op.buyerPhone}
+                      </span>
+                    )}
+                    {op.buyerLocation && (
+                      <span className="inline-flex items-center gap-1 ml-2">
+                        <MapPin className="h-3 w-3" /> {op.buyerLocation}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {profit !== null && (
+              <p
+                className={`text-sm font-semibold ${
+                  profit >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {isService ? "Cobrado: " : "Utilidad: "}
+                {formatCurrency(profit)}
+              </p>
+            )}
+
+            {op.notes && <p className="text-xs text-muted-foreground italic">{op.notes}</p>}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            {!isService && op.status === "in_inventory" && (
+              <Button
+                size="sm"
+                onClick={onSell}
+                className="bg-green-600 hover:bg-green-700 text-white gap-1"
+              >
+                <CheckCircle2 className="h-3 w-3" />
+                Vender
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onEdit} className="gap-1">
+              <Edit2 className="h-3 w-3" />
+              Editar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              disabled={isPendingDelete}
+              className="text-destructive gap-1"
+            >
+              <Trash2 className="h-3 w-3" />
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Formulario que cambia según tipo ─────────────────────────────────
 function OperationForm({
   form,
   setForm,
@@ -672,146 +835,255 @@ function OperationForm({
   isPending: boolean;
   submitLabel: string;
 }) {
+  const isService = form.operationType === "service";
+
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <div className="space-y-3">
-        <h4 className="font-semibold text-foreground border-b pb-1">📦 Producto</h4>
-        <div>
-          <Label className="font-semibold">Nombre del producto *</Label>
-          <Input
-            placeholder="Ej: Monitor Dell 27 pulgadas"
-            value={form.productName}
-            onChange={(e) => setForm({ ...form, productName: e.target.value })}
-            className="mt-2"
-            required
-          />
-        </div>
-        <div>
-          <Label className="font-semibold">Descripción (opcional)</Label>
-          <Textarea
-            placeholder="Detalles, modelo, condición..."
-            value={form.productDescription}
-            onChange={(e) => setForm({ ...form, productDescription: e.target.value })}
-            className="mt-2"
-            rows={2}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <h4 className="font-semibold text-foreground border-b pb-1">💰 Compra</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="font-semibold">Fecha *</Label>
-            <Input
-              type="date"
-              value={form.acquiredAt}
-              onChange={(e) => setForm({ ...form, acquiredAt: e.target.value })}
-              className="mt-2"
-              required
-            />
-          </div>
-          <div>
-            <Label className="font-semibold">Precio compra *</Label>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="400.00"
-              value={form.acquiredCost}
-              onChange={(e) => setForm({ ...form, acquiredCost: e.target.value })}
-              className="mt-2"
-              required
-            />
-          </div>
-        </div>
-        <div>
-          <Label className="font-semibold">Proveedor</Label>
-          <Input
-            placeholder="Ej: Sr. Poncho"
-            value={form.supplierName}
-            onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
-            className="mt-2"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="font-semibold">Teléfono</Label>
-            <Input
-              placeholder="777-123-4567"
-              value={form.supplierPhone}
-              onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
-              className="mt-2"
-            />
-          </div>
-          <div>
-            <Label className="font-semibold">Lugar</Label>
-            <Input
-              placeholder="Ej: Cuernavaca"
-              value={form.supplierLocation}
-              onChange={(e) => setForm({ ...form, supplierLocation: e.target.value })}
-              className="mt-2"
-            />
-          </div>
+      {/* SELECTOR DE TIPO */}
+      <div className="space-y-2">
+        <Label className="font-semibold">Tipo de operación</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, operationType: "product" })}
+            className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
+              !isService
+                ? "border-primary bg-primary/10 text-primary font-semibold"
+                : "border-border bg-transparent text-muted-foreground hover:border-primary/30"
+            }`}
+          >
+            <Package className="h-5 w-5" />
+            Producto (compraventa)
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, operationType: "service" })}
+            className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
+              isService
+                ? "border-primary bg-primary/10 text-primary font-semibold"
+                : "border-border bg-transparent text-muted-foreground hover:border-primary/30"
+            }`}
+          >
+            <Wrench className="h-5 w-5" />
+            Servicio
+          </button>
         </div>
       </div>
 
-      <div className="space-y-3">
-        <h4 className="font-semibold text-foreground border-b pb-1">
-          💵 Venta <span className="text-muted-foreground font-normal">(opcional · llenar si ya se vendió)</span>
-        </h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="font-semibold">Fecha</Label>
-            <Input
-              type="date"
-              value={form.soldAt}
-              onChange={(e) => setForm({ ...form, soldAt: e.target.value })}
-              className="mt-2"
-            />
+      {/* CAMPOS DE PRODUCTO */}
+      {!isService && (
+        <>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground border-b pb-1">📦 Producto</h4>
+            <div>
+              <Label className="font-semibold">Nombre del producto *</Label>
+              <Input
+                placeholder="Ej: Monitor Dell 27 pulgadas"
+                value={form.productName}
+                onChange={(e) => setForm({ ...form, productName: e.target.value })}
+                className="mt-2"
+                required={!isService}
+              />
+            </div>
+            <div>
+              <Label className="font-semibold">Descripción (opcional)</Label>
+              <Textarea
+                placeholder="Detalles, modelo, condición..."
+                value={form.productDescription}
+                onChange={(e) => setForm({ ...form, productDescription: e.target.value })}
+                className="mt-2"
+                rows={2}
+              />
+            </div>
           </div>
-          <div>
-            <Label className="font-semibold">Precio venta</Label>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="1200.00"
-              value={form.soldPrice}
-              onChange={(e) => setForm({ ...form, soldPrice: e.target.value })}
-              className="mt-2"
-            />
-          </div>
-        </div>
-        <div>
-          <Label className="font-semibold">Comprador</Label>
-          <Input
-            placeholder="Ej: Juan"
-            value={form.buyerName}
-            onChange={(e) => setForm({ ...form, buyerName: e.target.value })}
-            className="mt-2"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="font-semibold">Teléfono</Label>
-            <Input
-              placeholder="777-987-6543"
-              value={form.buyerPhone}
-              onChange={(e) => setForm({ ...form, buyerPhone: e.target.value })}
-              className="mt-2"
-            />
-          </div>
-          <div>
-            <Label className="font-semibold">Lugar</Label>
-            <Input
-              placeholder="Ej: Jonacatepec"
-              value={form.buyerLocation}
-              onChange={(e) => setForm({ ...form, buyerLocation: e.target.value })}
-              className="mt-2"
-            />
-          </div>
-        </div>
-      </div>
 
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground border-b pb-1">💰 Compra</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold">Fecha *</Label>
+                <Input
+                  type="date"
+                  value={form.acquiredAt}
+                  onChange={(e) => setForm({ ...form, acquiredAt: e.target.value })}
+                  className="mt-2"
+                  required={!isService}
+                />
+              </div>
+              <div>
+                <Label className="font-semibold">Precio compra *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="400.00"
+                  value={form.acquiredCost}
+                  onChange={(e) => setForm({ ...form, acquiredCost: e.target.value })}
+                  className="mt-2"
+                  required={!isService}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="font-semibold">Proveedor</Label>
+              <Input
+                placeholder="Ej: Sr. Poncho"
+                value={form.supplierName}
+                onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
+                className="mt-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold">Teléfono</Label>
+                <Input
+                  placeholder="777-123-4567"
+                  value={form.supplierPhone}
+                  onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label className="font-semibold">Lugar</Label>
+                <Input
+                  placeholder="Ej: Cuernavaca"
+                  value={form.supplierLocation}
+                  onChange={(e) => setForm({ ...form, supplierLocation: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-semibold text-foreground border-b pb-1">
+              💵 Venta <span className="text-muted-foreground font-normal">(opcional · llenar si ya se vendió)</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold">Fecha</Label>
+                <Input
+                  type="date"
+                  value={form.soldAt}
+                  onChange={(e) => setForm({ ...form, soldAt: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label className="font-semibold">Precio venta</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="1200.00"
+                  value={form.soldPrice}
+                  onChange={(e) => setForm({ ...form, soldPrice: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="font-semibold">Comprador</Label>
+              <Input
+                placeholder="Ej: Juan"
+                value={form.buyerName}
+                onChange={(e) => setForm({ ...form, buyerName: e.target.value })}
+                className="mt-2"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold">Teléfono</Label>
+                <Input
+                  placeholder="777-987-6543"
+                  value={form.buyerPhone}
+                  onChange={(e) => setForm({ ...form, buyerPhone: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label className="font-semibold">Lugar</Label>
+                <Input
+                  placeholder="Ej: Jonacatepec"
+                  value={form.buyerLocation}
+                  onChange={(e) => setForm({ ...form, buyerLocation: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* CAMPOS DE SERVICIO */}
+      {isService && (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-foreground border-b pb-1">🔧 Servicio</h4>
+          <div>
+            <Label className="font-semibold">Título del servicio *</Label>
+            <Input
+              placeholder="Ej: Instalación de cámaras"
+              value={form.serviceTitle}
+              onChange={(e) => setForm({ ...form, serviceTitle: e.target.value })}
+              className="mt-2"
+              required={isService}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="font-semibold">Fecha *</Label>
+              <Input
+                type="date"
+                value={form.serviceDate}
+                onChange={(e) => setForm({ ...form, serviceDate: e.target.value })}
+                className="mt-2"
+                required={isService}
+              />
+            </div>
+            <div>
+              <Label className="font-semibold">Precio cobrado *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="1500.00"
+                value={form.serviceFee}
+                onChange={(e) => setForm({ ...form, serviceFee: e.target.value })}
+                className="mt-2"
+                required={isService}
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="font-semibold">Cliente</Label>
+            <Input
+              placeholder="Ej: Sra. María"
+              value={form.customerName}
+              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+              className="mt-2"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="font-semibold">Teléfono</Label>
+              <Input
+                placeholder="777-123-4567"
+                value={form.customerPhone}
+                onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label className="font-semibold">Lugar</Label>
+              <Input
+                placeholder="Ej: Cuernavaca"
+                value={form.customerLocation}
+                onChange={(e) => setForm({ ...form, customerLocation: e.target.value })}
+                className="mt-2"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOTAS (común a ambos tipos) */}
       <div>
         <Label className="font-semibold">Notas</Label>
         <Textarea
