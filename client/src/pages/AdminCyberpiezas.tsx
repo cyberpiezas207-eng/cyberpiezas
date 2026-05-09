@@ -104,9 +104,9 @@ export default function AdminCyberpiezas() {
   const [processingUserId, setProcessingUserId] = useState<number | null>(null);
 
   const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
-  const upsertAccess = trpc.users.upsertAccess.useMutation({
+  const upsertAccess = trpc.programAccess.upsert.useMutation({
     onSuccess: () => {
-      utils.users.list.invalidate();
+      utils.personalOperations.listSubscribers.invalidate();
       toast.success("Acceso actualizado correctamente");
       setProcessingUserId(null);
     },
@@ -138,7 +138,11 @@ export default function AdminCyberpiezas() {
   const handleConfirm = (userId: number, userName: string, userEmail: string) => {
     if (confirm("Confirmar acceso para " + userName + "?")) {
       setProcessingUserId(userId);
-      upsertAccess.mutate({ userId, status: "active" });
+      upsertAccess.mutate({
+        userId,
+        programCode: "boutique",
+        status: "active",
+      });
       handleSendEmail(userEmail, userName);
     }
   };
@@ -146,7 +150,11 @@ export default function AdminCyberpiezas() {
   const handleReject = (userId: number, userName: string) => {
     if (confirm("Desactivar acceso para " + userName + "?")) {
       setProcessingUserId(userId);
-      upsertAccess.mutate({ userId, status: "pending" });
+      upsertAccess.mutate({
+        userId,
+        programCode: "boutique",
+        status: "pending",
+      });
     }
   };
 
