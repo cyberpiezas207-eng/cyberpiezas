@@ -89,11 +89,7 @@ const upsertAccess = trpc.users.upsertAccess.useMutation({
       toast.success("Acceso actualizado correctamente");
       setProcessingUserId(null);
     },
-    onError: (err) => {
-      toast.error(err.message || "Error al actualizar el acceso");
-      setProcessingUserId(null);
-    },
-    onError: (err) => {
+    
       toast.error(err.message || "Error al actualizar el acceso");
       setProcessingUserId(null);
     },
