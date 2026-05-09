@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   X,
   ArrowLeft,
   Phone,
+  Mail,
   Calendar,
   Syringe,
   FileText,
@@ -28,12 +30,26 @@ import {
   AlertTriangle,
   DollarSign,
   TrendingUp,
+  UserCircle,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
 
-type TabKey = "pos" | "pets" | "products" | "services" | "settings";
+type TabKey = "pos" | "pets" | "customers" | "products" | "services" | "settings";
+
+// Mapa de URL param a TabKey
+const tabFromUrl = (urlTab: string | undefined): TabKey => {
+  switch (urlTab) {
+    case "mascotas": return "pets";
+    case "clientes": return "customers";
+    case "productos": return "products";
+    case "servicios": return "services";
+    case "configuracion": return "settings";
+    default: return "pos";
+  }
+};
 
 const speciesEmoji: Record<string, string> = {
   perro: "🐕",
@@ -52,30 +68,41 @@ function formatMoney(amount: string | number) {
 }
 
 export default function VeterinariaPOS() {
-  const [activeTab, setActiveTab] = useState<TabKey>("pos");
+  const params = useParams() as { tab?: string };
+  const activeTab = tabFromUrl(params?.tab);
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+
+  // Headers contextuales por pestaña
+  const headers: Record<TabKey, { title: string; subtitle: string; icon: any }> = {
+    pos: { title: "Punto de Venta", subtitle: "Vende productos y servicios de tu clinica", icon: ShoppingCart },
+    pets: { title: "Mascotas", subtitle: "Registro y expediente clinico de mascotas", icon: PawPrint },
+    customers: { title: "Clientes", subtitle: "Duenos de las mascotas que atiendes", icon: UserCircle },
+    products: { title: "Productos", subtitle: "Inventario de productos y medicamentos", icon: Package },
+    services: { title: "Servicios", subtitle: "Catalogo de servicios y consultas", icon: Wrench },
+    settings: { title: "Configuracion", subtitle: "Datos de la clinica para recibos", icon: Settings },
+  };
+
+  const currentHeader = headers[activeTab];
+  const HeaderIcon = currentHeader.icon;
 
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Stethoscope className="w-8 h-8 text-emerald-400" />
-            Veterinaria
+            <HeaderIcon className="w-8 h-8 text-emerald-400" />
+            {currentHeader.title}
           </h1>
-          <p className="text-slate-400 mt-1">
-            Sistema completo para tu clinica veterinaria.
-          </p>
+          <p className="text-slate-300 mt-1">{currentHeader.subtitle}</p>
         </div>
 
         {selectedPetId ? (
           <PetDetailView petId={selectedPetId} onBack={() => setSelectedPetId(null)} />
         ) : (
           <>
-            <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
-
             {activeTab === "pos" && <POSTab />}
             {activeTab === "pets" && <PetsTab onSelectPet={setSelectedPetId} />}
+            {activeTab === "customers" && <CustomersTab />}
             {activeTab === "products" && <ProductsTab />}
             {activeTab === "services" && <ServicesTab />}
             {activeTab === "settings" && <SettingsTab />}
@@ -87,41 +114,197 @@ export default function VeterinariaPOS() {
 }
 
 // ============================================================================
-// TAB BAR
+// CUSTOMERS TAB - Clientes (duenos de mascotas)
 // ============================================================================
 
-function TabBar({ activeTab, setActiveTab }: { activeTab: TabKey; setActiveTab: (t: TabKey) => void }) {
-  const tabs: { key: TabKey; label: string; icon: any }[] = [
-    { key: "pos", label: "Punto de Venta", icon: ShoppingCart },
-    { key: "pets", label: "Mascotas", icon: PawPrint },
-    { key: "products", label: "Productos", icon: Package },
-    { key: "services", label: "Servicios", icon: Wrench },
-    { key: "settings", label: "Configuracion", icon: Settings },
-  ];
+function CustomersTab() {
+  const utils = trpc.useUtils();
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+
+  const customersQuery = trpc.customers.list.useQuery();
+  const customers: any[] = (customersQuery.data as any[]) ?? [];
+
+  const filtered = customers.filter((c: any) => {
+    const q = search.toLowerCase();
+    return (
+      (c.name ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q) ||
+      (c.phone ?? "").toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="flex gap-1 mb-6 border-b border-white/10 overflow-x-auto">
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.key;
-        return (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={
-              "px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative whitespace-nowrap " +
-              (isActive ? "text-emerald-400" : "text-slate-400 hover:text-slate-200")
-            }
-          >
-            <Icon className="w-4 h-4" />
-            {tab.label}
-            {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500" />
-            )}
-          </button>
-        );
-      })}
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            placeholder="Buscar cliente por nombre, email o tel..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-400"
+          />
+        </div>
+        <Button
+          onClick={() => { setEditingCustomer(null); setShowForm(true); }}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold shadow-md"
+        >
+          <Plus className="w-4 h-4" /> Nuevo cliente
+        </Button>
+      </div>
+
+      {showForm && (
+        <CustomerForm
+          customer={editingCustomer}
+          onClose={() => { setShowForm(false); setEditingCustomer(null); }}
+          onSaved={() => {
+            setShowForm(false);
+            setEditingCustomer(null);
+            utils.customers.list.invalidate();
+          }}
+        />
+      )}
+
+      {customersQuery.isLoading ? (
+        <p className="text-center text-slate-300 py-12">Cargando clientes...</p>
+      ) : filtered.length === 0 ? (
+        <Card className="bg-slate-800/40 border-slate-700 border-dashed">
+          <CardContent className="pt-12 pb-12 text-center">
+            <UserCircle className="w-12 h-12 mx-auto mb-3 text-slate-500" />
+            <p className="text-slate-200 font-semibold">No hay clientes registrados</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Empieza agregando un cliente. Despues podras registrar sus mascotas.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((c: any) => (
+            <Card key={c.id} className="bg-slate-800/60 border-slate-700 hover:border-emerald-500/50 transition-all shadow-md">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                    {(c.name ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-white truncate">{c.name || "Sin nombre"}</h3>
+                    <div className="space-y-1 mt-1.5 text-sm text-slate-300">
+                      {c.phone && (
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3 h-3 flex-shrink-0 text-slate-400" />
+                          <span className="truncate">{c.phone}</span>
+                        </div>
+                      )}
+                      {c.email && (
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3 h-3 flex-shrink-0 text-slate-400" />
+                          <span className="truncate text-xs">{c.email}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setEditingCustomer(c); setShowForm(true); }}
+                      className="mt-3 h-7 text-xs border-slate-600 hover:bg-slate-700 text-slate-200"
+                    >
+                      <Edit className="w-3 h-3 mr-1" /> Editar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function CustomerForm({ customer, onClose, onSaved }: { customer: any; onClose: () => void; onSaved: () => void }) {
+  const isEdit = !!customer;
+  const [name, setName] = useState(customer?.name ?? "");
+  const [phone, setPhone] = useState(customer?.phone ?? "");
+  const [email, setEmail] = useState(customer?.email ?? "");
+  const [address, setAddress] = useState(customer?.address ?? "");
+  const [notes, setNotes] = useState(customer?.notes ?? "");
+
+  const createMut = trpc.customers.create.useMutation({
+    onSuccess: () => { toast.success("Cliente creado"); onSaved(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMut = trpc.customers.update.useMutation({
+    onSuccess: () => { toast.success("Cliente actualizado"); onSaved(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error("El nombre es obligatorio");
+      return;
+    }
+    const data: any = {
+      name: name.trim(),
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      address: address.trim() || null,
+      notes: notes.trim() || null,
+    };
+    if (isEdit) {
+      updateMut.mutate({ id: customer.id, ...data });
+    } else {
+      createMut.mutate(data);
+    }
+  };
+
+  return (
+    <Card className="bg-slate-800/80 border-emerald-500/40 shadow-xl">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white flex items-center gap-2">
+            <UserCircle className="w-5 h-5 text-emerald-400" />
+            {isEdit ? "Editar cliente" : "Nuevo cliente"}
+          </CardTitle>
+          <Button size="icon" variant="ghost" onClick={onClose} className="text-slate-300 hover:text-white">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <label className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1 block">Nombre completo *</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Perez" className="bg-slate-900 border-slate-700 text-white" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1 block">Telefono</label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="5512345678" className="bg-slate-900 border-slate-700 text-white" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1 block">Email</label>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cliente@ejemplo.com" className="bg-slate-900 border-slate-700 text-white" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1 block">Direccion</label>
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Calle, colonia, ciudad" className="bg-slate-900 border-slate-700 text-white" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-1 block">Notas</label>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observaciones del cliente..." className="bg-slate-900 border-slate-700 text-white min-h-[80px]" />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <Button onClick={handleSave} disabled={createMut.isPending || updateMut.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-semibold">
+            <Save className="w-4 h-4" />
+            {isEdit ? "Guardar cambios" : "Crear cliente"}
+          </Button>
+          <Button variant="outline" onClick={onClose} className="border-slate-600 text-slate-200 hover:bg-slate-700">Cancelar</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
