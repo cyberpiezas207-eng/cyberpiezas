@@ -1773,7 +1773,7 @@ export const appRouter = router({
       .input(
         z.object({
           userId: z.number(),
-          programCode: z.enum(["boutique", "abarrotes", "celine"]),
+         programCode: z.enum(["boutique", "abarrotes", "celine", "veterinaria"]),
           status: z.enum(["active", "pending", "inactive", "suspended", "expired"]),
           accessSource: z.enum(["subscription", "manual_license", "trial", "referral", "admin_override"]).default("admin_override"),
           endsAt: z.coerce.date().nullable().optional(),
