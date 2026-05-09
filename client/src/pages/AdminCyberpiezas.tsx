@@ -22,6 +22,7 @@ import {
   Store,
   CreditCard,
   Phone,
+  Send,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -131,7 +132,7 @@ export default function AdminCyberpiezas() {
     setWelcomeEmail({
       to: userEmail || "",
       subject: `Bienvenido a CyberPiezas, ${userName}`,
-      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas.\n\n[Escribe tu mensaje aquí]\n\nSaludos,\nDavid Antonio`,
+      body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas. Tu acceso ya fue activado.\n\nSaludos,\nDavid Antonio\nCyberPiezas`,
     });
   };
 
@@ -141,6 +142,11 @@ export default function AdminCyberpiezas() {
     navigator.clipboard.writeText(text).then(() => {
       toast.success("Correo copiado al portapapeles");
     });
+  };
+
+  const buildMailtoLink = () => {
+    if (!welcomeEmail) return "#";
+    return `mailto:${encodeURIComponent(welcomeEmail.to)}?subject=${encodeURIComponent(welcomeEmail.subject)}&body=${encodeURIComponent(welcomeEmail.body)}`;
   };
 
   const SubscriberCard = ({ row }: { row: any }) => {
@@ -259,6 +265,61 @@ export default function AdminCyberpiezas() {
     );
   };
 
+  const EmailModal = () => {
+    if (!welcomeEmail) return null;
+    return (
+      <div className="rounded-xl border border-purple-500/40 bg-purple-950/30 p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="font-semibold text-purple-200">Preparar correo</p>
+          <div className="flex gap-2 flex-wrap">
+            
+              href={buildMailtoLink()}
+              className="inline-flex items-center gap-1 h-8 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Abrir en Mail
+            </a>
+            <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-200 hover:bg-purple-500/20 gap-1">
+              <Copy className="w-3.5 h-3.5" /> Copiar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-300 hover:text-white">
+              X
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs text-purple-200 uppercase font-bold">Para:</label>
+            <Input
+              value={welcomeEmail.to}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, to: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white h-9 placeholder:text-slate-500"
+              placeholder="destinatario@ejemplo.com"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-purple-200 uppercase font-bold">Asunto:</label>
+            <Input
+              placeholder="Escribe el asunto..."
+              value={welcomeEmail.subject}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, subject: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white h-9 placeholder:text-slate-500"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-purple-200 uppercase font-bold">Mensaje:</label>
+            <Textarea
+              placeholder="Escribe el contenido del correo..."
+              value={welcomeEmail.body}
+              onChange={(e) => setWelcomeEmail({ ...welcomeEmail, body: e.target.value })}
+              className="bg-slate-900/80 border-purple-500/30 text-white min-h-[120px] font-sans placeholder:text-slate-500"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (user?.role !== "admin") {
     return (
       <DashboardLayout>
@@ -341,47 +402,16 @@ export default function AdminCyberpiezas() {
               </div>
             </div>
 
-          <div className="flex gap-2 flex-wrap">
-                        
-                          href={`mailto:${encodeURIComponent(welcomeEmail.to)}?subject=${encodeURIComponent(welcomeEmail.subject)}&body=${encodeURIComponent(welcomeEmail.body)}`}
-                          className="inline-flex items-center gap-1 h-8 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium"
-                        >
-                          📧 Abrir en Mail
-                        </a>
-                        <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
-                          <Copy className="w-3.5 h-3.5" /> Copiar
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">✕</Button>
-                      </div>
-                )}
-
-                {welcomeEmail && (
-                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-purple-300">✉ Preparar correo</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
-                          <Copy className="w-3.5 h-3.5" /> Copiar
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">✕</Button>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Para:</label>
-                        <Input value={welcomeEmail.to} onChange={(e) => setWelcomeEmail({...welcomeEmail, to: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Asunto:</label>
-                        <Input placeholder="Escribe el asunto..." value={welcomeEmail.subject} onChange={(e) => setWelcomeEmail({...welcomeEmail, subject: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 h-9" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500 uppercase font-bold">Mensaje:</label>
-                        <Textarea placeholder="Escribe el contenido del correo..." value={welcomeEmail.body} onChange={(e) => setWelcomeEmail({...welcomeEmail, body: e.target.value})} className="bg-black/20 border-white/10 text-slate-300 min-h-[120px] font-sans" />
-                      </div>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                {usersQuery.isLoading && (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                    <RefreshCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
+                    <p>Cargando suscriptores...</p>
                   </div>
                 )}
+
+                <EmailModal />
 
                 {pendingUsers.length > 0 && (
                   <Card className="bg-white/5 border-white/10">
