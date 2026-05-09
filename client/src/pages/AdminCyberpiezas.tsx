@@ -129,7 +129,7 @@ export default function AdminCyberpiezas() {
 
   const handleSendEmail = (userEmail: string, userName: string) => {
     setWelcomeEmail({
-      to: userEmail || "cyberpiezas207@gmail.com",
+      to: userEmail || "",
       subject: `Bienvenido a CyberPiezas, ${userName}`,
       body: `Hola ${userName},\n\nGracias por registrarte en CyberPiezas.\n\n[Escribe tu mensaje aquí]\n\nSaludos,\nDavid Antonio`,
     });
@@ -341,13 +341,18 @@ export default function AdminCyberpiezas() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                {usersQuery.isLoading && (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                    <RefreshCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
-                    <p>Cargando suscriptores...</p>
-                  </div>
+          <div className="flex gap-2 flex-wrap">
+                        
+                          href={`mailto:${encodeURIComponent(welcomeEmail.to)}?subject=${encodeURIComponent(welcomeEmail.subject)}&body=${encodeURIComponent(welcomeEmail.body)}`}
+                          className="inline-flex items-center gap-1 h-8 px-3 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium"
+                        >
+                          📧 Abrir en Mail
+                        </a>
+                        <Button size="sm" variant="outline" onClick={handleCopyEmail} className="border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1">
+                          <Copy className="w-3.5 h-3.5" /> Copiar
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setWelcomeEmail(null)} className="text-slate-400 hover:text-white">✕</Button>
+                      </div>
                 )}
 
                 {welcomeEmail && (
