@@ -1,25 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import {
+  ArrowLeft,
   ArrowRight,
+  ArrowUp,
   ArrowUpRight,
+  Camera,
   Check,
   Cloud,
+  Cpu,
   CreditCard,
+  Gift,
+  GraduationCap,
+  HardDrive,
   LayoutDashboard,
   LineChart,
   LogIn,
   MessageCircle,
+  Monitor,
+  Package,
   ShieldCheck,
   Sparkles,
   Stethoscope,
   Store,
   ShoppingBasket,
   TrendingUp,
+  Truck,
   Wifi,
+  Wrench,
   Zap,
 } from "lucide-react";
 
@@ -38,12 +49,53 @@ export function CyberpiezasHome() {
       <TrustBar />
       <Wizard setLocation={setLocation} />
       <Industries setLocation={setLocation} />
+      <Hardware />
+      <Services />
       <Features />
       <HowItWorks />
+      <Referrals isAuthenticated={isAuthenticated} setLocation={setLocation} />
       <Pricing setLocation={setLocation} isAuthenticated={isAuthenticated} />
       <Testimonials />
       <FinalCTA setLocation={setLocation} isAuthenticated={isAuthenticated} />
       <Footer />
+      <FloatingButtons />
+    </div>
+  );
+}
+
+// ============================================================================
+// FLOATING BUTTONS - Mobile/Tablet UX (back + scroll top)
+// ============================================================================
+
+function FloatingButtons() {
+  const [showButtons, setShowButtons] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowButtons(window.scrollY > 400);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  if (!showButtons) return null;
+
+  return (
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-4">
+      <button
+        onClick={() => window.history.length > 1 && window.history.back()}
+        className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center transition-all"
+        title="Atras"
+      >
+        <ArrowLeft className="w-5 h-5 text-slate-700" />
+      </button>
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="w-12 h-12 rounded-full bg-slate-900 hover:bg-slate-800 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center transition-all"
+        title="Subir al inicio"
+      >
+        <ArrowUp className="w-5 h-5 text-white" />
+      </button>
     </div>
   );
 }
@@ -54,10 +106,10 @@ export function CyberpiezasHome() {
 
 function NavBar({ isAuthenticated, setLocation }: { isAuthenticated: boolean; setLocation: (path: string) => void }) {
   return (
-    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100">
+    <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
         <button
-          onClick={() => setLocation("/cyberpiezas")}
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="flex items-center gap-2 group"
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center text-white font-bold text-sm group-hover:scale-105 transition-transform">
@@ -66,9 +118,10 @@ function NavBar({ isAuthenticated, setLocation }: { isAuthenticated: boolean; se
           <span className="font-bold text-lg tracking-tight text-slate-900">CyberPiezas</span>
         </button>
 
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
           <a href="#sistemas" className="hover:text-slate-900 transition-colors">Sistemas</a>
-          <a href="#caracteristicas" className="hover:text-slate-900 transition-colors">Caracteristicas</a>
+          <a href="#hardware" className="hover:text-slate-900 transition-colors">Hardware</a>
+          <a href="#servicios" className="hover:text-slate-900 transition-colors">Servicios</a>
           <a href="#precios" className="hover:text-slate-900 transition-colors">Precios</a>
         </nav>
 
@@ -720,7 +773,7 @@ function Footer() {
             </p>
           </div>
 
-          <div className="flex gap-12">
+          <div className="flex gap-12 flex-wrap">
             <div>
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Sistemas</p>
               <ul className="space-y-2 text-sm text-slate-600">
@@ -730,9 +783,24 @@ function Footer() {
               </ul>
             </div>
             <div>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Tienda</p>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li><a href="#hardware" className="hover:text-slate-900">Hardware</a></li>
+                <li><a href="#hardware" className="hover:text-slate-900">Camaras</a></li>
+                <li><a href="#hardware" className="hover:text-slate-900">Kits POS</a></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Servicios</p>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li><a href="#servicios" className="hover:text-slate-900">Instalacion</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Capacitacion</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Migracion</a></li>
+              </ul>
+            </div>
+            <div>
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Empresa</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#caracteristicas" className="hover:text-slate-900">Caracteristicas</a></li>
                 <li><a href="#precios" className="hover:text-slate-900">Precios</a></li>
                 <li><a href="mailto:cyberpiezas207@gmail.com" className="hover:text-slate-900">Contacto</a></li>
               </ul>
@@ -746,5 +814,293 @@ function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+// ============================================================================
+// HARDWARE - Catálogo de equipo
+// ============================================================================
+
+function Hardware() {
+  const products = [
+    {
+      icon: Package,
+      gradient: "from-blue-500 to-cyan-500",
+      title: "Kit POS Completo",
+      price: "Desde $7,499",
+      desc: "Tablet + impresora termica + cajon + lector de codigo. Listo para vender.",
+      tag: "MAS VENDIDO",
+      tagColor: "bg-emerald-500",
+    },
+    {
+      icon: Camera,
+      gradient: "from-rose-500 to-pink-500",
+      title: "Camaras de Seguridad",
+      price: "Desde $2,999",
+      desc: "Camaras IP con visor remoto. Cuida tu negocio desde el celular.",
+      tag: "POPULAR",
+      tagColor: "bg-purple-500",
+    },
+    {
+      icon: Cpu,
+      gradient: "from-purple-500 to-indigo-500",
+      title: "Piezas para Computadora",
+      price: "Cotizacion",
+      desc: "Memorias, discos, fuentes, tarjetas. Mejora tu equipo de trabajo.",
+      tag: null,
+      tagColor: "",
+    },
+    {
+      icon: Monitor,
+      gradient: "from-amber-500 to-orange-500",
+      title: "Monitores y Displays",
+      price: "Desde $3,499",
+      desc: "Pantallas touch para POS, monitores secundarios para cocina.",
+      tag: null,
+      tagColor: "",
+    },
+    {
+      icon: HardDrive,
+      gradient: "from-emerald-500 to-teal-500",
+      title: "Almacenamiento y Backup",
+      price: "Cotizacion",
+      desc: "NAS, discos externos, soluciones de respaldo automatico.",
+      tag: null,
+      tagColor: "",
+    },
+    {
+      icon: Wifi,
+      gradient: "from-cyan-500 to-blue-500",
+      title: "Redes y WiFi",
+      price: "Cotizacion",
+      desc: "Routers, repetidores, instalacion de red para tu negocio.",
+      tag: null,
+      tagColor: "",
+    },
+  ];
+
+  const handleCotizar = (productName: string) => {
+    const subject = encodeURIComponent("[CyberPiezas] Cotizacion: " + productName);
+    const body = encodeURIComponent("Hola, me interesa cotizar: " + productName + "\n\nMi nombre: \nNegocio: \nUbicacion: \n");
+    window.location.href = "mailto:cyberpiezas207@gmail.com?subject=" + subject + "&body=" + body;
+  };
+
+  return (
+    <section id="hardware" className="bg-slate-50 py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <p className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-3">Equipo y hardware</p>
+          <h2 className="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
+            Todo lo que tu negocio necesita
+          </h2>
+          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+            Mas que un sistema. Te equipamos completo: POS, camaras, computo y mas.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map((p, i) => {
+            const Icon = p.icon;
+            return (
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-7 border border-slate-200/80 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all relative"
+              >
+                {p.tag && (
+                  <div className={"absolute -top-2.5 right-5 px-2.5 py-1 text-white text-[10px] font-bold rounded-full shadow-lg " + p.tagColor}>
+                    {p.tag}
+                  </div>
+                )}
+                <div className={"w-12 h-12 rounded-xl bg-gradient-to-br " + p.gradient + " flex items-center justify-center shadow-lg mb-4"}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-1">{p.title}</h3>
+                <p className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">{p.price}</p>
+                <p className="text-slate-600 text-sm leading-relaxed mb-5">{p.desc}</p>
+                <button
+                  onClick={() => handleCotizar(p.title)}
+                  className="w-full text-sm font-bold text-slate-900 hover:text-emerald-600 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 transition-all"
+                >
+                  Cotizar <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-sm text-slate-500 mb-3">¿Necesitas algo que no esta en la lista?</p>
+          <Button
+            onClick={() => handleCotizar("Equipo personalizado")}
+            variant="outline"
+            className="border-slate-300 hover:bg-slate-100 text-slate-900 rounded-full h-11 px-6 font-semibold"
+          >
+            <MessageCircle className="w-4 h-4 mr-1.5" /> Solicitar cotizacion personalizada
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// SERVICES - Servicios profesionales
+// ============================================================================
+
+function Services() {
+  const services = [
+    {
+      icon: Wrench,
+      title: "Instalacion en sitio",
+      price: "$1,500",
+      desc: "Instalamos tu sistema completo, configuramos hardware y dejamos todo funcionando.",
+      includes: ["Visita en sitio", "Configuracion completa", "Pruebas de operacion", "Garantia 30 dias"],
+      gradient: "from-emerald-500 to-cyan-500",
+    },
+    {
+      icon: GraduationCap,
+      title: "Capacitacion personalizada",
+      price: "$500",
+      desc: "Una sesion 1:1 contigo o tu equipo para dominar el sistema en 1 hora.",
+      includes: ["Sesion de 1 hora", "Material de apoyo", "Soporte 7 dias", "Grabacion incluida"],
+      gradient: "from-purple-500 to-pink-500",
+    },
+    {
+      icon: Truck,
+      title: "Migracion de datos",
+      price: "Desde $1,000",
+      desc: "Tienes Aspel, Excel o libreta? Migramos tu inventario y clientes.",
+      includes: ["Importacion completa", "Validacion de datos", "Sin perdida de info", "Lista en 48hrs"],
+      gradient: "from-amber-500 to-orange-500",
+    },
+    {
+      icon: MessageCircle,
+      title: "Soporte Premium WhatsApp",
+      price: "$299/mes",
+      desc: "Atencion prioritaria por WhatsApp. Respuesta en menos de 1 hora.",
+      includes: ["WhatsApp 9am-9pm", "Resolucion rapida", "Cambios urgentes", "Sin costo adicional"],
+      gradient: "from-rose-500 to-red-500",
+    },
+  ];
+
+  const handleContratar = (service: string) => {
+    const subject = encodeURIComponent("[CyberPiezas] Servicio: " + service);
+    const body = encodeURIComponent("Hola, me interesa contratar: " + service + "\n\nMi nombre: \nNegocio: \nMejor horario: \n");
+    window.location.href = "mailto:cyberpiezas207@gmail.com?subject=" + subject + "&body=" + body;
+  };
+
+  return (
+    <section id="servicios" className="bg-white py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <p className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-3">Servicios profesionales</p>
+          <h2 className="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
+            Te acompanamos en cada paso
+          </h2>
+          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+            No te dejamos solo. Instalamos, capacitamos y soportamos para que tengas exito.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {services.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div key={i} className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-7 border border-slate-200/60 hover:shadow-xl hover:shadow-slate-900/5 transition-all">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className={"w-12 h-12 rounded-xl bg-gradient-to-br " + s.gradient + " flex items-center justify-center shadow-lg flex-shrink-0"}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold text-slate-900">{s.title}</h3>
+                    <p className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">{s.price}</p>
+                  </div>
+                </div>
+                <p className="text-slate-600 mb-4 leading-relaxed">{s.desc}</p>
+                <ul className="space-y-2 mb-6">
+                  {s.includes.map((inc, j) => (
+                    <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
+                      <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      {inc}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  onClick={() => handleContratar(s.title)}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full h-11 font-semibold"
+                >
+                  Contratar <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// REFERRALS - Programa "Trae un amigo"
+// ============================================================================
+
+function Referrals({ isAuthenticated, setLocation }: { isAuthenticated: boolean; setLocation: (p: string) => void }) {
+  return (
+    <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-24 lg:py-32">
+      <div className="max-w-5xl mx-auto px-6 lg:px-8">
+        <div className="bg-white rounded-3xl p-10 lg:p-16 border border-emerald-100 shadow-xl shadow-emerald-500/5 text-center relative overflow-hidden">
+          {/* Decorativos */}
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-200/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-200/30 rounded-full blur-3xl" />
+
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-full mb-6 shadow-lg">
+              <Gift className="w-3.5 h-3.5" /> Programa de referidos
+            </div>
+
+            <h2 className="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 mb-4 leading-tight">
+              Trae a un amigo,{" "}
+              <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+                ganen ambos
+              </span>
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10">
+              Tu amigo se suscribe, ambos reciben <strong className="text-slate-900">1 mes GRATIS</strong> de su plan.
+              Sin limite de referidos.
+            </p>
+
+            <div className="grid md:grid-cols-3 gap-4 mb-10 max-w-3xl mx-auto">
+              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5">
+                <div className="text-3xl mb-2">1️⃣</div>
+                <p className="font-bold text-slate-900 text-sm mb-1">Comparte tu link</p>
+                <p className="text-xs text-slate-600">Cada usuario tiene un codigo unico</p>
+              </div>
+              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5">
+                <div className="text-3xl mb-2">2️⃣</div>
+                <p className="font-bold text-slate-900 text-sm mb-1">Tu amigo se suscribe</p>
+                <p className="text-xs text-slate-600">Con tu link recibe descuento</p>
+              </div>
+              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5">
+                <div className="text-3xl mb-2">3️⃣</div>
+                <p className="font-bold text-slate-900 text-sm mb-1">Ambos ganan 1 mes</p>
+                <p className="text-xs text-slate-600">Aplica al siguiente cobro</p>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
+              className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-full h-12 px-8 text-base font-bold shadow-xl shadow-emerald-500/30"
+            >
+              <Gift className="w-4 h-4 mr-1.5" />
+              {isAuthenticated ? "Ver mi codigo de referido" : "Empezar y obtener mi codigo"}
+            </Button>
+
+            <p className="mt-6 text-xs text-slate-500">
+              Programa proximamente disponible para todos los usuarios.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
