@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc, gte, like, or, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, ne, like, or, sql } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
 import {
   pets,
@@ -11,6 +11,7 @@ import {
   vetVisits,
   vetVaccinations,
   vetClinicSettings,
+  vetAppointments,
   customers,
 } from "../../drizzle/schema";
 import * as db from "../db";
@@ -811,6 +812,146 @@ export const veterinariaRouter = router({
         await conn
           .delete(vetVaccinations)
           .where(and(eq(vetVaccinations.id, input.id), eq(vetVaccinations.ownerId, ctx.user.id)));
+        return { success: true };
+      }),
+  }),
+
+  // ────────────────────────────────────────────────────────────────────────
+  // CITAS (APPOINTMENTS)
+  // ────────────────────────────────────────────────────────────────────────
+  appointments: router({
+    list: protectedProcedure
+      .input(
+        z.object({
+          status: z.enum(["pendiente", "confirmada", "completada", "cancelada"]).optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+        }).optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        const conditions: any[] = [eq(vetAppointments.userId, ctx.user.id)];
+
+        if (input?.status) {
+          conditions.push(eq(vetAppointments.status, input.status));
+        }
+        if (input?.from) {
+          conditions.push(gte(vetAppointments.appointmentAt, new Date(input.from)));
+        }
+        if (input?.to) {
+          conditions.push(lte(vetAppointments.appointmentAt, new Date(input.to)));
+        }
+
+        const rows = await conn
+          .select({
+            appointment: vetAppointments,
+            pet: pets,
+            customer: customers,
+          })
+          .from(vetAppointments)
+          .leftJoin(pets, eq(vetAppointments.petId, pets.id))
+          .leftJoin(customers, eq(vetAppointments.customerId, customers.id))
+          .where(and(...conditions))
+          .orderBy(asc(vetAppointments.appointmentAt));
+
+        return rows;
+      }),
+
+    upcoming: protectedProcedure.query(async ({ ctx }) => {
+      await ensureVetAccess(ctx.user.id);
+      const conn = await getDbOrThrow();
+
+      const now = new Date();
+      const in30days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      return await conn
+        .select({
+          appointment: vetAppointments,
+          pet: pets,
+          customer: customers,
+        })
+        .from(vetAppointments)
+        .leftJoin(pets, eq(vetAppointments.petId, pets.id))
+        .leftJoin(customers, eq(vetAppointments.customerId, customers.id))
+        .where(
+          and(
+            eq(vetAppointments.userId, ctx.user.id),
+            gte(vetAppointments.appointmentAt, now),
+            lte(vetAppointments.appointmentAt, in30days),
+            ne(vetAppointments.status, "cancelada"),
+          ),
+        )
+        .orderBy(asc(vetAppointments.appointmentAt));
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.number().int().positive(),
+          petId: z.number().int().positive(),
+          appointmentAt: z.string(),
+          durationMinutes: z.number().int().positive().default(30),
+          reason: z.string().min(1).max(200),
+          notes: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        await conn.insert(vetAppointments).values({
+          userId: ctx.user.id,
+          customerId: input.customerId,
+          petId: input.petId,
+          appointmentAt: new Date(input.appointmentAt),
+          durationMinutes: input.durationMinutes,
+          reason: input.reason,
+          notes: input.notes ?? null,
+          status: "pendiente",
+        });
+
+        return { success: true };
+      }),
+
+    updateStatus: protectedProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          status: z.enum(["pendiente", "confirmada", "completada", "cancelada"]),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        await conn
+          .update(vetAppointments)
+          .set({ status: input.status })
+          .where(
+            and(
+              eq(vetAppointments.id, input.id),
+              eq(vetAppointments.userId, ctx.user.id),
+            ),
+          );
+
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+        await conn
+          .delete(vetAppointments)
+          .where(
+            and(
+              eq(vetAppointments.id, input.id),
+              eq(vetAppointments.userId, ctx.user.id),
+            ),
+          );
         return { success: true };
       }),
   }),
