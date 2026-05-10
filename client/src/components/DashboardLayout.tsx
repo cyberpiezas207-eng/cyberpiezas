@@ -26,6 +26,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import {
   Bell,
+  Calendar,
   Boxes,
   CheckCircle2,
   Cloud,
@@ -89,6 +90,7 @@ const menuItems: MenuItem[] = [
   { icon: Stethoscope, label: "Punto de Venta", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
   { icon: PawPrint, label: "Mascotas", path: "/veterinaria-pos/mascotas", section: "operacion", program: "veterinaria" },
   { icon: UserCircle, label: "Clientes", path: "/veterinaria-pos/clientes", section: "operacion", program: "veterinaria" },
+  { icon: Calendar, label: "Citas", path: "/veterinaria-pos/citas", section: "operacion", program: "veterinaria" },
   { icon: Package, label: "Productos", path: "/veterinaria-pos/productos", section: "operacion", program: "veterinaria" },
   { icon: Syringe, label: "Servicios", path: "/veterinaria-pos/servicios", section: "operacion", program: "veterinaria" },
   { icon: Settings2, label: "Configuracion clinica", path: "/veterinaria-pos/configuracion", section: "administracion", program: "veterinaria" },
