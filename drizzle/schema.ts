@@ -1139,8 +1139,6 @@ export type InsertVetVisit = typeof vetVisits.$inferInsert;
 /**
  * Vacunas aplicadas - separado para tener catálogo y próximas dosis.
  */
- export type VetAppointment = typeof vetAppointments.$inferSelect;
-export type NewVetAppointment = typeof vetAppointments.$inferInsert;
 export const vetVaccinations = mysqlTable("vetVaccinations", {
   id: int("id").autoincrement().primaryKey(),
   ownerId: int("ownerId").notNull().references(() => users.id),
@@ -1161,10 +1159,10 @@ export const vetVaccinations = mysqlTable("vetVaccinations", {
 export type VetVaccination = typeof vetVaccinations.$inferSelect;
 export type InsertVetVaccination = typeof vetVaccinations.$inferInsert;
 export const vetAppointments = mysqlTable("vetAppointments", {
-  id: serial("id").primaryKey(),
-  userId: int("userId").notNull(),
-  customerId: int("customerId").notNull(),
-  petId: int("petId").notNull(),
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  customerId: int("customerId").notNull().references(() => customers.id),
+  petId: int("petId").notNull().references(() => pets.id),
   appointmentAt: timestamp("appointmentAt").notNull(),
   durationMinutes: int("durationMinutes").notNull().default(30),
   reason: varchar("reason", { length: 200 }).notNull(),
@@ -1173,3 +1171,5 @@ export const vetAppointments = mysqlTable("vetAppointments", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
+export type VetAppointment = typeof vetAppointments.$inferSelect;
+export type InsertVetAppointment = typeof vetAppointments.$inferInsert;
