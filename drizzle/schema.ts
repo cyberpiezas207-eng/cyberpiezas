@@ -1171,5 +1171,3 @@ export const vetAppointments = mysqlTable("vetAppointments", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
-export type VetAppointment = typeof vetAppointments.$inferSelect;
-export type NewVetAppointment = typeof vetAppointments.$inferInsert;
