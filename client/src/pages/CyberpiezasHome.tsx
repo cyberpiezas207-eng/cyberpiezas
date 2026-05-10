@@ -125,8 +125,8 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab }: 
   return (
     <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
-        <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center text-white font-bold text-sm group-hover:scale-105 transition-transform">C</div>
+        <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-2.5 group">
+          <CyberpiezasLogo size={36} variant="dark" />
           <span className="font-bold text-lg tracking-tight text-slate-900">CyberPiezas</span>
         </button>
 
@@ -603,8 +603,8 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row justify-between gap-8">
           <div className="max-w-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center text-white font-bold text-sm">C</div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <CyberpiezasLogo size={36} variant="dark" />
               <span className="font-bold text-lg text-slate-900">CyberPiezas</span>
             </div>
             <p className="text-sm text-slate-600">Sistemas POS hechos a la medida de tu industria.</p>
@@ -904,5 +904,56 @@ function Story() {
         </div>
       </div>
     </section>
+  );
+}
+
+// ============================================================================
+// CYBERPIEZAS LOGO — La obra maestra
+// Apple + Da Vinci + Ghibli + Samsung
+// ============================================================================
+
+export function CyberpiezasLogo({ size = 36, variant = "dark" }: { size?: number; variant?: "dark" | "light" | "transparent" }) {
+  const bg = variant === "dark" ? "#0a0a0a" : variant === "light" ? "#ffffff" : "transparent";
+  const guide = variant === "dark" ? "#1f2937" : "#e5e7eb";
+  const cStroke = variant === "dark" ? "#ffffff" : "#0a0a0a";
+  const gradId = "aurora-" + size + "-" + variant;
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className="flex-shrink-0"
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#10b981" />
+          <stop offset="50%" stopColor="#06b6d4" />
+          <stop offset="100%" stopColor="#8b5cf6" />
+        </linearGradient>
+      </defs>
+      {variant !== "transparent" && (
+        <rect width="200" height="200" rx="40" fill={bg} />
+      )}
+      <circle cx="100" cy="100" r="62" fill="none" stroke={guide} strokeWidth="0.5" />
+      <path
+        d="M 142 50 A 50 50 0 1 0 142 150"
+        fill="none"
+        stroke={cStroke}
+        strokeWidth="18"
+        strokeLinecap="round"
+      />
+      <rect
+        x="138"
+        y="89"
+        width="24"
+        height="24"
+        rx="4.5"
+        fill={`url(#${gradId})`}
+        transform="rotate(45 150 101)"
+      />
+      <circle cx="146" cy="97" r="2" fill="#ffffff" opacity="0.7" />
+    </svg>
   );
 }
