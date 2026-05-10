@@ -23,6 +23,8 @@ import {
   Phone,
   Mail,
   Calendar,
+  CalendarDays,
+  Clock,
   Syringe,
   FileText,
   Save,
@@ -32,18 +34,20 @@ import {
   TrendingUp,
   UserCircle,
   User,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
 
-type TabKey = "pos" | "pets" | "customers" | "products" | "services" | "settings";
+type TabKey = "pos" | "pets" | "customers" | "appointments" | "products" | "services" | "settings";
 
 // Mapa de URL param a TabKey
 const tabFromUrl = (urlTab: string | undefined): TabKey => {
   switch (urlTab) {
     case "mascotas": return "pets";
     case "clientes": return "customers";
+    case "citas": return "appointments";
     case "productos": return "products";
     case "servicios": return "services";
     case "configuracion": return "settings";
@@ -77,6 +81,7 @@ export default function VeterinariaPOS() {
     pos: { title: "Punto de Venta", subtitle: "Vende productos y servicios de tu clinica", icon: ShoppingCart },
     pets: { title: "Mascotas", subtitle: "Registro y expediente clinico de mascotas", icon: PawPrint },
     customers: { title: "Clientes", subtitle: "Duenos de las mascotas que atiendes", icon: UserCircle },
+    appointments: { title: "Citas", subtitle: "Agenda y administra las citas de tus pacientes", icon: CalendarDays },
     products: { title: "Productos", subtitle: "Inventario de productos y medicamentos", icon: Package },
     services: { title: "Servicios", subtitle: "Catalogo de servicios y consultas", icon: Wrench },
     settings: { title: "Configuracion", subtitle: "Datos de la clinica para recibos", icon: Settings },
@@ -105,6 +110,7 @@ export default function VeterinariaPOS() {
             {activeTab === "pos" && <POSTab />}
             {activeTab === "pets" && <PetsTab onSelectPet={setSelectedPetId} />}
             {activeTab === "customers" && <CustomersTab />}
+            {activeTab === "appointments" && <AppointmentsTab />}
             {activeTab === "products" && <ProductsTab />}
             {activeTab === "services" && <ServicesTab />}
             {activeTab === "settings" && <SettingsTab />}
@@ -2058,5 +2064,432 @@ function SettingsTab() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// APPOINTMENTS TAB - Citas y agenda
+// ============================================================================
+
+function AppointmentsTab() {
+  const utils = trpc.useUtils();
+  const [filter, setFilter] = useState<"all" | "upcoming" | "today">("upcoming");
+  const [showForm, setShowForm] = useState(false);
+
+  const appointmentsQuery = trpc.veterinaria.appointments.list.useQuery();
+  const customersQuery = trpc.customers.list.useQuery();
+
+  const appointments: any[] = (appointmentsQuery.data as any[]) ?? [];
+  const customers: any[] = (customersQuery.data as any[]) ?? [];
+
+  const updateStatus = trpc.veterinaria.appointments.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Cita actualizada");
+      utils.veterinaria.appointments.list.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteAppointment = trpc.veterinaria.appointments.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Cita eliminada");
+      utils.veterinaria.appointments.list.invalidate();
+    },
+  });
+
+  // Filtrar
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const filtered = appointments.filter((row: any) => {
+    const d = new Date(row.appointment.appointmentAt);
+    if (filter === "today") return d >= todayStart && d < tomorrowStart;
+    if (filter === "upcoming") return d >= now && row.appointment.status !== "cancelada";
+    return true;
+  });
+
+  const statusColors: Record<string, string> = {
+    pendiente: "bg-amber-500/20 text-amber-100 border-amber-500/40",
+    confirmada: "bg-emerald-500/20 text-emerald-100 border-emerald-500/40",
+    completada: "bg-blue-500/20 text-blue-100 border-blue-500/40",
+    cancelada: "bg-rose-500/20 text-rose-100 border-rose-500/40",
+  };
+
+  const statusEmoji: Record<string, string> = {
+    pendiente: "⏳",
+    confirmada: "✅",
+    completada: "✔️",
+    cancelada: "❌",
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Filtros y boton nueva */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+        <div className="flex gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+          <button
+            onClick={() => setFilter("today")}
+            className={
+              "px-4 py-2 rounded-lg text-sm font-bold transition-all " +
+              (filter === "today"
+                ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-md"
+                : "text-slate-200 hover:bg-slate-700/60")
+            }
+          >
+            Hoy
+          </button>
+          <button
+            onClick={() => setFilter("upcoming")}
+            className={
+              "px-4 py-2 rounded-lg text-sm font-bold transition-all " +
+              (filter === "upcoming"
+                ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-md"
+                : "text-slate-200 hover:bg-slate-700/60")
+            }
+          >
+            Próximas
+          </button>
+          <button
+            onClick={() => setFilter("all")}
+            className={
+              "px-4 py-2 rounded-lg text-sm font-bold transition-all " +
+              (filter === "all"
+                ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-md"
+                : "text-slate-200 hover:bg-slate-700/60")
+            }
+          >
+            Todas
+          </button>
+        </div>
+
+        <Button
+          onClick={() => {
+            if (customers.length === 0) {
+              toast.error("Primero registra al menos un cliente");
+              return;
+            }
+            setShowForm(true);
+          }}
+          className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold shadow-lg shadow-emerald-500/20 h-11 px-5"
+        >
+          <Plus className="w-4 h-4" /> Nueva cita
+        </Button>
+      </div>
+
+      {showForm && (
+        <AppointmentForm
+          customers={customers}
+          onClose={() => setShowForm(false)}
+          onSaved={() => {
+            setShowForm(false);
+            utils.veterinaria.appointments.list.invalidate();
+          }}
+        />
+      )}
+
+      {appointmentsQuery.isLoading ? (
+        <div className="text-center py-16">
+          <div className="inline-block w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-slate-100 mt-4 font-medium">Cargando citas...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+          <CardContent className="pt-14 pb-14 text-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <CalendarDays className="w-10 h-10 text-emerald-300" />
+            </div>
+            <p className="text-white font-bold text-xl mb-1">
+              {filter === "today" ? "No hay citas para hoy" : filter === "upcoming" ? "No hay citas próximas" : "Aún no tienes citas"}
+            </p>
+            <p className="text-sm text-slate-100 max-w-sm mx-auto">
+              Agenda una cita para empezar a llevar el control de tus consultas.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((row: any) => {
+            const a = row.appointment;
+            const pet = row.pet;
+            const customer = row.customer;
+            const date = new Date(a.appointmentAt);
+            const isToday = date >= todayStart && date < tomorrowStart;
+            const isPast = date < now;
+
+            return (
+              <Card
+                key={a.id}
+                className={
+                  "bg-gradient-to-br from-slate-800/80 to-slate-900/60 border transition-all hover:shadow-lg " +
+                  (isToday
+                    ? "border-emerald-500/60 shadow-emerald-500/10"
+                    : isPast
+                    ? "border-slate-700/80 opacity-75"
+                    : "border-slate-700/80 hover:border-emerald-500/40")
+                }
+              >
+                <CardContent className="pt-5 pb-5">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Fecha grande izq */}
+                    <div className="flex-shrink-0 sm:w-28 text-center bg-slate-900/60 rounded-xl p-3 border border-slate-700/50">
+                      <p className="text-xs text-emerald-200 uppercase tracking-wider font-bold">
+                        {format(date, "MMM", { locale: es })}
+                      </p>
+                      <p className="text-3xl font-bold text-white tracking-tight">
+                        {format(date, "dd")}
+                      </p>
+                      <p className="text-sm text-slate-100 font-bold mt-1 flex items-center justify-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-emerald-300" />
+                        {format(date, "HH:mm")}
+                      </p>
+                    </div>
+
+                    {/* Info central */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
+                        <div>
+                          <p className="font-bold text-white text-base flex items-center gap-2 flex-wrap">
+                            <span className="text-2xl">{speciesEmoji[pet?.species] || "🐾"}</span>
+                            {pet?.name || "Sin mascota"}
+                          </p>
+                          <p className="text-sm text-slate-100 mt-0.5 flex items-center gap-1.5">
+                            <UserCircle className="w-3.5 h-3.5 text-purple-300" />
+                            {customer?.name || "Sin cliente"}
+                          </p>
+                        </div>
+                        <Badge className={statusColors[a.status] + " text-xs font-bold border capitalize"}>
+                          {statusEmoji[a.status]} {a.status}
+                        </Badge>
+                      </div>
+
+                      <p className="text-sm text-slate-200 mt-2 bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
+                        <span className="text-emerald-300 font-bold">Motivo:</span> {a.reason}
+                      </p>
+
+                      {a.notes && (
+                        <p className="text-xs text-slate-200 mt-1.5 italic">
+                          📝 {a.notes}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {a.status === "pendiente" && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateStatus.mutate({ id: a.id, status: "confirmada" })}
+                            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-bold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Confirmar
+                          </Button>
+                        )}
+                        {(a.status === "pendiente" || a.status === "confirmada") && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateStatus.mutate({ id: a.id, status: "completada" })}
+                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white gap-1 font-bold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Completar
+                          </Button>
+                        )}
+                        {a.status !== "cancelada" && a.status !== "completada" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateStatus.mutate({ id: a.id, status: "cancelada" })}
+                            className="h-8 border-rose-500/40 text-rose-200 hover:bg-rose-500/20 gap-1 font-bold"
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Cancelar
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm("Eliminar esta cita?")) deleteAppointment.mutate({ id: a.id });
+                          }}
+                          className="h-8 text-slate-200 hover:text-rose-300 hover:bg-rose-500/10 gap-1 ml-auto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; onClose: () => void; onSaved: () => void }) {
+  const [customerId, setCustomerId] = useState<number>(0);
+  const [petId, setPetId] = useState<number>(0);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [duration, setDuration] = useState(30);
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Mascotas filtradas por cliente
+  const petsQuery = trpc.veterinaria.pets.list.useQuery({});
+  const pets = (petsQuery.data ?? []).filter((row: any) => row.pet.customerId === customerId);
+
+  const createMut = trpc.veterinaria.appointments.create.useMutation({
+    onSuccess: () => { toast.success("Cita agendada correctamente"); onSaved(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    if (!customerId) return toast.error("Selecciona el cliente");
+    if (!petId) return toast.error("Selecciona la mascota");
+    if (!date || !time) return toast.error("Fecha y hora son obligatorias");
+    if (!reason.trim()) return toast.error("El motivo es obligatorio");
+
+    const appointmentAt = new Date(date + "T" + time + ":00").toISOString();
+
+    createMut.mutate({
+      customerId,
+      petId,
+      appointmentAt,
+      durationMinutes: duration,
+      reason: reason.trim(),
+      notes: notes.trim() || undefined,
+    });
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-white flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
+            <CalendarDays className="w-5 h-5 text-emerald-200" />
+          </div>
+          Nueva cita
+        </CardTitle>
+        <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-200 hover:text-white">
+          <X className="w-4 h-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-4 space-y-3">
+          <div>
+            <label className="text-xs font-bold text-purple-100 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <UserCircle className="w-3.5 h-3.5" /> Cliente <span className="text-rose-400">*</span>
+            </label>
+            <select
+              value={customerId}
+              onChange={(e) => { setCustomerId(Number(e.target.value)); setPetId(0); }}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+            >
+              <option value={0}>-- Selecciona el cliente --</option>
+              {customers.map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.phone ? " (" + c.phone + ")" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          {customerId > 0 && (
+            <div>
+              <label className="text-xs font-bold text-purple-100 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <PawPrint className="w-3.5 h-3.5" /> Mascota <span className="text-rose-400">*</span>
+              </label>
+              {pets.length === 0 ? (
+                <p className="text-amber-200 text-sm bg-amber-950/40 border border-amber-500/30 rounded-lg p-2.5">
+                  Este cliente no tiene mascotas registradas. Crea una en la pestaña Mascotas.
+                </p>
+              ) : (
+                <select
+                  value={petId}
+                  onChange={(e) => setPetId(Number(e.target.value))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+                >
+                  <option value={0}>-- Selecciona la mascota --</option>
+                  {pets.map((row: any) => (
+                    <option key={row.pet.id} value={row.pet.id}>
+                      {row.pet.name} ({row.pet.species})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
+              Fecha <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-slate-900 border-slate-700 text-white h-11"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
+              Hora <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="bg-slate-900 border-slate-700 text-white h-11"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Duración (min)</label>
+            <Input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="bg-slate-900 border-slate-700 text-white h-11"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
+            Motivo de la cita <span className="text-rose-400">*</span>
+          </label>
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Consulta general, vacunación, control..."
+            className="bg-slate-900 border-slate-700 text-white h-11"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Notas adicionales</label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Información extra, recordatorios..."
+            className="bg-slate-900 border-slate-700 text-white min-h-[80px]"
+          />
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={createMut.isPending}
+            className="flex-1 h-11 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold shadow-lg shadow-emerald-500/20"
+          >
+            <Save className="w-4 h-4" />
+            {createMut.isPending ? "Agendando..." : "Agendar cita"}
+          </Button>
+          <Button variant="outline" onClick={onClose} className="border-slate-600 text-slate-200 hover:bg-slate-700">
+            Cancelar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
