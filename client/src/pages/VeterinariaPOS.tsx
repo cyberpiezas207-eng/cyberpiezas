@@ -93,13 +93,13 @@ export default function VeterinariaPOS() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6 flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-cyan-500/30 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
-            <HeaderIcon className="w-7 h-7 text-emerald-200" />
+        <div className="mb-6 flex items-start gap-4 bg-slate-900/80 rounded-2xl p-5 border border-slate-600 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+            <HeaderIcon className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-bold text-white">{currentHeader.title}</h1>
-            <p className="text-slate-100 mt-1 text-base">{currentHeader.subtitle}</p>
+            <h1 className="text-3xl font-bold text-white drop-shadow-md">{currentHeader.title}</h1>
+            <p className="text-slate-100 mt-1 text-base font-medium">{currentHeader.subtitle}</p>
           </div>
         </div>
 
@@ -151,7 +151,7 @@ function CustomersTab() {
             placeholder="Buscar cliente por nombre, email o telefono..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-300 h-11"
+            className="pl-10 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-100 h-11"
           />
         </div>
         <Button
@@ -175,12 +175,12 @@ function CustomersTab() {
       {customersQuery.isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p className="text-slate-300 mt-4 font-medium">Cargando clientes...</p>
+          <p className="text-slate-100 mt-4 font-medium">Cargando clientes...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+        <Card className="bg-slate-900/80 border-slate-700 border-dashed">
           <CardContent className="pt-14 pb-14 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/40 flex items-center justify-center shadow-xl shadow-emerald-500/30">
               <UserCircle className="w-10 h-10 text-emerald-400" />
             </div>
             <p className="text-white font-bold text-xl mb-1">
@@ -204,7 +204,7 @@ function CustomersTab() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c: any) => (
-            <Card key={c.id} className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
+            <Card key={c.id} className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
               <CardContent className="pt-6 pb-5">
                 <div className="flex items-start gap-3 mb-3">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-emerald-500/30 group-hover:scale-105 transition-transform">
@@ -224,7 +224,7 @@ function CustomersTab() {
                       <span className="truncate">{c.phone}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-slate-400">
+                    <div className="flex items-center gap-2 text-slate-200">
                       <Phone className="w-3.5 h-3.5 flex-shrink-0" />
                       <span className="text-xs italic">Sin telefono</span>
                     </div>
@@ -235,7 +235,7 @@ function CustomersTab() {
                       <span className="truncate text-xs">{c.email}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-slate-400">
+                    <div className="flex items-center gap-2 text-slate-200">
                       <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                       <span className="text-xs italic">Sin email</span>
                     </div>
@@ -275,16 +275,16 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   };
 
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
+    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-              <UserCircle className="w-5 h-5 text-emerald-300" />
+              <UserCircle className="w-5 h-5 text-emerald-200" />
             </div>
             Nuevo cliente
           </CardTitle>
-          <Button size="icon" variant="ghost" onClick={onClose} className="text-slate-300 hover:text-white hover:bg-slate-800">
+          <Button size="icon" variant="ghost" onClick={onClose} className="text-slate-100 hover:text-white hover:bg-slate-800">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -298,7 +298,7 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej. Juan Perez"
-            className="bg-slate-900 border-slate-700 text-white h-11"
+            className="bg-slate-950 border-slate-600 text-white h-11"
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -308,7 +308,7 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="5512345678"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
           <div>
@@ -318,7 +318,7 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
               onChange={(e) => setEmail(e.target.value)}
               placeholder="cliente@ejemplo.com"
               type="email"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
         </div>
@@ -328,9 +328,9 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Direccion, observaciones, alergias del cliente..."
-            className="bg-slate-900 border-slate-700 text-white min-h-[90px]"
+            className="bg-slate-950 border-slate-600 text-white min-h-[90px]"
           />
-          <p className="text-xs text-slate-400 mt-1.5">
+          <p className="text-xs text-slate-200 mt-1.5">
             Anota direccion, alergias, preferencias o cualquier nota util.
           </p>
         </div>
@@ -447,7 +447,7 @@ function POSTab() {
     <div className="space-y-6">
       {/* Stats con tipografia mejorada y sombras de color */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-emerald-600/30 via-emerald-700/20 to-cyan-700/20 border-emerald-500/40 shadow-xl shadow-emerald-500/10">
+        <Card className="bg-gradient-to-br from-emerald-600/30 via-emerald-700/20 to-cyan-700/20 border-emerald-500/60 shadow-xl shadow-emerald-500/10">
           <CardContent className="pt-6 pb-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -457,13 +457,13 @@ function POSTab() {
                 </p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/30 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-emerald-300" />
+                <DollarSign className="w-6 h-6 text-emerald-200" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-600/30 via-purple-700/20 to-pink-700/20 border-purple-500/40 shadow-xl shadow-purple-500/10">
+        <Card className="bg-gradient-to-br from-purple-600/30 via-purple-700/20 to-pink-700/20 border-purple-500/60 shadow-xl shadow-purple-500/10">
           <CardContent className="pt-6 pb-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -473,7 +473,7 @@ function POSTab() {
                 </p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-purple-500/30 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-purple-300" />
+                <TrendingUp className="w-6 h-6 text-purple-200" />
               </div>
             </div>
           </CardContent>
@@ -498,18 +498,18 @@ function POSTab() {
         {/* Catalogo */}
         <div className="lg:col-span-2 space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-200" />
             <Input
               placeholder="Buscar productos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-800/60 border-slate-700/80 text-white"
+              className="pl-9 bg-slate-900/80 border-slate-600 text-white"
             />
           </div>
 
           {/* Servicios */}
           {services.length > 0 && (
-            <Card className="bg-slate-800/60 border-slate-700/80">
+            <Card className="bg-slate-900/80 border-slate-600">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2 text-base font-bold">
                   <div className="w-7 h-7 rounded-lg bg-emerald-500/30 flex items-center justify-center">
@@ -537,7 +537,7 @@ function POSTab() {
           )}
 
           {/* Productos */}
-          <Card className="bg-slate-800/60 border-slate-700/80">
+          <Card className="bg-slate-900/80 border-slate-600">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2 text-base font-bold">
                 <div className="w-7 h-7 rounded-lg bg-purple-500/30 flex items-center justify-center">
@@ -550,8 +550,8 @@ function POSTab() {
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-10">
                   <Package className="w-10 h-10 mx-auto mb-2 text-slate-500" />
-                  <p className="text-slate-300 text-sm">No hay productos disponibles.</p>
-                  <p className="text-xs text-slate-400 mt-1">Agregalos desde la pestania Productos.</p>
+                  <p className="text-slate-100 text-sm">No hay productos disponibles.</p>
+                  <p className="text-xs text-slate-200 mt-1">Agregalos desde la pestania Productos.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -577,12 +577,12 @@ function POSTab() {
         </div>
 
         {/* Carrito */}
-        <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-emerald-500/30 sticky top-4 h-fit shadow-2xl shadow-emerald-500/5">
+        <Card className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-emerald-500/30 sticky top-4 h-fit shadow-2xl shadow-emerald-500/5">
           <CardHeader>
             <CardTitle className="text-white flex items-center justify-between text-base">
               <div className="flex items-center gap-2 font-bold">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/30 flex items-center justify-center">
-                  <ShoppingCart className="w-4 h-4 text-emerald-300" />
+                  <ShoppingCart className="w-4 h-4 text-emerald-200" />
                 </div>
                 Carrito
               </div>
@@ -596,16 +596,16 @@ function POSTab() {
           <CardContent className="space-y-3">
             {cart.length === 0 ? (
               <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-800/60 flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-900/80 flex items-center justify-center">
                   <ShoppingCart className="w-7 h-7 text-slate-500" />
                 </div>
                 <p className="text-white text-sm font-bold">Carrito vacio</p>
-                <p className="text-slate-400 text-xs mt-1">Agrega productos o servicios</p>
+                <p className="text-slate-200 text-xs mt-1">Agrega productos o servicios</p>
               </div>
             ) : (
               <>
                 {cart.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 bg-slate-900/60 rounded-xl border border-slate-700/50">
+                  <div key={i} className="flex items-center gap-2 p-2.5 bg-slate-900/85 rounded-xl border border-slate-600">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate">
                         {item.description}
@@ -618,7 +618,7 @@ function POSTab() {
                       type="number"
                       value={item.quantity}
                       onChange={(e) => updateQuantity(i, e.target.value)}
-                      className="w-16 h-8 bg-slate-800 border-slate-700/80 text-white text-center font-bold"
+                      className="w-16 h-8 bg-slate-800 border-slate-600 text-white text-center font-bold"
                       min="0.01"
                       step="0.01"
                     />
@@ -632,9 +632,9 @@ function POSTab() {
                     </Button>
                   </div>
                 ))}
-                <div className="border-t border-slate-700/80 pt-3 mt-2">
+                <div className="border-t border-slate-600 pt-3 mt-2">
                   <div className="flex justify-between items-baseline mb-3">
-                    <span className="text-sm text-slate-300 font-medium uppercase tracking-wider">Total</span>
+                    <span className="text-sm text-slate-100 font-medium uppercase tracking-wider">Total</span>
                     <span className="text-2xl text-emerald-300 font-bold tracking-tight">{formatMoney(cartTotal)}</span>
                   </div>
                 </div>
@@ -679,7 +679,7 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
             placeholder="Buscar por nombre de mascota..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-slate-800/80 border-slate-700/80 text-white h-11"
+            className="pl-10 bg-slate-800/80 border-slate-600 text-white h-11"
           />
         </div>
         <Button
@@ -726,12 +726,12 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
       {petsQuery.isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p className="text-slate-300 mt-4 font-medium">Cargando mascotas...</p>
+          <p className="text-slate-100 mt-4 font-medium">Cargando mascotas...</p>
         </div>
       ) : pets.length === 0 ? (
-        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+        <Card className="bg-slate-900/80 border-slate-700 border-dashed">
           <CardContent className="pt-14 pb-14 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/40 flex items-center justify-center shadow-xl shadow-emerald-500/30">
               <PawPrint className="w-10 h-10 text-emerald-400" />
             </div>
             <p className="text-white font-bold text-xl mb-1">
@@ -753,7 +753,7 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
               <Card
                 key={pet.id}
                 onClick={() => onSelectPet(pet.id)}
-                className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all group"
+                className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all group"
               >
                 <CardContent className="pt-6 pb-5">
                   <div className="flex items-start gap-3">
@@ -776,7 +776,7 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
                           {pet.sex}
                         </Badge>
                         {pet.sterilized && (
-                          <Badge className="bg-emerald-500/20 text-emerald-200 text-xs border border-emerald-500/40">
+                          <Badge className="bg-emerald-500/20 text-emerald-200 text-xs border border-emerald-500/60">
                             Esterilizado
                           </Badge>
                         )}
@@ -833,15 +833,15 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
   };
 
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
+    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-white flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-            <PawPrint className="w-5 h-5 text-emerald-300" />
+            <PawPrint className="w-5 h-5 text-emerald-200" />
           </div>
           Nueva mascota
         </CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-300 hover:text-white hover:bg-slate-800">
+        <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-100 hover:text-white hover:bg-slate-800">
           <X className="w-4 h-4" />
         </Button>
       </CardHeader>
@@ -861,7 +861,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
             <select
               value={form.customerId}
               onChange={(e) => setForm({ ...form, customerId: Number(e.target.value) })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-purple-500/60 focus:outline-none"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-purple-500/60 focus:outline-none"
             >
               <option value={0}>-- Selecciona el cliente --</option>
               {customers.map((c: any) => (
@@ -885,7 +885,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Firulais"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -893,7 +893,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
               <select
                 value={form.species}
                 onChange={(e) => setForm({ ...form, species: e.target.value as any })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
               >
                 <option value="perro">🐕 Perro</option>
                 <option value="gato">🐈 Gato</option>
@@ -910,7 +910,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
                 value={form.breed}
                 onChange={(e) => setForm({ ...form, breed: e.target.value })}
                 placeholder="Labrador, Persa, Mestizo..."
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -918,7 +918,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
               <select
                 value={form.sex}
                 onChange={(e) => setForm({ ...form, sex: e.target.value as any })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
               >
                 <option value="desconocido">Desconocido</option>
                 <option value="macho">Macho</option>
@@ -931,7 +931,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
                 value={form.color}
                 onChange={(e) => setForm({ ...form, color: e.target.value })}
                 placeholder="Cafe con blanco"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -942,24 +942,24 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
                 value={form.weight}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
                 placeholder="12.5"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
           </div>
         </div>
 
         {/* Datos opcionales */}
-        <div className="space-y-3 pt-2 border-t border-slate-700/50">
+        <div className="space-y-3 pt-2 border-t border-slate-600">
           <div>
             <label className="text-xs font-bold text-slate-200 mb-1.5 block">Numero de microchip</label>
             <Input
               value={form.microchip}
               onChange={(e) => setForm({ ...form, microchip: e.target.value })}
               placeholder="123456789012345"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
-          <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/60 rounded-lg p-3 border border-slate-700/50 cursor-pointer hover:bg-slate-800/60 transition-colors">
+          <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/85 rounded-lg p-3 border border-slate-600 cursor-pointer hover:bg-slate-900/80 transition-colors">
             <input
               type="checkbox"
               checked={form.sterilized}
@@ -974,7 +974,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="Alergias, comportamiento, condiciones especiales..."
-              className="bg-slate-900 border-slate-700 text-white min-h-[80px]"
+              className="bg-slate-950 border-slate-600 text-white min-h-[80px]"
               rows={3}
             />
           </div>
@@ -1014,13 +1014,13 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
   const utils = trpc.useUtils();
 
   if (petQuery.isLoading) {
-    return <p className="text-center text-slate-400 py-12">Cargando expediente...</p>;
+    return <p className="text-center text-slate-200 py-12">Cargando expediente...</p>;
   }
 
   if (!petQuery.data) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-400">Mascota no encontrada</p>
+        <p className="text-slate-200">Mascota no encontrada</p>
         <Button onClick={onBack} variant="link" className="mt-2">Volver</Button>
       </div>
     );
@@ -1036,7 +1036,7 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
       <Button
         onClick={onBack}
         variant="ghost"
-        className="text-slate-400 gap-2"
+        className="text-slate-200 gap-2"
       >
         <ArrowLeft className="w-4 h-4" /> Volver a mascotas
       </Button>
@@ -1048,12 +1048,12 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
             <div className="text-6xl">{speciesEmoji[pet.species] || "🐾"}</div>
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-white">{pet.name}</h2>
-              <p className="text-slate-400">
+              <p className="text-slate-200">
                 {pet.breed || pet.species} • {pet.sex}
                 {pet.weight && ` • ${pet.weight} kg`}
               </p>
               {customer && (
-                <div className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+                <div className="mt-3 flex items-center gap-3 text-sm text-slate-100">
                   <span className="flex items-center gap-1">
                     👤 {customer.name}
                   </span>
@@ -1078,7 +1078,7 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
       </Card>
 
       {/* Visitas */}
-      <Card className="bg-slate-800/60 border-slate-700/80">
+      <Card className="bg-slate-900/80 border-slate-600">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-400" />
@@ -1105,33 +1105,33 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
             />
           )}
           {visits.length === 0 ? (
-            <p className="text-center text-slate-400 py-6 text-sm">
+            <p className="text-center text-slate-200 py-6 text-sm">
               Sin visitas registradas
             </p>
           ) : (
             visits.map((v: any) => (
-              <div key={v.id} className="p-3 bg-slate-800/60 rounded-lg border border-white/5">
+              <div key={v.id} className="p-3 bg-slate-900/80 rounded-lg border border-white/5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="font-semibold text-white">{v.reason}</p>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                    <p className="text-xs text-slate-200 flex items-center gap-1 mt-1">
                       <Calendar className="w-3 h-3" />
                       {format(new Date(v.visitDate), "dd 'de' MMM, yyyy 'a las' HH:mm", { locale: es })}
                     </p>
                   </div>
                 </div>
                 {v.diagnosis && (
-                  <p className="text-sm text-slate-300 mt-2">
+                  <p className="text-sm text-slate-100 mt-2">
                     <span className="text-purple-400 font-semibold">Diagnostico:</span> {v.diagnosis}
                   </p>
                 )}
                 {v.treatment && (
-                  <p className="text-sm text-slate-300 mt-1">
+                  <p className="text-sm text-slate-100 mt-1">
                     <span className="text-emerald-400 font-semibold">Tratamiento:</span> {v.treatment}
                   </p>
                 )}
                 {v.prescribedMedications && (
-                  <p className="text-sm text-slate-300 mt-1">
+                  <p className="text-sm text-slate-100 mt-1">
                     <span className="text-amber-400 font-semibold">Medicamentos:</span> {v.prescribedMedications}
                   </p>
                 )}
@@ -1142,7 +1142,7 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
       </Card>
 
       {/* Vacunas */}
-      <Card className="bg-slate-800/60 border-slate-700/80">
+      <Card className="bg-slate-900/80 border-slate-600">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
             <Syringe className="w-5 h-5 text-cyan-400" />
@@ -1168,16 +1168,16 @@ function PetDetailView({ petId, onBack }: { petId: number; onBack: () => void })
             />
           )}
           {vaccinations.length === 0 ? (
-            <p className="text-center text-slate-400 py-6 text-sm">
+            <p className="text-center text-slate-200 py-6 text-sm">
               Sin vacunas registradas
             </p>
           ) : (
             vaccinations.map((vac: any) => (
-              <div key={vac.id} className="p-3 bg-slate-800/60 rounded-lg border border-white/5">
+              <div key={vac.id} className="p-3 bg-slate-900/80 rounded-lg border border-white/5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-white">{vac.vaccineName}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-200">
                       Aplicada: {format(new Date(vac.appliedDate), "dd MMM yyyy", { locale: es })}
                       {vac.brand && ` • ${vac.brand}`}
                     </p>
@@ -1246,7 +1246,7 @@ function VisitForm({ petId, customerId, onClose, onSaved }: {
         placeholder="Motivo de la visita *"
         value={form.reason}
         onChange={(e) => setForm({ ...form, reason: e.target.value })}
-        className="bg-slate-900/80 border-slate-700/80 text-white"
+        className="bg-slate-900/80 border-slate-600 text-white"
       />
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -1255,7 +1255,7 @@ function VisitForm({ petId, customerId, onClose, onSaved }: {
           step="0.01"
           value={form.weight}
           onChange={(e) => setForm({ ...form, weight: e.target.value })}
-          className="bg-slate-900/80 border-slate-700/80 text-white"
+          className="bg-slate-900/80 border-slate-600 text-white"
         />
         <Input
           placeholder="Temperatura"
@@ -1263,7 +1263,7 @@ function VisitForm({ petId, customerId, onClose, onSaved }: {
           step="0.1"
           value={form.temperature}
           onChange={(e) => setForm({ ...form, temperature: e.target.value })}
-          className="bg-slate-900/80 border-slate-700/80 text-white"
+          className="bg-slate-900/80 border-slate-600 text-white"
         />
       </div>
       <Textarea
@@ -1271,21 +1271,21 @@ function VisitForm({ petId, customerId, onClose, onSaved }: {
         value={form.diagnosis}
         onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
         rows={2}
-        className="bg-slate-900/80 border-slate-700/80 text-white"
+        className="bg-slate-900/80 border-slate-600 text-white"
       />
       <Textarea
         placeholder="Tratamiento"
         value={form.treatment}
         onChange={(e) => setForm({ ...form, treatment: e.target.value })}
         rows={2}
-        className="bg-slate-900/80 border-slate-700/80 text-white"
+        className="bg-slate-900/80 border-slate-600 text-white"
       />
       <Textarea
         placeholder="Medicamentos recetados"
         value={form.prescribedMedications}
         onChange={(e) => setForm({ ...form, prescribedMedications: e.target.value })}
         rows={2}
-        className="bg-slate-900/80 border-slate-700/80 text-white"
+        className="bg-slate-900/80 border-slate-600 text-white"
       />
       <Button
         onClick={handleSubmit}
@@ -1341,20 +1341,20 @@ function VaccineForm({ petId, onClose, onSaved }: {
         placeholder="Nombre de la vacuna *"
         value={form.vaccineName}
         onChange={(e) => setForm({ ...form, vaccineName: e.target.value })}
-        className="bg-slate-900/80 border-slate-700/80 text-white"
+        className="bg-slate-900/80 border-slate-600 text-white"
       />
       <div className="grid grid-cols-2 gap-2">
         <Input
           placeholder="Marca"
           value={form.brand}
           onChange={(e) => setForm({ ...form, brand: e.target.value })}
-          className="bg-slate-900/80 border-slate-700/80 text-white"
+          className="bg-slate-900/80 border-slate-600 text-white"
         />
         <Input
           placeholder="Lote"
           value={form.batchNumber}
           onChange={(e) => setForm({ ...form, batchNumber: e.target.value })}
-          className="bg-slate-900/80 border-slate-700/80 text-white"
+          className="bg-slate-900/80 border-slate-600 text-white"
         />
       </div>
       <div>
@@ -1363,7 +1363,7 @@ function VaccineForm({ petId, onClose, onSaved }: {
           type="date"
           value={form.nextDoseDate}
           onChange={(e) => setForm({ ...form, nextDoseDate: e.target.value })}
-          className="bg-slate-900/80 border-slate-700/80 text-white"
+          className="bg-slate-900/80 border-slate-600 text-white"
         />
       </div>
       <Button
@@ -1418,7 +1418,7 @@ function ProductsTab() {
     alimento: "bg-amber-500/20 text-amber-200 border-amber-500/40",
     accesorio: "bg-blue-500/20 text-blue-200 border-blue-500/40",
     higiene: "bg-cyan-500/20 text-cyan-200 border-cyan-500/40",
-    vitamina: "bg-emerald-500/20 text-emerald-200 border-emerald-500/40",
+    vitamina: "bg-emerald-500/20 text-emerald-200 border-emerald-500/60",
     otro: "bg-slate-500/20 text-slate-200 border-slate-500/40",
   };
 
@@ -1434,15 +1434,15 @@ function ProductsTab() {
       </div>
 
       {showForm && (
-        <Card className="bg-gradient-to-br from-purple-950/60 via-slate-900 to-pink-950/60 border-purple-500/40 shadow-2xl shadow-purple-500/10">
+        <Card className="bg-gradient-to-br from-purple-950/80 via-slate-950 to-pink-950/80 border-purple-500/60 shadow-2xl shadow-purple-500/10">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-purple-500/30 flex items-center justify-center">
-                <Package className="w-5 h-5 text-purple-300" />
+                <Package className="w-5 h-5 text-purple-200" />
               </div>
               Nuevo producto
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-300 hover:text-white">
+            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-100 hover:text-white">
               <X className="w-4 h-4" />
             </Button>
           </CardHeader>
@@ -1455,7 +1455,7 @@ function ProductsTab() {
                 placeholder="Ej. Antiparasitario Drontal"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -1463,7 +1463,7 @@ function ProductsTab() {
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
               >
                 <option value="medicamento">💊 Medicamento</option>
                 <option value="alimento">🍖 Alimento</option>
@@ -1484,7 +1484,7 @@ function ProductsTab() {
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
                   placeholder="0.00"
-                  className="bg-slate-900 border-slate-700 text-white h-11"
+                  className="bg-slate-950 border-slate-600 text-white h-11"
                 />
               </div>
               <div>
@@ -1495,7 +1495,7 @@ function ProductsTab() {
                   value={form.cost}
                   onChange={(e) => setForm({ ...form, cost: e.target.value })}
                   placeholder="0.00"
-                  className="bg-slate-900 border-slate-700 text-white h-11"
+                  className="bg-slate-950 border-slate-600 text-white h-11"
                 />
               </div>
               <div>
@@ -1504,11 +1504,11 @@ function ProductsTab() {
                   type="number"
                   value={form.stock}
                   onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
-                  className="bg-slate-900 border-slate-700 text-white h-11"
+                  className="bg-slate-950 border-slate-600 text-white h-11"
                 />
               </div>
             </div>
-            <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/60 rounded-lg p-3 border border-slate-700/50 cursor-pointer hover:bg-slate-800/60">
+            <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/85 rounded-lg p-3 border border-slate-600 cursor-pointer hover:bg-slate-900/80">
               <input
                 type="checkbox"
                 checked={form.requiresPrescription}
@@ -1547,12 +1547,12 @@ function ProductsTab() {
       {productsQuery.isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block w-10 h-10 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-          <p className="text-slate-300 mt-4 font-medium">Cargando productos...</p>
+          <p className="text-slate-100 mt-4 font-medium">Cargando productos...</p>
         </div>
       ) : products.length === 0 ? (
-        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+        <Card className="bg-slate-900/80 border-slate-700 border-dashed">
           <CardContent className="pt-14 pb-14 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/40 flex items-center justify-center shadow-xl shadow-purple-500/30">
               <Package className="w-10 h-10 text-purple-400" />
             </div>
             <p className="text-white font-bold text-xl mb-1">Aun no tienes productos</p>
@@ -1566,7 +1566,7 @@ function ProductsTab() {
           {products.map((p: any) => (
             <Card
               key={p.id}
-              className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 hover:border-purple-500/50 transition-all"
+              className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 hover:border-purple-500/50 transition-all"
             >
               <CardContent className="pt-5 pb-5">
                 <div className="flex items-start justify-between gap-3">
@@ -1581,7 +1581,7 @@ function ProductsTab() {
                         </Badge>
                       )}
                       {p.stock <= 0 && (
-                        <Badge className="bg-slate-700 text-slate-300 border-slate-600 text-xs font-bold border">
+                        <Badge className="bg-slate-700 text-slate-100 border-slate-600 text-xs font-bold border">
                           Agotado
                         </Badge>
                       )}
@@ -1589,7 +1589,7 @@ function ProductsTab() {
                     <p className="font-bold text-white text-base truncate">{p.name}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-2xl font-bold text-purple-300 tracking-tight">{formatMoney(p.price)}</span>
-                      <span className="text-xs text-slate-400">Stock: <span className="font-bold text-slate-200">{p.stock}</span></span>
+                      <span className="text-xs text-slate-200">Stock: <span className="font-bold text-slate-200">{p.stock}</span></span>
                     </div>
                   </div>
                   <Button
@@ -1648,12 +1648,12 @@ function ServicesTab() {
 
   const categoryColors: Record<string, string> = {
     consulta: "bg-blue-500/20 text-blue-200 border-blue-500/40",
-    vacuna: "bg-emerald-500/20 text-emerald-200 border-emerald-500/40",
+    vacuna: "bg-emerald-500/20 text-emerald-200 border-emerald-500/60",
     desparasitacion: "bg-cyan-500/20 text-cyan-200 border-cyan-500/40",
     estetica: "bg-pink-500/20 text-pink-200 border-pink-500/40",
     cirugia: "bg-rose-500/20 text-rose-200 border-rose-500/40",
     hospitalizacion: "bg-amber-500/20 text-amber-200 border-amber-500/40",
-    domicilio: "bg-purple-500/20 text-purple-200 border-purple-500/40",
+    domicilio: "bg-purple-500/20 text-purple-200 border-purple-500/60",
     otro: "bg-slate-500/20 text-slate-200 border-slate-500/40",
   };
 
@@ -1680,15 +1680,15 @@ function ServicesTab() {
       </div>
 
       {showForm && (
-        <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
+        <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-emerald-300" />
+                <Wrench className="w-5 h-5 text-emerald-200" />
               </div>
               Nuevo servicio
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-300 hover:text-white">
+            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-100 hover:text-white">
               <X className="w-4 h-4" />
             </Button>
           </CardHeader>
@@ -1701,7 +1701,7 @@ function ServicesTab() {
                 placeholder="Ej. Consulta general"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -1709,7 +1709,7 @@ function ServicesTab() {
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
               >
                 <option value="consulta">🩺 Consulta</option>
                 <option value="vacuna">💉 Vacuna</option>
@@ -1732,7 +1732,7 @@ function ServicesTab() {
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
                   placeholder="300.00"
-                  className="bg-slate-900 border-slate-700 text-white h-11"
+                  className="bg-slate-950 border-slate-600 text-white h-11"
                 />
               </div>
               <div>
@@ -1741,7 +1741,7 @@ function ServicesTab() {
                   type="number"
                   value={form.durationMinutes}
                   onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
-                  className="bg-slate-900 border-slate-700 text-white h-11"
+                  className="bg-slate-950 border-slate-600 text-white h-11"
                 />
               </div>
             </div>
@@ -1768,12 +1768,12 @@ function ServicesTab() {
       {servicesQuery.isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p className="text-slate-300 mt-4 font-medium">Cargando servicios...</p>
+          <p className="text-slate-100 mt-4 font-medium">Cargando servicios...</p>
         </div>
       ) : services.length === 0 ? (
-        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+        <Card className="bg-slate-900/80 border-slate-700 border-dashed">
           <CardContent className="pt-14 pb-14 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/40 flex items-center justify-center shadow-xl shadow-emerald-500/30">
               <Wrench className="w-10 h-10 text-emerald-400" />
             </div>
             <p className="text-white font-bold text-xl mb-1">Aun no tienes servicios</p>
@@ -1787,7 +1787,7 @@ function ServicesTab() {
           {services.map((s: any) => (
             <Card
               key={s.id}
-              className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 hover:border-emerald-500/50 transition-all"
+              className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 hover:border-emerald-500/50 transition-all"
             >
               <CardContent className="pt-5 pb-5">
                 <div className="flex items-start justify-between gap-3">
@@ -1798,7 +1798,7 @@ function ServicesTab() {
                         <Badge className={categoryColors[s.category] + " capitalize text-xs font-bold border"}>
                           {s.category}
                         </Badge>
-                        <span className="text-xs text-slate-400 font-medium">
+                        <span className="text-xs text-slate-200 font-medium">
                           {s.durationMinutes} min
                         </span>
                       </div>
@@ -1878,7 +1878,7 @@ function SettingsTab() {
       {/* Card de estado */}
       <Card className={
         isComplete
-          ? "bg-gradient-to-br from-emerald-900/40 to-cyan-900/40 border-emerald-500/40 shadow-xl shadow-emerald-500/10"
+          ? "bg-gradient-to-br from-emerald-900/40 to-cyan-900/40 border-emerald-500/60 shadow-xl shadow-emerald-500/10"
           : "bg-gradient-to-br from-amber-900/30 to-orange-900/30 border-amber-500/40 shadow-xl shadow-amber-500/10"
       }>
         <CardContent className="pt-5 pb-5">
@@ -1907,15 +1907,15 @@ function SettingsTab() {
       </Card>
 
       {/* Datos de la clinica */}
-      <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
+      <Card className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-              <Stethoscope className="w-5 h-5 text-emerald-300" />
+              <Stethoscope className="w-5 h-5 text-emerald-200" />
             </div>
             Datos de la clinica
           </CardTitle>
-          <CardDescription className="text-slate-300">
+          <CardDescription className="text-slate-100">
             Informacion basica que aparecera en encabezado de recibos.
           </CardDescription>
         </CardHeader>
@@ -1928,7 +1928,7 @@ function SettingsTab() {
               value={form.clinicName}
               onChange={(e) => setForm({ ...form, clinicName: e.target.value })}
               placeholder="Ej. Veterinaria San Francisco"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1940,7 +1940,7 @@ function SettingsTab() {
                 value={form.doctorName}
                 onChange={(e) => setForm({ ...form, doctorName: e.target.value })}
                 placeholder="MVZ Juan Perez"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -1951,7 +1951,7 @@ function SettingsTab() {
                 value={form.professionalLicense}
                 onChange={(e) => setForm({ ...form, professionalLicense: e.target.value })}
                 placeholder="12345678"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
           </div>
@@ -1961,14 +1961,14 @@ function SettingsTab() {
               value={form.university}
               onChange={(e) => setForm({ ...form, university: e.target.value })}
               placeholder="Universidad Nacional Autonoma de Mexico"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Datos de contacto */}
-      <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
+      <Card className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-cyan-500/30 flex items-center justify-center">
@@ -1976,7 +1976,7 @@ function SettingsTab() {
             </div>
             Contacto
           </CardTitle>
-          <CardDescription className="text-slate-300">
+          <CardDescription className="text-slate-100">
             Como te pueden contactar tus clientes.
           </CardDescription>
         </CardHeader>
@@ -1988,7 +1988,7 @@ function SettingsTab() {
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="555 123 4567"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
             <div>
@@ -1997,7 +1997,7 @@ function SettingsTab() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="contacto@clinica.com"
-                className="bg-slate-900 border-slate-700 text-white h-11"
+                className="bg-slate-950 border-slate-600 text-white h-11"
               />
             </div>
           </div>
@@ -2008,22 +2008,22 @@ function SettingsTab() {
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="Calle, numero, colonia, ciudad, codigo postal"
               rows={2}
-              className="bg-slate-900 border-slate-700 text-white"
+              className="bg-slate-950 border-slate-600 text-white"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Datos fiscales y recibo */}
-      <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
+      <Card className="bg-gradient-to-br from-slate-900/85 to-slate-900/95 border-slate-600 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-purple-500/30 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-purple-300" />
+              <FileText className="w-5 h-5 text-purple-200" />
             </div>
             Recibos y facturacion
           </CardTitle>
-          <CardDescription className="text-slate-300">
+          <CardDescription className="text-slate-100">
             Personaliza la apariencia de tus recibos.
           </CardDescription>
         </CardHeader>
@@ -2034,9 +2034,9 @@ function SettingsTab() {
               value={form.rfc}
               onChange={(e) => setForm({ ...form, rfc: e.target.value })}
               placeholder="RFC123456ABC"
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
-            <p className="text-xs text-slate-400 mt-1.5">Solo si emites facturas formales.</p>
+            <p className="text-xs text-slate-200 mt-1.5">Solo si emites facturas formales.</p>
           </div>
           <div>
             <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">Pie de recibo</label>
@@ -2045,9 +2045,9 @@ function SettingsTab() {
               onChange={(e) => setForm({ ...form, receiptFooter: e.target.value })}
               placeholder="Ej. Gracias por confiar en nosotros para el cuidado de tu mascota."
               rows={2}
-              className="bg-slate-900 border-slate-700 text-white"
+              className="bg-slate-950 border-slate-600 text-white"
             />
-            <p className="text-xs text-slate-400 mt-1.5">Mensaje que aparecera al final de cada recibo.</p>
+            <p className="text-xs text-slate-200 mt-1.5">Mensaje que aparecera al final de cada recibo.</p>
           </div>
         </CardContent>
       </Card>
@@ -2111,7 +2111,7 @@ function AppointmentsTab() {
 
   const statusColors: Record<string, string> = {
     pendiente: "bg-amber-500/20 text-amber-100 border-amber-500/40",
-    confirmada: "bg-emerald-500/20 text-emerald-100 border-emerald-500/40",
+    confirmada: "bg-emerald-500/20 text-emerald-100 border-emerald-500/60",
     completada: "bg-blue-500/20 text-blue-100 border-blue-500/40",
     cancelada: "bg-rose-500/20 text-rose-100 border-rose-500/40",
   };
@@ -2194,10 +2194,10 @@ function AppointmentsTab() {
           <p className="text-slate-100 mt-4 font-medium">Cargando citas...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-700/80 border-dashed">
+        <Card className="bg-slate-900/80 border-slate-700 border-dashed">
           <CardContent className="pt-14 pb-14 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <CalendarDays className="w-10 h-10 text-emerald-300" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/40 flex items-center justify-center shadow-xl shadow-emerald-500/30">
+              <CalendarDays className="w-10 h-10 text-emerald-200" />
             </div>
             <p className="text-white font-bold text-xl mb-1">
               {filter === "today" ? "No hay citas para hoy" : filter === "upcoming" ? "No hay citas próximas" : "Aún no tienes citas"}
@@ -2221,18 +2221,18 @@ function AppointmentsTab() {
               <Card
                 key={a.id}
                 className={
-                  "bg-gradient-to-br from-slate-800/80 to-slate-900/60 border transition-all hover:shadow-lg " +
+                  "bg-gradient-to-br from-slate-900/85 to-slate-900/95 border transition-all hover:shadow-lg " +
                   (isToday
                     ? "border-emerald-500/60 shadow-emerald-500/10"
                     : isPast
-                    ? "border-slate-700/80 opacity-75"
-                    : "border-slate-700/80 hover:border-emerald-500/40")
+                    ? "border-slate-600 opacity-75"
+                    : "border-slate-600 hover:border-emerald-500/60")
                 }
               >
                 <CardContent className="pt-5 pb-5">
                   <div className="flex flex-col sm:flex-row gap-4">
                     {/* Fecha grande izq */}
-                    <div className="flex-shrink-0 sm:w-28 text-center bg-slate-900/60 rounded-xl p-3 border border-slate-700/50">
+                    <div className="flex-shrink-0 sm:w-28 text-center bg-slate-900/85 rounded-xl p-3 border border-slate-600">
                       <p className="text-xs text-emerald-200 uppercase tracking-wider font-bold">
                         {format(date, "MMM", { locale: es })}
                       </p>
@@ -2240,7 +2240,7 @@ function AppointmentsTab() {
                         {format(date, "dd")}
                       </p>
                       <p className="text-sm text-slate-100 font-bold mt-1 flex items-center justify-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-emerald-300" />
+                        <Clock className="w-3.5 h-3.5 text-emerald-200" />
                         {format(date, "HH:mm")}
                       </p>
                     </div>
@@ -2254,7 +2254,7 @@ function AppointmentsTab() {
                             {pet?.name || "Sin mascota"}
                           </p>
                           <p className="text-sm text-slate-100 mt-0.5 flex items-center gap-1.5">
-                            <UserCircle className="w-3.5 h-3.5 text-purple-300" />
+                            <UserCircle className="w-3.5 h-3.5 text-purple-200" />
                             {customer?.name || "Sin cliente"}
                           </p>
                         </div>
@@ -2263,7 +2263,7 @@ function AppointmentsTab() {
                         </Badge>
                       </div>
 
-                      <p className="text-sm text-slate-200 mt-2 bg-slate-900/40 rounded-lg p-2 border border-slate-700/50">
+                      <p className="text-sm text-slate-200 mt-2 bg-slate-900/85 rounded-lg p-2 border border-slate-600">
                         <span className="text-emerald-300 font-bold">Motivo:</span> {a.reason}
                       </p>
 
@@ -2362,7 +2362,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
   };
 
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
+    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-white flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
@@ -2383,7 +2383,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
             <select
               value={customerId}
               onChange={(e) => { setCustomerId(Number(e.target.value)); setPetId(0); }}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
             >
               <option value={0}>-- Selecciona el cliente --</option>
               {customers.map((c: any) => (
@@ -2406,7 +2406,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
                 <select
                   value={petId}
                   onChange={(e) => setPetId(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
                 >
                   <option value={0}>-- Selecciona la mascota --</option>
                   {pets.map((row: any) => (
@@ -2429,7 +2429,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
           <div>
@@ -2440,7 +2440,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
           <div>
@@ -2449,7 +2449,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
               type="number"
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
-              className="bg-slate-900 border-slate-700 text-white h-11"
+              className="bg-slate-950 border-slate-600 text-white h-11"
             />
           </div>
         </div>
@@ -2462,7 +2462,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Consulta general, vacunación, control..."
-            className="bg-slate-900 border-slate-700 text-white h-11"
+            className="bg-slate-950 border-slate-600 text-white h-11"
           />
         </div>
 
@@ -2472,7 +2472,7 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Información extra, recordatorios..."
-            className="bg-slate-900 border-slate-700 text-white min-h-[80px]"
+            className="bg-slate-950 border-slate-600 text-white min-h-[80px]"
           />
         </div>
 
