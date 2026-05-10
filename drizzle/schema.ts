@@ -1139,6 +1139,8 @@ export type InsertVetVisit = typeof vetVisits.$inferInsert;
 /**
  * Vacunas aplicadas - separado para tener catálogo y próximas dosis.
  */
+ export type VetAppointment = typeof vetAppointments.$inferSelect;
+export type NewVetAppointment = typeof vetAppointments.$inferInsert;
 export const vetVaccinations = mysqlTable("vetVaccinations", {
   id: int("id").autoincrement().primaryKey(),
   ownerId: int("ownerId").notNull().references(() => users.id),
