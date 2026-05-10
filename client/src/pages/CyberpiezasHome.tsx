@@ -32,6 +32,7 @@ import {
   Stethoscope,
   Store,
   ShoppingBasket,
+  TrendingUp,
   Truck,
   Wifi,
   Wrench,
@@ -41,7 +42,11 @@ import {
 
 export function CyberpiezasHome() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth() as any;
+  const auth = useAuth() as any;
+  const isAuthenticated = auth?.isAuthenticated;
+  const user = auth?.user;
+  const isAdmin = user?.role === "admin" || user?.email === "cyberpiezas207@gmail.com";
+
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showCollabModal, setShowCollabModal] = useState(false);
@@ -50,6 +55,7 @@ export function CyberpiezasHome() {
     <div className="min-h-screen bg-white text-slate-900 antialiased">
       <NavBar
         isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
         setLocation={setLocation}
         onSupport={() => setShowSupportModal(true)}
         onCollab={() => setShowCollabModal(true)}
@@ -64,6 +70,7 @@ export function CyberpiezasHome() {
       <Hardware />
       <Services />
       <Features />
+      <Story />
       <Referrals isAuthenticated={isAuthenticated} setLocation={setLocation} />
       <Pricing setLocation={setLocation} isAuthenticated={isAuthenticated} />
       <FinalCTA
@@ -76,7 +83,7 @@ export function CyberpiezasHome() {
         onSupport={() => setShowSupportModal(true)}
         onCollab={() => setShowCollabModal(true)}
       />
-      <FloatingButtons />
+      <FloatingButtons isAdmin={isAdmin} setLocation={setLocation} />
       {showDemoModal && <DemoModal onClose={() => setShowDemoModal(false)} />}
       {showSupportModal && <SupportModal onClose={() => setShowSupportModal(false)} />}
       {showCollabModal && <CollabModal onClose={() => setShowCollabModal(false)} />}
@@ -84,7 +91,7 @@ export function CyberpiezasHome() {
   );
 }
 
-function FloatingButtons() {
+function FloatingButtons({ isAdmin, setLocation }: { isAdmin?: boolean; setLocation?: (p: string) => void }) {
   const [showButtons, setShowButtons] = useState(false);
   useEffect(() => {
     const handleScroll = () => setShowButtons(window.scrollY > 400);
@@ -94,6 +101,15 @@ function FloatingButtons() {
   if (!showButtons) return null;
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-4">
+      {isAdmin && setLocation && (
+        <button
+          onClick={() => setLocation("/admin-cyberpiezas")}
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center transition-all"
+          title="Panel admin"
+        >
+          <ShieldCheck className="w-5 h-5 text-white" />
+        </button>
+      )}
       <button onClick={() => window.history.length > 1 && window.history.back()} className="w-12 h-12 rounded-full bg-white border border-slate-200 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center transition-all" title="Atras">
         <ArrowLeft className="w-5 h-5 text-slate-700" />
       </button>
@@ -104,7 +120,7 @@ function FloatingButtons() {
   );
 }
 
-function NavBar({ isAuthenticated, setLocation, onSupport, onCollab }: { isAuthenticated: boolean; setLocation: (p: string) => void; onSupport: () => void; onCollab: () => void }) {
+function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab }: { isAuthenticated: boolean; isAdmin?: boolean; setLocation: (p: string) => void; onSupport: () => void; onCollab: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-100">
@@ -118,6 +134,7 @@ function NavBar({ isAuthenticated, setLocation, onSupport, onCollab }: { isAuthe
           <a href="#sistemas" className="hover:text-slate-900 transition-colors">Sistemas</a>
           <a href="#hardware" className="hover:text-slate-900 transition-colors">Hardware</a>
           <a href="#servicios" className="hover:text-slate-900 transition-colors">Servicios</a>
+          <a href="#historia" className="hover:text-slate-900 transition-colors">Historia</a>
           <a href="#precios" className="hover:text-slate-900 transition-colors">Precios</a>
           <button onClick={onCollab} className="hover:text-slate-900 transition-colors">Colaborar</button>
           <button onClick={onSupport} className="hover:text-slate-900 transition-colors flex items-center gap-1">
@@ -126,6 +143,15 @@ function NavBar({ isAuthenticated, setLocation, onSupport, onCollab }: { isAuthe
         </nav>
 
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setLocation("/admin-cyberpiezas")}
+              className="hidden sm:flex w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 hover:scale-105 transition-all items-center justify-center shadow-md"
+              title="Panel administracion"
+            >
+              <ShieldCheck className="w-4 h-4 text-white" />
+            </button>
+          )}
           {isAuthenticated ? (
             <Button onClick={() => setLocation("/sistemas")} className="bg-slate-900 hover:bg-slate-800 text-white rounded-full px-5 h-9 text-sm font-semibold">
               <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" /> Mi Panel
@@ -147,11 +173,17 @@ function NavBar({ isAuthenticated, setLocation, onSupport, onCollab }: { isAuthe
             <a href="#sistemas" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Sistemas</a>
             <a href="#hardware" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Hardware</a>
             <a href="#servicios" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Servicios</a>
+            <a href="#historia" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Historia</a>
             <a href="#precios" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Precios</a>
             <button onClick={() => { setMobileOpen(false); onCollab(); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-100">Colaborar</button>
             <button onClick={() => { setMobileOpen(false); onSupport(); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-1">
               <Heart className="w-3.5 h-3.5 text-rose-500" /> Apoyar
             </button>
+            {isAdmin && (
+              <button onClick={() => { setMobileOpen(false); setLocation("/admin-cyberpiezas"); }} className="text-left px-3 py-2 rounded-lg bg-purple-50 text-purple-700 col-span-2 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Panel admin
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -189,11 +221,6 @@ function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: strin
           <Button onClick={onDemo} variant="outline" className="border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-12 px-7 text-base font-semibold">
             <Play className="w-4 h-4 mr-1.5" /> Ver demo
           </Button>
-          {isAuthenticated && (
-            <Button onClick={() => setLocation("/sistemas")} variant="outline" className="border-emerald-300 hover:bg-emerald-50 text-emerald-700 rounded-full h-12 px-7 text-base font-semibold">
-              <LayoutDashboard className="w-4 h-4 mr-1.5" /> Ir a mi panel
-            </Button>
-          )}
         </div>
         <div className="mt-10 inline-flex items-center gap-5 px-6 py-3 bg-white rounded-full border border-slate-200/60 shadow-sm text-sm flex-wrap justify-center max-w-full">
           <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /><span className="font-medium text-slate-700">3 sistemas POS</span></span>
@@ -212,15 +239,16 @@ function Wizard({ setLocation }: { setLocation: (p: string) => void }) {
     { id: "boutique", name: "Boutique", desc: "Ropa, accesorios, calzado", icon: Store, gradient: "from-purple-500 to-pink-500", path: "/dashboard" },
     { id: "veterinaria", name: "Veterinaria", desc: "Clinicas con expediente", icon: Stethoscope, gradient: "from-emerald-500 to-cyan-500", path: "/veterinaria-pos" },
     { id: "abarrotes", name: "Abarrotes", desc: "Codigo barras y bascula", icon: ShoppingBasket, gradient: "from-amber-500 to-orange-500", path: "/abarrotes-pos" },
+    { id: "celine", name: "Celine", desc: "Ofertas y trueques de productos", icon: Handshake, gradient: "from-rose-500 to-orange-500", path: "/celine" },
   ];
   return (
     <section id="wizard" className="bg-slate-50 py-16 lg:py-20">
-      <div className="max-w-5xl mx-auto px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
           <p className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">Empieza aqui</p>
           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">¿Que tipo de negocio tienes?</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {items.map((item) => {
             const Icon = item.icon;
             return (
@@ -770,5 +798,68 @@ function CollabModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function Story() {
+  return (
+    <section id="historia" className="bg-white py-24 lg:py-36">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8">
+        {/* La pregunta */}
+        <div className="text-center mb-20">
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.25em] mb-6">
+            Nuestra historia
+          </p>
+          <h2 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[0.95]">
+            ¿Por que existe{" "}
+            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
+              CyberPiezas
+            </span>
+            ?
+          </h2>
+        </div>
+
+        {/* La respuesta - 3 momentos minimalistas */}
+        <div className="space-y-20 lg:space-y-28">
+          <div className="text-center">
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
+              Porque vimos a miles de pequeños negocios{" "}
+              <span className="text-slate-400">peleando con sistemas pensados para corporativos</span>.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
+              Porque cada veterinaria, cada boutique, cada abarrote{" "}
+              <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+                merece herramientas a su medida
+              </span>.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
+              Porque la tecnologia no deberia ser un privilegio.{" "}
+              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Deberia ser un derecho.
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* Cierre minimalista */}
+        <div className="mt-24 lg:mt-32 text-center">
+          <div className="inline-block">
+            <div className="w-px h-12 bg-slate-300 mx-auto mb-6" />
+            <p className="text-base text-slate-500 italic">
+              Por eso construimos esto.
+            </p>
+            <p className="text-sm font-bold text-slate-900 mt-1">
+              — David Antonio Farfan, fundador
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
