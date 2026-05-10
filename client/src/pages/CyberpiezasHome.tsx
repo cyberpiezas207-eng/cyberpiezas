@@ -806,7 +806,7 @@ function Story() {
     <section id="historia" className="bg-white py-24 lg:py-36">
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
         {/* La pregunta */}
-        <div className="text-center mb-20">
+        <div className="text-center mb-20 lg:mb-24">
           <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.25em] mb-6">
             Nuestra historia
           </p>
@@ -819,43 +819,86 @@ function Story() {
           </h2>
         </div>
 
-        {/* La respuesta - 3 momentos minimalistas */}
+        {/* Capítulos minimalistas */}
         <div className="space-y-20 lg:space-y-28">
+          {/* Capítulo 1: El origen */}
           <div className="text-center">
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
-              Porque vimos a miles de pequeños negocios{" "}
-              <span className="text-slate-400">peleando con sistemas pensados para corporativos</span>.
-            </p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
-              Porque cada veterinaria, cada boutique, cada abarrote{" "}
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">01 · El origen</p>
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+              Empezo en{" "}
+              <span className="text-slate-400">Facebook Marketplace</span>.
+              <br />
+              Comprando computadoras viejas, armando piezas,{" "}
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-                merece herramientas a su medida
+                distribuyendo lo que otros desechaban
               </span>.
             </p>
           </div>
 
+          {/* Capítulo 2: La motivación real */}
           <div className="text-center">
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-tight tracking-tight max-w-3xl mx-auto">
-              Porque la tecnologia no deberia ser un privilegio.{" "}
-              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                Deberia ser un derecho.
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">02 · La motivacion</p>
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+              Pero lo que cambio todo fue mi mama.
+            </p>
+            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+              Su tienda de abarrotes. Le faltaba producto. Le robaban. No sabia los precios.
+              Llegaba a casa frustrada, cansada.
+            </p>
+            <p className="mt-6 text-2xl lg:text-3xl font-medium text-slate-900 leading-tight max-w-2xl mx-auto">
+              <span className="bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">
+                Quise ayudarla.
               </span>
+            </p>
+          </div>
+
+          {/* Capítulo 3: La mision */}
+          <div className="text-center">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">03 · La mision</p>
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+              Si funciono para ella,
+              <br />
+              <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+                puede funcionar para miles.
+              </span>
+            </p>
+            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+              Bajo costo. Funcional. Pensado para los que no tienen capital,
+              pero tienen ganas de salir adelante.
+            </p>
+          </div>
+
+          {/* Capítulo 4: El compromiso */}
+          <div className="text-center">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">04 · El compromiso</p>
+            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+              He sido estafado mas veces de las que puedo contar.
+              <br />
+              <br />
+              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Aqui no.
+              </span>
+            </p>
+            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+              Trato justo. Sin letras chiquitas. Sin sorpresas.
+              <br />
+              Si tu negocio crece, el mio tambien.
             </p>
           </div>
         </div>
 
-        {/* Cierre minimalista */}
+        {/* Cierre con firma */}
         <div className="mt-24 lg:mt-32 text-center">
           <div className="inline-block">
             <div className="w-px h-12 bg-slate-300 mx-auto mb-6" />
-            <p className="text-base text-slate-500 italic">
-              Por eso construimos esto.
+            <p className="text-base text-slate-500 italic max-w-md mx-auto">
+              "Construyo la herramienta que mi mama hubiera querido tener desde el principio."
             </p>
-            <p className="text-sm font-bold text-slate-900 mt-1">
-              — David Antonio Farfan, fundador
+            <p className="text-sm font-bold text-slate-900 mt-3">
+              — David Antonio Farfan
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Fundador, CyberPiezas
             </p>
           </div>
         </div>
