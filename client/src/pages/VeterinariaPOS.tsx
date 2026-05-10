@@ -2583,11 +2583,28 @@ function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; o
 
           {/* Recibo - aqui se imprime */}
           <div className="px-8 py-6 text-slate-900 font-mono text-sm">
-            {/* Logo placeholder */}
+            {/* Logo CyberPiezas */}
             <div className="text-center mb-4">
-              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white text-2xl">
-                🐾
-              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 200 200"
+                width="56"
+                height="56"
+                style={{ display: "inline-block" }}
+              >
+                <defs>
+                  <linearGradient id="receiptLogo" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="50%" stopColor="#06b6d4" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+                <rect width="200" height="200" rx="40" fill="#0a0a0a" />
+                <circle cx="100" cy="100" r="62" fill="none" stroke="#1f2937" strokeWidth="0.5" />
+                <path d="M 142 50 A 50 50 0 1 0 142 150" fill="none" stroke="#ffffff" strokeWidth="18" strokeLinecap="round" />
+                <rect x="138" y="89" width="24" height="24" rx="4.5" fill="url(#receiptLogo)" transform="rotate(45 150 101)" />
+                <circle cx="146" cy="97" r="2" fill="#ffffff" opacity="0.7" />
+              </svg>
             </div>
 
             {/* Datos de la clinica */}
@@ -2693,4 +2710,3 @@ function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; o
       </div>
     </>
   );
-}
