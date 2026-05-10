@@ -361,12 +361,23 @@ function POSTab() {
   const productsQuery = trpc.veterinaria.products.list.useQuery({});
   const servicesQuery = trpc.veterinaria.services.list.useQuery({});
   const statsQuery = trpc.veterinaria.sales.stats.useQuery();
+  const settingsQuery = trpc.veterinaria.settings.get.useQuery();
 
   const [cart, setCart] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [lastSale, setLastSale] = useState<any>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const createSale = trpc.veterinaria.sales.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Guardar info de la venta para el recibo
+      setLastSale({
+        items: [...cart],
+        total: cartTotal,
+        date: new Date(),
+        receiptNumber: data?.id ? "A" + String(data.id).padStart(4, "0") : "A0001",
+      });
+      setShowReceipt(true);
       toast.success("Venta registrada correctamente");
       setCart([]);
       utils.veterinaria.sales.stats.invalidate();
@@ -651,6 +662,15 @@ function POSTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de Recibo */}
+      {showReceipt && lastSale && (
+        <ReceiptModal
+          sale={lastSale}
+          settings={settingsQuery.data}
+          onClose={() => setShowReceipt(false)}
+        />
+      )}
     </div>
   );
 }
@@ -2493,3 +2513,183 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
     </Card>
   );
 }
+
+// ============================================================================
+// RECEIPT MODAL - Recibo imprimible
+// ============================================================================
+
+function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; onClose: () => void }) {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("es-MX", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <>
+      {/* Estilos de impresion - solo visible al imprimir */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #receipt-printable, #receipt-printable * { visibility: visible; }
+          #receipt-printable {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white !important;
+            color: black !important;
+            padding: 20px !important;
+          }
+          #receipt-printable .no-print { display: none !important; }
+        }
+      `}</style>
+
+      <div
+        className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl relative"
+          onClick={(e) => e.stopPropagation()}
+          id="receipt-printable"
+        >
+          {/* Header del modal (no print) */}
+          <div className="no-print sticky top-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between rounded-t-3xl z-10">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 text-sm">Venta registrada</p>
+                <p className="text-xs text-slate-500">Recibo #{sale.receiptNumber}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+            >
+              <X className="w-4 h-4 text-slate-700" />
+            </button>
+          </div>
+
+          {/* Recibo - aqui se imprime */}
+          <div className="px-8 py-6 text-slate-900 font-mono text-sm">
+            {/* Logo placeholder */}
+            <div className="text-center mb-4">
+              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white text-2xl">
+                🐾
+              </div>
+            </div>
+
+            {/* Datos de la clinica */}
+            <div className="text-center mb-4 pb-4 border-b border-dashed border-slate-300">
+              <p className="font-bold text-base uppercase tracking-wide">
+                {settings?.clinicName || "Veterinaria"}
+              </p>
+              {settings?.doctorName && (
+                <p className="text-xs mt-1">{settings.doctorName}</p>
+              )}
+              {settings?.professionalLicense && (
+                <p className="text-xs">Cedula: {settings.professionalLicense}</p>
+              )}
+              {settings?.university && (
+                <p className="text-xs">{settings.university}</p>
+              )}
+              {settings?.address && (
+                <p className="text-xs mt-1">{settings.address}</p>
+              )}
+              {settings?.phone && (
+                <p className="text-xs">Tel: {settings.phone}</p>
+              )}
+              {settings?.rfc && (
+                <p className="text-xs mt-1">RFC: {settings.rfc}</p>
+              )}
+            </div>
+
+            {/* Info del recibo */}
+            <div className="mb-4 pb-4 border-b border-dashed border-slate-300 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span>Recibo:</span>
+                <span className="font-bold">#{sale.receiptNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Fecha:</span>
+                <span>{formatDate(sale.date)}</span>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div className="mb-4 pb-4 border-b border-dashed border-slate-300">
+              <p className="text-xs font-bold uppercase tracking-wider mb-2 text-slate-500">
+                Productos y servicios
+              </p>
+              <div className="space-y-2">
+                {sale.items.map((item: any, i: number) => {
+                  const subtotal = parseFloat(item.unitPrice) * parseFloat(item.quantity);
+                  return (
+                    <div key={i} className="text-xs">
+                      <div className="flex justify-between gap-2">
+                        <span className="flex-1 min-w-0 break-words">{item.description}</span>
+                        <span className="font-bold whitespace-nowrap">
+                          ${subtotal.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-slate-500 text-[10px]">
+                        {item.quantity} x ${parseFloat(item.unitPrice).toFixed(2)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="mb-4">
+              <div className="flex justify-between items-baseline">
+                <span className="font-bold text-base uppercase">Total</span>
+                <span className="font-bold text-2xl tracking-tight">
+                  ${sale.total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Pie del recibo */}
+            <div className="text-center text-xs pt-4 border-t border-dashed border-slate-300">
+              <p className="italic text-slate-700">
+                {settings?.receiptFooter || "Gracias por confiar en nosotros para el cuidado de tu mascota."}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-3">
+                Generado por CyberPiezas POS
+              </p>
+            </div>
+          </div>
+
+          {/* Botones de accion (no print) */}
+          <div className="no-print sticky bottom-0 bg-white border-t border-slate-200 px-6 py-3 flex gap-2 rounded-b-3xl">
+            <Button
+              onClick={handlePrint}
+              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-full h-10 font-bold gap-2"
+            >
+              <FileText className="w-4 h-4" /> Imprimir
+            </Button>
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="flex-1 border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-10 font-bold"
+            >
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
