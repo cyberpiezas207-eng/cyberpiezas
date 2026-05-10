@@ -88,12 +88,14 @@ export default function VeterinariaPOS() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <HeaderIcon className="w-8 h-8 text-emerald-400" />
-            {currentHeader.title}
-          </h1>
-          <p className="text-slate-300 mt-1">{currentHeader.subtitle}</p>
+        <div className="mb-6 flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-cyan-500/30 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
+            <HeaderIcon className="w-7 h-7 text-emerald-200" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl font-bold text-white">{currentHeader.title}</h1>
+            <p className="text-slate-100 mt-1 text-base">{currentHeader.subtitle}</p>
+          </div>
         </div>
 
         {selectedPetId ? (
@@ -143,7 +145,7 @@ function CustomersTab() {
             placeholder="Buscar cliente por nombre, email o telefono..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-500 h-11"
+            className="pl-10 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-300 h-11"
           />
         </div>
         <Button
@@ -175,10 +177,10 @@ function CustomersTab() {
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <UserCircle className="w-10 h-10 text-emerald-400" />
             </div>
-            <p className="text-white font-bold text-lg mb-1">
+            <p className="text-white font-bold text-xl mb-1">
               {search ? "No se encontraron clientes" : "Aun no tienes clientes"}
             </p>
-            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+            <p className="text-sm text-slate-100 max-w-sm mx-auto">
               {search
                 ? "Prueba con otros terminos de busqueda."
                 : "Empieza agregando un cliente. Despues podras registrar sus mascotas y atenderlos."}
@@ -271,7 +273,7 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
               <UserCircle className="w-5 h-5 text-emerald-300" />
             </div>
             Nuevo cliente
@@ -443,12 +445,12 @@ function POSTab() {
           <CardContent className="pt-6 pb-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-emerald-200/80 uppercase tracking-wider font-bold mb-1">Ingresos del mes</p>
+                <p className="text-xs text-white uppercase tracking-wider font-bold mb-1">Ingresos del mes</p>
                 <p className="text-3xl font-bold text-white tracking-tight">
                   {formatMoney(statsQuery.data?.totalRevenue ?? "0")}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/30 flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-emerald-300" />
               </div>
             </div>
@@ -459,12 +461,12 @@ function POSTab() {
           <CardContent className="pt-6 pb-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-purple-200/80 uppercase tracking-wider font-bold mb-1">Ventas del mes</p>
+                <p className="text-xs text-white uppercase tracking-wider font-bold mb-1">Ventas del mes</p>
                 <p className="text-3xl font-bold text-white tracking-tight">
                   {statsQuery.data?.totalSales ?? 0}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/30 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-purple-300" />
               </div>
             </div>
@@ -475,10 +477,10 @@ function POSTab() {
           <CardContent className="pt-6 pb-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-amber-200/80 uppercase tracking-wider font-bold mb-1">En carrito</p>
+                <p className="text-xs text-white uppercase tracking-wider font-bold mb-1">En carrito</p>
                 <p className="text-3xl font-bold text-white tracking-tight">{formatMoney(cartTotal)}</p>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/30 flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-amber-300" />
               </div>
             </div>
@@ -503,8 +505,8 @@ function POSTab() {
           {services.length > 0 && (
             <Card className="bg-slate-800/60 border-slate-700/80">
               <CardHeader>
-                <CardTitle className="text-emerald-300 flex items-center gap-2 text-base font-bold">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <CardTitle className="text-white flex items-center gap-2 text-base font-bold">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/30 flex items-center justify-center">
                     <Wrench className="w-4 h-4" />
                   </div>
                   Servicios
@@ -519,7 +521,7 @@ function POSTab() {
                       className="bg-emerald-600/10 hover:bg-emerald-600/25 hover:scale-[1.02] active:scale-[0.98] border border-emerald-500/30 hover:border-emerald-400/50 rounded-xl p-3.5 text-left transition-all shadow-sm"
                     >
                       <p className="font-bold text-white text-sm truncate mb-0.5">{s.name}</p>
-                      <p className="text-xs text-emerald-200/60 truncate">{s.category}</p>
+                      <p className="text-xs text-emerald-100 truncate">{s.category}</p>
                       <p className="text-emerald-300 font-bold mt-1.5">{formatMoney(s.price)}</p>
                     </button>
                   ))}
@@ -531,8 +533,8 @@ function POSTab() {
           {/* Productos */}
           <Card className="bg-slate-800/60 border-slate-700/80">
             <CardHeader>
-              <CardTitle className="text-purple-300 flex items-center gap-2 text-base font-bold">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <CardTitle className="text-white flex items-center gap-2 text-base font-bold">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/30 flex items-center justify-center">
                   <Package className="w-4 h-4" />
                 </div>
                 Productos
@@ -558,7 +560,7 @@ function POSTab() {
                         <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-rose-500/30 text-rose-200 text-[10px] font-bold rounded">AGOTADO</span>
                       )}
                       <p className="font-bold text-white text-sm truncate mb-0.5">{p.name}</p>
-                      <p className="text-xs text-purple-200/60">Stock: {p.stock}</p>
+                      <p className="text-xs text-purple-100">Stock: {p.stock}</p>
                       <p className="text-purple-300 font-bold mt-1.5">{formatMoney(p.price)}</p>
                     </button>
                   ))}
@@ -573,7 +575,7 @@ function POSTab() {
           <CardHeader>
             <CardTitle className="text-white flex items-center justify-between text-base">
               <div className="flex items-center gap-2 font-bold">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/30 flex items-center justify-center">
                   <ShoppingCart className="w-4 h-4 text-emerald-300" />
                 </div>
                 Carrito
@@ -591,7 +593,7 @@ function POSTab() {
                 <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-800/60 flex items-center justify-center">
                   <ShoppingCart className="w-7 h-7 text-slate-500" />
                 </div>
-                <p className="text-slate-300 text-sm font-medium">Carrito vacio</p>
+                <p className="text-white text-sm font-bold">Carrito vacio</p>
                 <p className="text-slate-400 text-xs mt-1">Agrega productos o servicios</p>
               </div>
             ) : (
@@ -695,7 +697,7 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
               <AlertTriangle className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-amber-100 font-bold text-sm">Necesitas registrar clientes primero</p>
-                <p className="text-amber-200/80 text-xs mt-0.5">
+                <p className="text-white text-xs mt-0.5">
                   Cada mascota debe tener un dueño. Ve a la pestaña <strong>Clientes</strong> y agrega al menos uno.
                 </p>
               </div>
@@ -726,10 +728,10 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <PawPrint className="w-10 h-10 text-emerald-400" />
             </div>
-            <p className="text-white font-bold text-lg mb-1">
+            <p className="text-white font-bold text-xl mb-1">
               {search ? "No se encontraron mascotas" : "Aun no hay mascotas registradas"}
             </p>
-            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+            <p className="text-sm text-slate-100 max-w-sm mx-auto">
               {search
                 ? "Prueba con otro nombre."
                 : "Registra la primera mascota para empezar a llevar su expediente clinico."}
@@ -828,7 +830,7 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
     <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-white flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
             <PawPrint className="w-5 h-5 text-emerald-300" />
           </div>
           Nueva mascota
@@ -1429,7 +1431,7 @@ function ProductsTab() {
         <Card className="bg-gradient-to-br from-purple-950/60 via-slate-900 to-pink-950/60 border-purple-500/40 shadow-2xl shadow-purple-500/10">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/30 flex items-center justify-center">
                 <Package className="w-5 h-5 text-purple-300" />
               </div>
               Nuevo producto
@@ -1547,8 +1549,8 @@ function ProductsTab() {
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-purple-500/10 flex items-center justify-center">
               <Package className="w-10 h-10 text-purple-400" />
             </div>
-            <p className="text-white font-bold text-lg mb-1">Aun no tienes productos</p>
-            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+            <p className="text-white font-bold text-xl mb-1">Aun no tienes productos</p>
+            <p className="text-sm text-slate-100 max-w-sm mx-auto">
               Agrega productos como medicamentos, alimentos, accesorios para venderlos en tu POS.
             </p>
           </CardContent>
@@ -1675,7 +1677,7 @@ function ServicesTab() {
         <Card className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/60 border-emerald-500/40 shadow-2xl shadow-emerald-500/10">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
                 <Wrench className="w-5 h-5 text-emerald-300" />
               </div>
               Nuevo servicio
@@ -1768,8 +1770,8 @@ function ServicesTab() {
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <Wrench className="w-10 h-10 text-emerald-400" />
             </div>
-            <p className="text-white font-bold text-lg mb-1">Aun no tienes servicios</p>
-            <p className="text-sm text-slate-400 max-w-sm mx-auto">
+            <p className="text-white font-bold text-xl mb-1">Aun no tienes servicios</p>
+            <p className="text-sm text-slate-100 max-w-sm mx-auto">
               Agrega los servicios que ofreces (consulta, vacunas, esteticos) para venderlos en tu POS.
             </p>
           </CardContent>
@@ -1888,7 +1890,7 @@ function SettingsTab() {
               <p className="font-bold text-white text-base">
                 {isComplete ? "Tu clinica esta configurada" : "Configuracion incompleta"}
               </p>
-              <p className={"text-sm mt-0.5 " + (isComplete ? "text-emerald-200/80" : "text-amber-200/80")}>
+              <p className={"text-sm mt-0.5 " + (isComplete ? "text-white" : "text-white")}>
                 {isComplete
                   ? "Estos datos apareceran en los recibos de venta de tu clinica."
                   : "Llena los campos marcados con * para que tus recibos salgan completos."}
@@ -1902,7 +1904,7 @@ function SettingsTab() {
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
               <Stethoscope className="w-5 h-5 text-emerald-300" />
             </div>
             Datos de la clinica
@@ -1963,7 +1965,7 @@ function SettingsTab() {
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/30 flex items-center justify-center">
               <Phone className="w-5 h-5 text-cyan-300" />
             </div>
             Contacto
@@ -2010,7 +2012,7 @@ function SettingsTab() {
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/60 border-slate-700/80 shadow-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/30 flex items-center justify-center">
               <FileText className="w-5 h-5 text-purple-300" />
             </div>
             Recibos y facturacion
