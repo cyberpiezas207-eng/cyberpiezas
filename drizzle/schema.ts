@@ -1158,3 +1158,18 @@ export const vetVaccinations = mysqlTable("vetVaccinations", {
 });
 export type VetVaccination = typeof vetVaccinations.$inferSelect;
 export type InsertVetVaccination = typeof vetVaccinations.$inferInsert;
+export const vetAppointments = mysqlTable("vetAppointments", {
+  id: serial("id").primaryKey(),
+  userId: int("userId").notNull(),
+  customerId: int("customerId").notNull(),
+  petId: int("petId").notNull(),
+  appointmentAt: timestamp("appointmentAt").notNull(),
+  durationMinutes: int("durationMinutes").notNull().default(30),
+  reason: varchar("reason", { length: 200 }).notNull(),
+  status: mysqlEnum("status", ["pendiente", "confirmada", "completada", "cancelada"]).notNull().default("pendiente"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+export type VetAppointment = typeof vetAppointments.$inferSelect;
+export type NewVetAppointment = typeof vetAppointments.$inferInsert;
