@@ -1258,6 +1258,8 @@ export const tarimaProfiles = mysqlTable("tarimaProfiles", {
   yearsActive: int("yearsActive"),
   isPublished: boolean("isPublished").notNull().default(false),
   themeId: varchar("themeId", { length: 50 }).notNull().default("default"),
+  customColors: json("customColors"),
+  fontFamily: varchar("fontFamily", { length: 50 }),
   viewCount: int("viewCount").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
