@@ -69,7 +69,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function MiTarima() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"perfil" | "bookings">("perfil");
+  const [activeTab, setActiveTab] = useState<"perfil" | "bookings" | "multimedia">("perfil");
 
   const profileQuery = trpc.tarima.profile.getMine.useQuery();
   const statsQuery = trpc.tarima.bookings.stats.useQuery();
@@ -150,6 +150,17 @@ export default function MiTarima() {
                   ⚙️ Mi perfil
                 </button>
                 <button
+                  onClick={() => setActiveTab("multimedia")}
+                  className={
+                    "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
+                    (activeTab === "multimedia"
+                      ? "border-b-2 border-fuchsia-500 text-fuchsia-600"
+                      : "text-slate-500 hover:text-slate-900")
+                  }
+                >
+                  📸 Multimedia
+                </button>
+                <button
                   onClick={() => setActiveTab("bookings")}
                   className={
                     "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
@@ -172,6 +183,9 @@ export default function MiTarima() {
                   <EditProfileForm profile={profile} onSaved={() => {
                     utils.tarima.profile.getMine.invalidate();
                   }} />
+                )}
+                {activeTab === "multimedia" && (
+                  <MultimediaTab />
                 )}
                 {activeTab === "bookings" && (
                   <BookingsList
@@ -759,6 +773,298 @@ function BookingsList({ bookings, onUpdated }: { bookings: any[]; onUpdated: () 
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// Tab MULTIMEDIA - Fotos, Videos y Musica
+// ============================================================================
+
+function MultimediaTab() {
+  const [subTab, setSubTab] = useState<"photo" | "video" | "music">("photo");
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <div className="flex gap-2 border-b border-slate-200 pb-1">
+        <button
+          onClick={() => setSubTab("photo")}
+          className={
+            "px-4 py-2 text-sm font-bold rounded-t-lg transition-colors " +
+            (subTab === "photo"
+              ? "bg-fuchsia-50 text-fuchsia-600 border-b-2 border-fuchsia-500"
+              : "text-slate-500 hover:text-slate-900")
+          }
+        >
+          📸 Fotos
+        </button>
+        <button
+          onClick={() => setSubTab("video")}
+          className={
+            "px-4 py-2 text-sm font-bold rounded-t-lg transition-colors " +
+            (subTab === "video"
+              ? "bg-fuchsia-50 text-fuchsia-600 border-b-2 border-fuchsia-500"
+              : "text-slate-500 hover:text-slate-900")
+          }
+        >
+          🎬 Videos
+        </button>
+        <button
+          onClick={() => setSubTab("music")}
+          className={
+            "px-4 py-2 text-sm font-bold rounded-t-lg transition-colors " +
+            (subTab === "music"
+              ? "bg-fuchsia-50 text-fuchsia-600 border-b-2 border-fuchsia-500"
+              : "text-slate-500 hover:text-slate-900")
+          }
+        >
+          🎵 Música
+        </button>
+      </div>
+
+      <MediaSection type={subTab} />
+    </div>
+  );
+}
+
+function MediaSection({ type }: { type: "photo" | "video" | "music" }) {
+  const utils = trpc.useUtils();
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const mediaQuery = trpc.tarima.media.listMine.useQuery({ type });
+
+  const deleteMedia = trpc.tarima.media.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Eliminado");
+      utils.tarima.media.listMine.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const reorderMedia = trpc.tarima.media.reorder.useMutation({
+    onSuccess: () => {
+      utils.tarima.media.listMine.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const items = mediaQuery.data ?? [];
+
+  const typeLabels: Record<string, { singular: string; plural: string; helpUrl: string; placeholder: string }> = {
+    photo: {
+      singular: "foto",
+      plural: "Fotos",
+      helpUrl: "https://imgur.com",
+      placeholder: "https://i.imgur.com/abc123.jpg",
+    },
+    video: {
+      singular: "video",
+      plural: "Videos de YouTube",
+      helpUrl: "https://youtube.com",
+      placeholder: "https://youtube.com/watch?v=...",
+    },
+    music: {
+      singular: "track",
+      plural: "Música de Spotify",
+      helpUrl: "https://spotify.com",
+      placeholder: "https://open.spotify.com/track/...",
+    },
+  };
+
+  const config = typeLabels[type];
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900">{config.plural}</h3>
+          <p className="text-xs text-slate-500">
+            {items.length === 0
+              ? "Aún no has agregado " + config.plural.toLowerCase()
+              : items.length + " " + (items.length === 1 ? config.singular : config.plural.toLowerCase())}
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-9 px-4 text-xs font-bold"
+        >
+          {showAddForm ? "Cancelar" : "+ Agregar"}
+        </Button>
+      </div>
+
+      {/* Formulario de agregar */}
+      {showAddForm && (
+        <AddMediaForm
+          type={type}
+          placeholder={config.placeholder}
+          helpUrl={config.helpUrl}
+          onAdded={() => {
+            setShowAddForm(false);
+            utils.tarima.media.listMine.invalidate();
+          }}
+        />
+      )}
+
+      {/* Lista de items */}
+      {items.length === 0 && !showAddForm && (
+        <div className="bg-slate-50 rounded-2xl p-8 text-center border-2 border-dashed border-slate-200">
+          <div className="text-4xl mb-2">
+            {type === "photo" ? "📸" : type === "video" ? "🎬" : "🎵"}
+          </div>
+          <p className="text-sm text-slate-600 mb-3">
+            No tienes {config.plural.toLowerCase()} todavía.
+          </p>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-9 px-5 text-xs font-bold"
+          >
+            Agregar mi primera {config.singular}
+          </Button>
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="space-y-2 mt-3">
+          {items.map((item, idx) => (
+            <div
+              key={item.id}
+              className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3"
+            >
+              {/* Preview */}
+              {type === "photo" ? (
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
+                  <img src={item.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0 text-2xl">
+                  {type === "video" ? "🎬" : "🎵"}
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900 truncate">
+                  {item.title || "(Sin título)"}
+                </p>
+                <p className="text-xs text-slate-500 truncate">{item.url}</p>
+              </div>
+
+              {/* Reorder + Delete */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => reorderMedia.mutate({ id: item.id, direction: "up" })}
+                  disabled={idx === 0 || reorderMedia.isPending}
+                  className="w-7 h-7 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-xs disabled:opacity-30"
+                  title="Subir"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => reorderMedia.mutate({ id: item.id, direction: "down" })}
+                  disabled={idx === items.length - 1 || reorderMedia.isPending}
+                  className="w-7 h-7 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-xs disabled:opacity-30"
+                  title="Bajar"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm("¿Eliminar este item?")) {
+                      deleteMedia.mutate({ id: item.id });
+                    }
+                  }}
+                  disabled={deleteMedia.isPending}
+                  className="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 ml-1"
+                  title="Eliminar"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddMediaForm({
+  type,
+  placeholder,
+  helpUrl,
+  onAdded,
+}: {
+  type: "photo" | "video" | "music";
+  placeholder: string;
+  helpUrl: string;
+  onAdded: () => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+
+  const createMedia = trpc.tarima.media.create.useMutation({
+    onSuccess: () => {
+      toast.success("Agregado");
+      setUrl("");
+      setTitle("");
+      onAdded();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleAdd = () => {
+    if (!url) {
+      toast.error("Falta la URL");
+      return;
+    }
+    createMedia.mutate({
+      type,
+      url,
+      title: title || undefined,
+    });
+  };
+
+  const tips: Record<string, string> = {
+    photo: "💡 Sube tu foto a Imgur (gratis, sin cuenta) y pega el link de la imagen.",
+    video: "💡 Pega el link del video de YouTube. Funciona con cualquier URL (watch?v= o youtu.be).",
+    music: "💡 En Spotify: comparte canción → Copy link. Funciona con tracks, álbumes o playlists.",
+  };
+
+  return (
+    <div className="bg-fuchsia-50 border-2 border-fuchsia-200 rounded-2xl p-4 mb-4">
+      <div className="space-y-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            URL *
+          </p>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={placeholder}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none text-sm"
+          />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Título (opcional)
+          </p>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ej: Tocada en el palenque 2024"
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none text-sm"
+          />
+        </div>
+        <p className="text-xs text-slate-600 italic">{tips[type]}</p>
+        <Button
+          onClick={handleAdd}
+          disabled={createMedia.isPending}
+          className="w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-10 font-bold"
+        >
+          {createMedia.isPending ? "Agregando..." : "Agregar"}
+        </Button>
+      </div>
     </div>
   );
 }
