@@ -299,7 +299,10 @@ function DashboardLayoutContent({
   const isAdminPanel = location === "/admin-cyberpiezas";
 
   // Detectar si estamos en Veterinaria POS (cualquier sub-ruta)
-  const isVeterinariaZone = location.startsWith("/veterinaria-pos");
+  // Incluye /veterinaria-pos/* Y /vet-* (cajeros, suscripcion, configuracion)
+  const isVeterinariaZone =
+    location.startsWith("/veterinaria-pos") ||
+    location.startsWith("/vet-");
 
   // Detectar si estamos en Verduleria (cualquier sub-ruta)
   const isVerduleriaZone = location.startsWith("/verduleria");
@@ -577,7 +580,21 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => setLocation("/settings/pos-hardware")} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => {
+                    // Ruta de configuracion segun la zona activa
+                    if (isVeterinariaZone) {
+                      setLocation("/veterinaria-pos/configuracion");
+                    } else if (isVerduleriaZone) {
+                      setLocation("/verduleria/configuracion");
+                    } else if (isTarimaZone) {
+                      setLocation("/mi-tarima");
+                    } else {
+                      setLocation("/settings/pos-hardware");
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
                   <Settings2 className="mr-2 h-4 w-4" />
                   <span>Ir a configuración</span>
                 </DropdownMenuItem>
