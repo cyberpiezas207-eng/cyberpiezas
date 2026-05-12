@@ -1,0 +1,764 @@
+import { useState, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import {
+  Music,
+  Eye,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Copy,
+  Save,
+  Globe,
+  Lock,
+  Sparkles,
+  PartyPopper,
+  X,
+  Check,
+  XCircle,
+  Phone,
+  Mail,
+  MapPin,
+  Send,
+  Loader2,
+} from "lucide-react";
+
+const GENRE_OPTIONS = [
+  { value: "banda", label: "🎺 Banda" },
+  { value: "mariachi", label: "🎻 Mariachi" },
+  { value: "norteno", label: "🪗 Norteño" },
+  { value: "cumbia", label: "🪘 Cumbia" },
+  { value: "rock", label: "🎸 Rock" },
+  { value: "pop", label: "🎤 Pop" },
+  { value: "regional", label: "🎼 Regional Mexicano" },
+  { value: "electronica", label: "🎧 Electrónica" },
+  { value: "jazz", label: "🎷 Jazz" },
+  { value: "clasica", label: "🎹 Clásica" },
+  { value: "tropical", label: "🥁 Tropical" },
+  { value: "reggaeton", label: "🔊 Reggaeton" },
+  { value: "otro", label: "🎵 Otro" },
+];
+
+const EVENT_LABELS: Record<string, string> = {
+  boda: "Boda",
+  "15anos": "XV años",
+  cumpleanos: "Cumpleaños",
+  evento_corporativo: "Evento corporativo",
+  fiesta_privada: "Fiesta privada",
+  festival: "Festival",
+  bautizo: "Bautizo",
+  otro: "Otro",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700 border-amber-200",
+  confirmed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  cancelled: "bg-rose-100 text-rose-700 border-rose-200",
+  completed: "bg-blue-100 text-blue-700 border-blue-200",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmado",
+  cancelled: "Cancelado",
+  completed: "Completado",
+};
+
+export default function MiTarima() {
+  const utils = trpc.useUtils();
+  const [activeTab, setActiveTab] = useState<"perfil" | "bookings">("perfil");
+
+  const profileQuery = trpc.tarima.profile.getMine.useQuery();
+  const statsQuery = trpc.tarima.bookings.stats.useQuery();
+  const bookingsQuery = trpc.tarima.bookings.listMine.useQuery({});
+
+  const profile = profileQuery.data;
+  const stats = statsQuery.data;
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Hero */}
+        <section className="bg-gradient-to-br from-fuchsia-600 via-purple-600 to-indigo-700 rounded-3xl p-6 lg:p-8 text-white shadow-xl shadow-purple-500/20 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-pink-400/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl" />
+          <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-100 mb-1">
+                🎤 Mi Tarima
+              </p>
+              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">
+                {profile?.artistName ?? "Bienvenido"}
+              </h1>
+              <p className="text-fuchsia-100 mt-1">
+                Tu perfil público para clientes y eventos.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full lg:w-auto">
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                <Eye className="w-4 h-4 mb-1 text-fuchsia-100" />
+                <p className="text-2xl font-bold tracking-tight">{stats?.viewCount ?? 0}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100">Vistas</p>
+              </div>
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                <Clock className="w-4 h-4 mb-1 text-amber-200" />
+                <p className="text-2xl font-bold tracking-tight">{stats?.pending ?? 0}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100">Pendientes</p>
+              </div>
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                <CheckCircle2 className="w-4 h-4 mb-1 text-emerald-200" />
+                <p className="text-2xl font-bold tracking-tight">{stats?.confirmed ?? 0}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100">Confirmados</p>
+              </div>
+              <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                <Calendar className="w-4 h-4 mb-1 text-cyan-200" />
+                <p className="text-2xl font-bold tracking-tight">{stats?.totalBookings ?? 0}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100">Total</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Si NO hay perfil → onboarding */}
+        {!profile && !profileQuery.isLoading && <CreateProfileCard onCreated={() => {
+          utils.tarima.profile.getMine.invalidate();
+          utils.tarima.bookings.stats.invalidate();
+        }} />}
+
+        {/* Si HAY perfil → URL pública + toggle publicar + tabs */}
+        {profile && (
+          <>
+            <PublicLinkCard profile={profile} onToggleChange={() => {
+              utils.tarima.profile.getMine.invalidate();
+            }} />
+
+            {/* Tabs */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex border-b border-slate-200">
+                <button
+                  onClick={() => setActiveTab("perfil")}
+                  className={
+                    "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
+                    (activeTab === "perfil"
+                      ? "border-b-2 border-fuchsia-500 text-fuchsia-600"
+                      : "text-slate-500 hover:text-slate-900")
+                  }
+                >
+                  ⚙️ Mi perfil
+                </button>
+                <button
+                  onClick={() => setActiveTab("bookings")}
+                  className={
+                    "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
+                    (activeTab === "bookings"
+                      ? "border-b-2 border-fuchsia-500 text-fuchsia-600"
+                      : "text-slate-500 hover:text-slate-900")
+                  }
+                >
+                  📅 Solicitudes
+                  {stats && stats.pending > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-rose-500 text-white">
+                      {stats.pending}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="p-6">
+                {activeTab === "perfil" && (
+                  <EditProfileForm profile={profile} onSaved={() => {
+                    utils.tarima.profile.getMine.invalidate();
+                  }} />
+                )}
+                {activeTab === "bookings" && (
+                  <BookingsList
+                    bookings={bookingsQuery.data ?? []}
+                    onUpdated={() => {
+                      utils.tarima.bookings.listMine.invalidate();
+                      utils.tarima.bookings.stats.invalidate();
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
+
+// ============================================================================
+// Crear perfil (primera vez)
+// ============================================================================
+
+function CreateProfileCard({ onCreated }: { onCreated: () => void }) {
+  const [artistName, setArtistName] = useState("");
+  const [genre, setGenre] = useState("otro");
+  const [location, setLocation] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [bio, setBio] = useState("");
+
+  const createProfile = trpc.tarima.profile.create.useMutation({
+    onSuccess: () => {
+      toast.success("¡Perfil creado! Ahora completa tus datos.");
+      onCreated();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleCreate = () => {
+    if (!artistName) {
+      toast.error("Necesitas un nombre artístico");
+      return;
+    }
+    createProfile.mutate({
+      artistName,
+      genre: genre as any,
+      location: location || undefined,
+      whatsapp: whatsapp || undefined,
+      bio: bio || undefined,
+    });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-br from-fuchsia-500 to-purple-600 px-8 py-6 text-white">
+        <Sparkles className="w-8 h-8 mb-2" />
+        <h2 className="text-2xl font-bold tracking-tight">¡Crea tu Tarima!</h2>
+        <p className="text-fuchsia-100 mt-1">
+          Tu página pública para que tus clientes te encuentren y te contraten.
+        </p>
+      </div>
+      <div className="p-8 space-y-4 max-w-2xl">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Tu nombre artístico *
+          </p>
+          <input
+            value={artistName}
+            onChange={(e) => setArtistName(e.target.value)}
+            placeholder="Ej: Los Norteños del Valle"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Este nombre aparecerá en tu URL: cyberpiezas.com/tarima/los-norte...
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              Tu género
+            </p>
+            <select
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            >
+              {GENRE_OPTIONS.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              Tu ciudad
+            </p>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Ej: Cuernavaca, Morelos"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            WhatsApp (con código de país)
+          </p>
+          <input
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            placeholder="Ej: +52 777 123 4567"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+          />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Breve descripción
+          </p>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            placeholder="Cuéntale a tus clientes quién eres, qué tocas, cuál es tu propuesta..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:border-fuchsia-400 focus:outline-none resize-none"
+          />
+        </div>
+        <Button
+          onClick={handleCreate}
+          disabled={createProfile.isPending}
+          className="w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold rounded-full h-12 shadow-lg shadow-fuchsia-500/30"
+        >
+          {createProfile.isPending ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creando...</>
+          ) : (
+            <><PartyPopper className="w-4 h-4 mr-2" /> Crear mi Tarima</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Link público + toggle
+// ============================================================================
+
+function PublicLinkCard({ profile, onToggleChange }: { profile: any; onToggleChange: () => void }) {
+  const publicUrl = window.location.origin + "/tarima/" + profile.slug;
+
+  const togglePublish = trpc.tarima.profile.setPublished.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.isPublished ? "¡Perfil publicado!" : "Perfil oculto");
+      onToggleChange();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(publicUrl);
+    toast.success("Link copiado al portapapeles");
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+            Tu URL pública
+          </p>
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <Globe className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <code className="text-sm text-slate-700 truncate flex-1">{publicUrl}</code>
+            <button
+              onClick={handleCopy}
+              className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors flex-shrink-0"
+              title="Copiar"
+            >
+              <Copy className="w-3.5 h-3.5 text-slate-500" />
+            </button>
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors flex-shrink-0"
+              title="Abrir"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+            </a>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          {profile.isPublished ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-xs font-bold text-emerald-700">PUBLICADO</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 rounded-full">
+              <Lock className="w-3 h-3 text-slate-500" />
+              <span className="text-xs font-bold text-slate-600">OCULTO</span>
+            </div>
+          )}
+          <Button
+            onClick={() => togglePublish.mutate({ isPublished: !profile.isPublished })}
+            disabled={togglePublish.isPending}
+            className={
+              profile.isPublished
+                ? "bg-slate-900 hover:bg-slate-800 text-white rounded-full h-9 px-4 text-xs font-bold"
+                : "bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-9 px-4 text-xs font-bold"
+            }
+          >
+            {profile.isPublished ? "Ocultar" : "Publicar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Editar perfil
+// ============================================================================
+
+function EditProfileForm({ profile, onSaved }: { profile: any; onSaved: () => void }) {
+  const [formData, setFormData] = useState({
+    artistName: profile.artistName ?? "",
+    bio: profile.bio ?? "",
+    genre: profile.genre ?? "otro",
+    location: profile.location ?? "",
+    whatsapp: profile.whatsapp ?? "",
+    contactEmail: profile.contactEmail ?? "",
+    profileImage: profile.profileImage ?? "",
+    coverImage: profile.coverImage ?? "",
+    spotifyUrl: profile.spotifyUrl ?? "",
+    youtubeUrl: profile.youtubeUrl ?? "",
+    youtubeFeaturedVideo: profile.youtubeFeaturedVideo ?? "",
+    instagramUrl: profile.instagramUrl ?? "",
+    facebookUrl: profile.facebookUrl ?? "",
+    tiktokUrl: profile.tiktokUrl ?? "",
+    minBudget: profile.minBudget ?? "",
+    serviceArea: profile.serviceArea ?? "",
+    yearsActive: profile.yearsActive ?? 0,
+  });
+
+  const updateProfile = trpc.tarima.profile.update.useMutation({
+    onSuccess: () => {
+      toast.success("Perfil actualizado");
+      onSaved();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSubmit = () => {
+    updateProfile.mutate({
+      ...formData,
+      yearsActive: Number(formData.yearsActive) || undefined,
+      minBudget: formData.minBudget ? String(formData.minBudget) : undefined,
+      genre: formData.genre as any,
+    });
+  };
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Datos básicos */}
+      <section>
+        <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <Music className="w-4 h-4 text-fuchsia-500" />
+          Datos básicos
+        </h3>
+        <div className="space-y-3">
+          <Field label="Nombre artístico">
+            <input
+              value={formData.artistName}
+              onChange={(e) => handleChange("artistName", e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Género">
+              <select
+                value={formData.genre}
+                onChange={(e) => handleChange("genre", e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+              >
+                {GENRE_OPTIONS.map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Años activos">
+              <input
+                type="number"
+                value={formData.yearsActive}
+                onChange={(e) => handleChange("yearsActive", parseInt(e.target.value) || 0)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+              />
+            </Field>
+          </div>
+          <Field label="Ciudad">
+            <input
+              value={formData.location}
+              onChange={(e) => handleChange("location", e.target.value)}
+              placeholder="Ej: Cuernavaca, Morelos"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="Bio">
+            <textarea
+              value={formData.bio}
+              onChange={(e) => handleChange("bio", e.target.value)}
+              rows={4}
+              placeholder="Cuéntale a tus clientes quién eres..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:border-fuchsia-400 focus:outline-none resize-none"
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* Imágenes */}
+      <section>
+        <h3 className="text-sm font-bold text-slate-900 mb-3">📸 Imágenes (URL)</h3>
+        <div className="space-y-3">
+          <Field label="Foto de perfil (URL)">
+            <input
+              value={formData.profileImage}
+              onChange={(e) => handleChange("profileImage", e.target.value)}
+              placeholder="https://..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="Foto de portada (URL)">
+            <input
+              value={formData.coverImage}
+              onChange={(e) => handleChange("coverImage", e.target.value)}
+              placeholder="https://..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <p className="text-xs text-slate-500">
+            💡 Tip: Sube tus fotos a Imgur o tu Google Drive y pega el link directo. Próximamente: upload integrado.
+          </p>
+        </div>
+      </section>
+
+      {/* Contacto */}
+      <section>
+        <h3 className="text-sm font-bold text-slate-900 mb-3">📞 Contacto</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="WhatsApp">
+            <input
+              value={formData.whatsapp}
+              onChange={(e) => handleChange("whatsapp", e.target.value)}
+              placeholder="+52 777..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="Email de contacto">
+            <input
+              type="email"
+              value={formData.contactEmail}
+              onChange={(e) => handleChange("contactEmail", e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* Redes */}
+      <section>
+        <h3 className="text-sm font-bold text-slate-900 mb-3">🔗 Redes sociales y música</h3>
+        <div className="space-y-3">
+          <Field label="Spotify (URL del artista o playlist)">
+            <input
+              value={formData.spotifyUrl}
+              onChange={(e) => handleChange("spotifyUrl", e.target.value)}
+              placeholder="https://open.spotify.com/artist/..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="YouTube (canal)">
+            <input
+              value={formData.youtubeUrl}
+              onChange={(e) => handleChange("youtubeUrl", e.target.value)}
+              placeholder="https://youtube.com/@..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="Video destacado de YouTube (URL del video)">
+            <input
+              value={formData.youtubeFeaturedVideo}
+              onChange={(e) => handleChange("youtubeFeaturedVideo", e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Instagram">
+              <input
+                value={formData.instagramUrl}
+                onChange={(e) => handleChange("instagramUrl", e.target.value)}
+                placeholder="https://instagram.com/..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+              />
+            </Field>
+            <Field label="Facebook">
+              <input
+                value={formData.facebookUrl}
+                onChange={(e) => handleChange("facebookUrl", e.target.value)}
+                placeholder="https://facebook.com/..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+              />
+            </Field>
+            <Field label="TikTok">
+              <input
+                value={formData.tiktokUrl}
+                onChange={(e) => handleChange("tiktokUrl", e.target.value)}
+                placeholder="https://tiktok.com/@..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+              />
+            </Field>
+          </div>
+        </div>
+      </section>
+
+      {/* Contratación */}
+      <section>
+        <h3 className="text-sm font-bold text-slate-900 mb-3">💰 Contratación</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Presupuesto mínimo ($)">
+            <input
+              type="number"
+              value={formData.minBudget}
+              onChange={(e) => handleChange("minBudget", e.target.value)}
+              placeholder="Ej: 5000"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+          <Field label="Zona de cobertura">
+            <input
+              value={formData.serviceArea}
+              onChange={(e) => handleChange("serviceArea", e.target.value)}
+              placeholder="Ej: Morelos y CDMX"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* Guardar */}
+      <Button
+        onClick={handleSubmit}
+        disabled={updateProfile.isPending}
+        className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold rounded-full h-12 px-8 shadow-lg shadow-fuchsia-500/30"
+      >
+        {updateProfile.isPending ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
+        ) : (
+          <><Save className="w-4 h-4 mr-2" /> Guardar cambios</>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+// ============================================================================
+// Lista de bookings
+// ============================================================================
+
+function BookingsList({ bookings, onUpdated }: { bookings: any[]; onUpdated: () => void }) {
+  const updateStatus = trpc.tarima.bookings.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Actualizado");
+      onUpdated();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  if (bookings.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-6xl mb-3">📭</div>
+        <h3 className="text-lg font-bold text-slate-900">Aún no tienes solicitudes</h3>
+        <p className="text-slate-500 mt-1">
+          Comparte tu URL pública para empezar a recibir bookings.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {bookings.map((b) => (
+        <div key={b.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="font-bold text-slate-900">{b.customerName}</h4>
+                <span className={"px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border " + STATUS_COLORS[b.status]}>
+                  {STATUS_LABELS[b.status]}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {EVENT_LABELS[b.eventType] || "Otro"} ·{" "}
+                {new Date(b.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "numeric" })}
+              </p>
+            </div>
+            {b.status === "pending" && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => updateStatus.mutate({ id: b.id, status: "confirmed" })}
+                  disabled={updateStatus.isPending}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full h-8 px-3 text-xs font-bold"
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Aceptar
+                </Button>
+                <Button
+                  onClick={() => updateStatus.mutate({ id: b.id, status: "cancelled" })}
+                  disabled={updateStatus.isPending}
+                  className="bg-rose-500 hover:bg-rose-600 text-white rounded-full h-8 px-3 text-xs font-bold"
+                >
+                  <XCircle className="w-3 h-3 mr-1" />
+                  Rechazar
+                </Button>
+              </div>
+            )}
+            {b.status === "confirmed" && (
+              <Button
+                onClick={() => updateStatus.mutate({ id: b.id, status: "completed" })}
+                disabled={updateStatus.isPending}
+                className="bg-blue-500 hover:bg-blue-600 text-white rounded-full h-8 px-3 text-xs font-bold"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Marcar completado
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Phone className="w-4 h-4 text-slate-400" />
+              <a href={"tel:" + b.customerPhone} className="hover:text-fuchsia-600">{b.customerPhone}</a>
+            </div>
+            {b.customerEmail && (
+              <div className="flex items-center gap-2 text-slate-700">
+                <Mail className="w-4 h-4 text-slate-400" />
+                <a href={"mailto:" + b.customerEmail} className="hover:text-fuchsia-600 truncate">{b.customerEmail}</a>
+              </div>
+            )}
+            {b.eventLocation && (
+              <div className="flex items-center gap-2 text-slate-700 sm:col-span-2">
+                <MapPin className="w-4 h-4 text-slate-400" />
+                <span>{b.eventLocation}</span>
+              </div>
+            )}
+            {b.eventDate && (
+              <div className="flex items-center gap-2 text-slate-700">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span>{new Date(b.eventDate).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}</span>
+              </div>
+            )}
+            {b.budget && (
+              <div className="text-slate-700">
+                💰 <span className="font-bold">${parseFloat(b.budget).toLocaleString("es-MX")}</span>
+              </div>
+            )}
+          </div>
+          {b.eventDescription && (
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Mensaje del cliente</p>
+              <p className="text-sm text-slate-700 italic">"{b.eventDescription}"</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
