@@ -12,7 +12,6 @@ import { paypalRouter } from "./routers/paypal";
 import { personalOperationsRouter } from "./routers/personalOperations";
 import { veterinariaRouter } from "./routers/veterinaria";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
 import { ENV } from "./_core/env";
