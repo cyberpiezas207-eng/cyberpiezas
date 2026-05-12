@@ -66,6 +66,7 @@ import {
   type InsertCustomer,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { TRPCError } from "@trpc/server";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -81,6 +82,17 @@ export async function getDb() {
   return _db;
 }
 
+/**
+ * Obtiene la conexion a DB o lanza error TRPC si no esta disponible.
+ * Centraliza el manejo de error para todos los routers.
+ */
+export async function getDbOrThrow() {
+  const conn = await getDb();
+  if (!conn) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB no disponible" });
+  }
+  return conn;
+}
 /**
  * Ejecuta migraciones de columnas nuevas directamente como SQL.
  * Se llama al arrancar el servidor para garantizar que las columnas existen
