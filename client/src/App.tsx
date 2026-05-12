@@ -23,6 +23,7 @@ import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
 import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
+import VeterinariaConfiguracion from "@/pages/VeterinariaConfiguracion";
 import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
 import SubscriptionManagement from "@/pages/SubscriptionManagement";
 import POS from "@/pages/POS";
@@ -235,6 +236,12 @@ function Router() {
       <Route path="/vet-cajeros">
         <ProtectedRoute requiredProgram="veterinaria">
           <VeterinariaCajeros />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/vet-configuracion">
+        <ProtectedRoute requiredProgram="veterinaria">
+          <VeterinariaConfiguracion />
         </ProtectedRoute>
       </Route>
 
