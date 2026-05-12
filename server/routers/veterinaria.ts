@@ -15,6 +15,7 @@ import {
   customers,
 } from "../../drizzle/schema";
 import * as db from "../db";
+import { createNotification } from "./notifications";
 
 // ============================================================================
 // HELPERS
@@ -531,7 +532,7 @@ export const veterinariaRouter = router({
             subtotal: (qty * price).toFixed(2),
           });
 
-          // Si es producto, descontar stock
+          // Si es producto, descontar stock + trigger de stock bajo
           if (item.itemType === "product" && item.productId) {
             await conn
               .update(vetProducts)
@@ -539,7 +540,41 @@ export const veterinariaRouter = router({
                 stock: sql`${vetProducts.stock} - ${Math.floor(qty)}`,
               })
               .where(eq(vetProducts.id, item.productId));
+
+            // Trigger: notificar si stock quedo bajo (<= 5)
+            const updatedProduct = await conn
+              .select()
+              .from(vetProducts)
+              .where(eq(vetProducts.id, item.productId));
+            const product = updatedProduct[0];
+            if (product && product.stock <= 5) {
+              try {
+                await createNotification({
+                  userId: ctx.user.id,
+                  type: "low_stock",
+                  title: "Stock bajo",
+                  message: product.name + " - quedan solo " + product.stock + " unidades",
+                  relatedId: product.id,
+                });
+              } catch (e) {
+                // Silent fail: no romper la venta si falla la notif
+                console.error("Failed to create low_stock notification:", e);
+              }
+            }
           }
+        }
+
+        // Trigger: notificar venta completada
+        try {
+          await createNotification({
+            userId: ctx.user.id,
+            type: "sale",
+            title: "Venta registrada",
+            message: "Cobraste $" + total.toFixed(2) + " (" + input.items.length + " items)",
+            relatedId: saleId,
+          });
+        } catch (e) {
+          console.error("Failed to create sale notification:", e);
         }
 
         const rows = await conn.select().from(vetSales).where(eq(vetSales.id, saleId));
