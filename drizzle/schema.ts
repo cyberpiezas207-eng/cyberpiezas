@@ -1220,3 +1220,77 @@ export const verduleriaSaleItems = mysqlTable("verduleriaSaleItems", {
 
 export type VerduleriaSaleItem = typeof verduleriaSaleItems.$inferSelect;
 export type InsertVerduleriaSaleItem = typeof verduleriaSaleItems.$inferInsert;
+
+export const tarimaProfiles = mysqlTable("tarimaProfiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  artistName: varchar("artistName", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  bio: text("bio"),
+  genre: mysqlEnum("genre", [
+    "banda",
+    "mariachi",
+    "norteno",
+    "cumbia",
+    "rock",
+    "pop",
+    "regional",
+    "electronica",
+    "jazz",
+    "clasica",
+    "tropical",
+    "reggaeton",
+    "otro",
+  ]).notNull().default("otro"),
+  location: varchar("location", { length: 200 }),
+  whatsapp: varchar("whatsapp", { length: 30 }),
+  contactEmail: varchar("contactEmail", { length: 200 }),
+  profileImage: varchar("profileImage", { length: 500 }),
+  coverImage: varchar("coverImage", { length: 500 }),
+  spotifyUrl: varchar("spotifyUrl", { length: 500 }),
+  youtubeUrl: varchar("youtubeUrl", { length: 500 }),
+  youtubeFeaturedVideo: varchar("youtubeFeaturedVideo", { length: 500 }),
+  instagramUrl: varchar("instagramUrl", { length: 500 }),
+  facebookUrl: varchar("facebookUrl", { length: 500 }),
+  tiktokUrl: varchar("tiktokUrl", { length: 500 }),
+  minBudget: decimal("minBudget", { precision: 10, scale: 2 }),
+  serviceArea: varchar("serviceArea", { length: 500 }),
+  yearsActive: int("yearsActive"),
+  isPublished: boolean("isPublished").notNull().default(false),
+  themeId: varchar("themeId", { length: 50 }).notNull().default("default"),
+  viewCount: int("viewCount").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type TarimaProfile = typeof tarimaProfiles.$inferSelect;
+export type InsertTarimaProfile = typeof tarimaProfiles.$inferInsert;
+
+export const tarimaBookings = mysqlTable("tarimaBookings", {
+  id: int("id").autoincrement().primaryKey(),
+  profileId: int("profileId").notNull().references(() => tarimaProfiles.id),
+  customerName: varchar("customerName", { length: 200 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 30 }).notNull(),
+  customerEmail: varchar("customerEmail", { length: 200 }),
+  eventDate: timestamp("eventDate"),
+  eventType: mysqlEnum("eventType", [
+    "boda",
+    "15anos",
+    "cumpleanos",
+    "evento_corporativo",
+    "fiesta_privada",
+    "festival",
+    "bautizo",
+    "otro",
+  ]).notNull().default("otro"),
+  eventLocation: varchar("eventLocation", { length: 500 }),
+  eventDescription: text("eventDescription"),
+  budget: decimal("budget", { precision: 10, scale: 2 }),
+  status: mysqlEnum("status", ["pending", "confirmed", "cancelled", "completed"]).notNull().default("pending"),
+  artistNotes: text("artistNotes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  respondedAt: timestamp("respondedAt"),
+});
+
+export type TarimaBooking = typeof tarimaBookings.$inferSelect;
+export type InsertTarimaBooking = typeof
