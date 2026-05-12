@@ -1,18 +1,19 @@
-// =============================================================================
-// SERVER ROUTER: notifications (ADAPTADO a tu tabla existente)
-// =============================================================================
-// REEMPLAZAR el archivo: server/routers/notifications.ts
-// con TODO este contenido.
-//
-// Usa los tipos REALES de tu schema:
-//   "sale" | "low_stock" | "payment_received" | "subscription_change" | "system"
-// =============================================================================
-
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
 import { notifications } from "../../drizzle/schema";
 import * as db from "../db";
+
+// ============================================================================
+// HELPER LOCAL: getDbOrThrow
+// Reemplaza llamadas a db.getDbOrThrow() que no existe en db.ts
+// ============================================================================
+async function getDbOrThrow() {
+  const conn = await db.getDb();
+  if (!conn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB no disponible" });
+  return conn;
+}
 
 // ============================================================================
 // HELPER GLOBAL: createNotification
@@ -43,7 +44,7 @@ export async function createNotification(params: {
   message: string;
   relatedId?: number;
 }) {
-  const conn = await db.getDbOrThrow();
+  const conn = await getDbOrThrow();
   await conn.insert(notifications).values({
     userId: params.userId,
     type: params.type,
@@ -68,7 +69,7 @@ export const notificationsRouter = router({
       }).optional(),
     )
     .query(async ({ ctx, input }) => {
-      const conn = await db.getDbOrThrow();
+      const conn = await getDbOrThrow();
       const limit = input?.limit ?? 20;
       const onlyUnread = input?.onlyUnread ?? false;
 
@@ -87,7 +88,7 @@ export const notificationsRouter = router({
 
   // Contar no leidas
   unreadCount: protectedProcedure.query(async ({ ctx }) => {
-    const conn = await db.getDbOrThrow();
+    const conn = await getDbOrThrow();
     const result = await conn
       .select({ count: sql<number>`count(*)` })
       .from(notifications)
@@ -104,7 +105,7 @@ export const notificationsRouter = router({
   markRead: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      const conn = await db.getDbOrThrow();
+      const conn = await getDbOrThrow();
       await conn
         .update(notifications)
         .set({ isRead: true, readAt: new Date() })
@@ -119,7 +120,7 @@ export const notificationsRouter = router({
 
   // Marcar TODAS como leidas
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
-    const conn = await db.getDbOrThrow();
+    const conn = await getDbOrThrow();
     await conn
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
@@ -136,7 +137,7 @@ export const notificationsRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      const conn = await db.getDbOrThrow();
+      const conn = await getDbOrThrow();
       await conn
         .delete(notifications)
         .where(
