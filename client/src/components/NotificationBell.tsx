@@ -1,211 +1,300 @@
-import { Bell, X } from "lucide-react";
-import { useState, useEffect } from "react";
+// =============================================================================
+// COMPONENTE: NotificationBell (ADAPTADO a tu schema real)
+// =============================================================================
+// CREAR archivo: client/src/components/NotificationBell.tsx
+// con todo este contenido.
+//
+// Mapea tus tipos reales a colores/iconos:
+//   sale                → success (verde)
+//   low_stock           → warning (ambar)
+//   payment_received    → success (verde)
+//   subscription_change → info (azul)
+//   system              → info (azul)
+// =============================================================================
+
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+  Bell,
+  CheckCheck,
+  Trash2,
+  Info,
+  CheckCircle2,
+  AlertTriangle,
+  DollarSign,
+  ShoppingCart,
+  CreditCard,
+  Settings,
+} from "lucide-react";
 
-const LIVE_REFETCH_MS = 3000;
+// Mapeo de tipos del schema -> estilos visuales
+const typeStyles: Record<string, { icon: any; bg: string; text: string; toastVariant: "success" | "info" | "warning" | "error" }> = {
+  sale: {
+    icon: ShoppingCart,
+    bg: "bg-emerald-100",
+    text: "text-emerald-600",
+    toastVariant: "success",
+  },
+  low_stock: {
+    icon: AlertTriangle,
+    bg: "bg-amber-100",
+    text: "text-amber-600",
+    toastVariant: "warning",
+  },
+  payment_received: {
+    icon: DollarSign,
+    bg: "bg-emerald-100",
+    text: "text-emerald-600",
+    toastVariant: "success",
+  },
+  subscription_change: {
+    icon: CreditCard,
+    bg: "bg-blue-100",
+    text: "text-blue-600",
+    toastVariant: "info",
+  },
+  system: {
+    icon: Settings,
+    bg: "bg-blue-100",
+    text: "text-blue-600",
+    toastVariant: "info",
+  },
+};
 
-export function NotificationBell() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [, navigate] = useLocation();
+function formatTimeAgo(date: Date | string) {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (seconds < 60) return "ahora";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + "m";
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + "h";
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days + "d";
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+}
+
+export default function NotificationBell() {
+  const [, setLocation] = useLocation();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastNotifIdRef = useRef<number | null>(null);
   const utils = trpc.useUtils();
 
-  const liveQueryOptions = {
-    refetchInterval: LIVE_REFETCH_MS,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-  } as const;
-
-  const { data: notifications, isLoading } = trpc.notifications.getAll.useQuery(
-    { limit: 10, unreadOnly: false },
-    liveQueryOptions,
+  // Polling cada 30 segundos
+  const listQuery = trpc.notifications.list.useQuery(
+    { limit: 20, onlyUnread: false },
+    { refetchInterval: 30000 },
   );
+  const countQuery = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
 
-  const { data: unreadCount } = trpc.notifications.getUnreadCount.useQuery(
-    undefined,
-    liveQueryOptions,
-  );
-
-  const markAsReadMutation = trpc.notifications.markAsRead.useMutation({
+  const markRead = trpc.notifications.markRead.useMutation({
     onSuccess: () => {
-      utils.notifications.getUnreadCount.invalidate();
-      utils.notifications.getAll.invalidate();
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
     },
   });
 
-  const markAllAsReadMutation = trpc.notifications.markAllAsRead.useMutation({
+  const markAllRead = trpc.notifications.markAllRead.useMutation({
     onSuccess: () => {
-      utils.notifications.getUnreadCount.invalidate();
-      utils.notifications.getAll.invalidate();
+      toast.success("Marcadas como leidas");
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
     },
   });
 
-  const deleteNotificationMutation = trpc.notifications.delete.useMutation({
+  const deleteNotif = trpc.notifications.delete.useMutation({
     onSuccess: () => {
-      utils.notifications.getAll.invalidate();
-      utils.notifications.getUnreadCount.invalidate();
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
     },
   });
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "sale":
-        return "🛍️";
-      case "low_stock":
-        return "📦";
-      case "payment_received":
-        return "💳";
-      case "subscription_change":
-        return "📋";
-      default:
-        return "ℹ️";
+  const notifications = listQuery.data ?? [];
+  const unreadCount = countQuery.data ?? 0;
+
+  // Toast automatico cuando llega notificacion nueva
+  useEffect(() => {
+    if (notifications.length === 0) return;
+    const newest = notifications[0];
+    if (lastNotifIdRef.current !== null && newest.id > lastNotifIdRef.current && !newest.isRead) {
+      // Solo hacer toast si NO es la primera carga
+      const style = typeStyles[newest.type] || typeStyles.system;
+      const TypeIcon = style.icon;
+
+      const showToast = {
+        success: toast.success,
+        warning: toast.warning,
+        info: toast.info,
+        error: toast.error,
+      }[style.toastVariant] || toast;
+
+      showToast(newest.title, {
+        description: newest.message,
+        icon: <TypeIcon className="w-5 h-5" />,
+        duration: 5000,
+      });
     }
-  };
+    lastNotifIdRef.current = newest.id;
+  }, [notifications]);
 
-  const getNotificationColor = (type: string) => {
-    switch (type) {
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Navegar segun tipo de notificacion + relatedId
+  const handleNotifClick = (n: any) => {
+    if (!n.isRead) markRead.mutate({ id: n.id });
+
+    // Navegacion inteligente segun tipo
+    let targetUrl: string | null = null;
+    switch (n.type) {
       case "sale":
-        return "bg-blue-50 border-blue-200";
+        targetUrl = "/dashboard";
+        break;
       case "low_stock":
-        return "bg-yellow-50 border-yellow-200";
+        targetUrl = "/dashboard";
+        break;
       case "payment_received":
-        return "bg-green-50 border-green-200";
       case "subscription_change":
-        return "bg-purple-50 border-purple-200";
+        targetUrl = "/sistemas";
+        break;
+      case "system":
       default:
-        return "bg-gray-50 border-gray-200";
+        targetUrl = null;
+    }
+
+    if (targetUrl) {
+      setLocation(targetUrl);
+      setOpen(false);
     }
   };
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          aria-label="Notificaciones"
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount && unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+    <div className="relative" ref={dropdownRef}>
+      {/* Boton de campana */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="relative w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors"
+        title="Notificaciones"
+      >
+        <Bell className="w-5 h-5 text-slate-700" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
 
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between border-b p-4">
-          <div>
-            <h3 className="font-semibold text-sm">Notificaciones</h3>
-            <p className="mt-1 text-[11px] text-muted-foreground">Actualización automática cada 3 segundos</p>
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute right-0 top-12 w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div>
+              <p className="font-bold text-slate-900">Notificaciones</p>
+              <p className="text-xs text-slate-500">
+                {unreadCount > 0 ? unreadCount + " sin leer" : "Estas al dia"}
+              </p>
+            </div>
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllRead.mutate()}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                Marcar todas
+              </button>
+            )}
           </div>
-          {unreadCount && unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => markAllAsReadMutation.mutate()}
-              className="text-xs"
-            >
-              Marcar todas como leídas
-            </Button>
-          )}
-        </div>
 
-        <ScrollArea className="h-96">
-          {isLoading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              Cargando...
-            </div>
-          ) : !notifications || notifications.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              No hay notificaciones
-            </div>
-          ) : (
-            <div className="divide-y">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={cn(
-                    "p-3 border-l-4 cursor-pointer hover:bg-gray-50 transition-colors",
-                    getNotificationColor(notification.type),
-                    !notification.isRead && "border-l-primary bg-primary/5"
-                  )}
-                  onClick={() => {
-                    if (!notification.isRead) {
-                      markAsReadMutation.mutate({ id: notification.id });
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
-                          {getNotificationIcon(notification.type)}
-                        </span>
-                        <p className="font-medium text-sm truncate">
-                          {notification.title}
-                        </p>
-                        {!notification.isRead && (
-                          <div className="h-2 w-2 rounded-full bg-primary" />
+          {/* Lista de notificaciones */}
+          <div className="max-h-[480px] overflow-y-auto">
+            {listQuery.isLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block w-7 h-7 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin"></div>
+                <p className="text-xs text-slate-500 mt-3">Cargando...</p>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="text-center py-12 px-6">
+                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+                  <Bell className="w-7 h-7 text-slate-400" />
+                </div>
+                <p className="font-bold text-slate-700 text-sm">No hay notificaciones</p>
+                <p className="text-xs text-slate-500 mt-1">Te avisaremos cuando algo importante pase.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {notifications.map((n) => {
+                  const style = typeStyles[n.type] || typeStyles.system;
+                  const TypeIcon = style.icon;
+                  return (
+                    <li
+                      key={n.id}
+                      className={
+                        "px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors relative group " +
+                        (!n.isRead ? "bg-blue-50/40" : "")
+                      }
+                      onClick={() => handleNotifClick(n)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={"w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 " + style.bg}>
+                          <TypeIcon className={"w-4 h-4 " + style.text} />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-4">
+                          <p className={"text-sm " + (!n.isRead ? "font-bold text-slate-900" : "font-medium text-slate-700")}>
+                            {n.title}
+                          </p>
+                          <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">
+                            {n.message}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1.5 font-medium uppercase tracking-wider">
+                            {formatTimeAgo(n.createdAt)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotif.mutate({ id: n.id });
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-200 absolute right-3 top-3"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        {!n.isRead && (
+                          <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full group-hover:opacity-0 transition-opacity" />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(notification.createdAt).toLocaleString(
-                          "es-MX"
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotificationMutation.mutate({
-                          id: notification.id,
-                        });
-                      }}
-                      className="h-6 w-6 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="px-4 py-2 border-t border-slate-100 bg-slate-50">
+              <p className="text-xs text-slate-500 text-center">
+                Mostrando las {notifications.length} mas recientes
+              </p>
             </div>
           )}
-        </ScrollArea>
-
-        <div className="border-t p-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs"
-            onClick={() => {
-              setIsOpen(false);
-              navigate("/notifications");
-            }}
-          >
-            Ver todas las notificaciones
-          </Button>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </div>
   );
 }
