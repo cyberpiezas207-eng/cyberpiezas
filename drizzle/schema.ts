@@ -1294,3 +1294,19 @@ export const tarimaBookings = mysqlTable("tarimaBookings", {
 
 export type TarimaBooking = typeof tarimaBookings.$inferSelect;
 export type InsertTarimaBooking = typeof tarimaBookings.$inferInsert;
+
+export const tarimaMedia = mysqlTable("tarimaMedia", {
+  id: int("id").autoincrement().primaryKey(),
+  profileId: int("profileId").notNull().references(() => tarimaProfiles.id),
+  type: mysqlEnum("type", ["photo", "video", "music"]).notNull(),
+  url: varchar("url", { length: 1000 }).notNull(),
+  thumbnail: varchar("thumbnail", { length: 1000 }),
+  title: varchar("title", { length: 200 }),
+  description: text("description"),
+  sortOrder: int("sortOrder").notNull().default(0),
+  isHighlight: boolean("isHighlight").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type TarimaMedia = typeof tarimaMedia.$inferSelect;
+export type InsertTarimaMedia = typeof tarimaMedia.$inferInsert;
