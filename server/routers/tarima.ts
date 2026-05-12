@@ -438,7 +438,7 @@ export const tarimaRouter = router({
       }),
 
     // Listar items PUBLICOS por slug del perfil (pagina /tarima/[slug])
-    listByProfileSlug: publicProcedure
+    listBySlug: publicProcedure
       .input(
         z.object({
           slug: z.string().min(1),
@@ -472,8 +472,8 @@ export const tarimaRouter = router({
           .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
       }),
 
-    // Agregar item
-    add: protectedProcedure
+    // Agregar item (Crear) - alineado con frontend
+    create: protectedProcedure
       .input(
         z.object({
           type: z.enum(["photo", "video", "music"]),
