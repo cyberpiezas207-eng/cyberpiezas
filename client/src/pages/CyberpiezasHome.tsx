@@ -194,20 +194,24 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab }: 
 function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: string) => void; isAuthenticated: boolean; onDemo: () => void }) {
   return (
     <section className="relative overflow-hidden bg-white">
-      {/* Orbes decorativos sutiles */}
+      {/* Orbes decorativos - mas sutiles en mobile */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-purple-200/20 rounded-full blur-3xl" />
-        <div className="absolute top-40 -left-40 w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
+        <div className="absolute -top-20 -right-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-200/20 rounded-full blur-3xl" />
+        <div className="absolute top-40 -left-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-20 lg:pb-28 text-center">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pt-16 sm:pt-24 lg:pt-32 pb-16 sm:pb-20 lg:pb-28 text-center">
         {/* Eyebrow minimal */}
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-8">
-          Hecho en Mexico
-        </p>
+        <div className="inline-flex items-center gap-2.5 mb-6 sm:mb-8">
+          <span className="w-6 sm:w-8 h-px bg-slate-300" />
+          <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-[0.25em] sm:tracking-[0.3em]">
+            Hecho en Mexico
+          </p>
+          <span className="w-6 sm:w-8 h-px bg-slate-300" />
+        </div>
 
-        {/* H1 MASIVO */}
-        <h1 className="text-5xl sm:text-7xl lg:text-8xl xl:text-[6.5rem] font-bold tracking-tighter text-slate-900 max-w-5xl mx-auto leading-[0.95]">
+        {/* H1 MASIVO - mobile first */}
+        <h1 className="text-[2.75rem] leading-[1] sm:text-7xl sm:leading-[0.95] lg:text-8xl xl:text-[6.5rem] font-bold tracking-tighter text-slate-900 max-w-5xl mx-auto">
           El sistema POS{" "}
           <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
             que tu negocio merece.
@@ -215,7 +219,7 @@ function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: strin
         </h1>
 
         {/* Subhead editorial */}
-        <p className="mt-10 text-xl sm:text-2xl lg:text-3xl text-slate-600 max-w-3xl mx-auto font-light leading-relaxed tracking-tight">
+        <p className="mt-7 sm:mt-10 text-lg sm:text-2xl lg:text-3xl text-slate-600 max-w-3xl mx-auto font-light leading-relaxed tracking-tight px-2">
           Para boutiques, veterinarias, abarrotes y mas.
           <br className="hidden sm:block" />
           <span className="text-slate-900 font-normal">
@@ -224,25 +228,33 @@ function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: strin
         </p>
 
         {/* CTAs */}
-        <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-3 px-4 sm:px-0">
           <Button
             onClick={() => { const el = document.getElementById("wizard"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
-            className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-14 px-8 text-base font-semibold shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:-translate-y-0.5 transition-all"
+            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:-translate-y-0.5 transition-all"
           >
             Encontrar mi sistema <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
           <Button
             onClick={onDemo}
             variant="outline"
-            className="border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-14 px-8 text-base font-semibold"
+            className="w-full sm:w-auto border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold"
           >
             <Play className="w-4 h-4 mr-1.5" /> Ver demo
           </Button>
         </div>
 
+        {/* Trust badges row - solo desktop */}
+        <div className="hidden sm:flex flex-wrap items-center justify-center gap-x-8 gap-y-2 mt-14 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Sin contratos</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Funciona offline</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Soporte WhatsApp</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Cancela cuando quieras</span>
+        </div>
+
         {/* Scroll indicator sutil */}
-        <div className="mt-20 flex flex-col items-center gap-2 text-slate-400 animate-bounce">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em]">
+        <div className="mt-12 sm:mt-20 flex flex-col items-center gap-2 text-slate-400 animate-bounce">
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.3em]">
             Conoce la historia
           </p>
         </div>
@@ -261,32 +273,36 @@ function Wizard({ setLocation }: { setLocation: (p: string) => void }) {
     { id: "celine", name: "Celine", desc: "Ofertas y trueques (proximamente)", icon: Handshake, gradient: "from-rose-500 to-orange-500", path: "/celine" },
   ];
   return (
-    <section id="wizard" className="bg-slate-50 py-24 lg:py-32">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em] mb-6">Empieza aqui</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+    <section id="wizard" className="bg-slate-50 py-16 sm:py-24 lg:py-32">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-emerald-400">01</span>
+            <span className="w-6 h-px bg-emerald-300" />
+            <span>Empieza aqui</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
             ¿Que tipo de
-            <br />
-            negocio tienes?
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>negocio tienes?
           </h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
           {items.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => setLocation(item.path)}
-                className="group bg-white rounded-3xl p-7 text-left border border-slate-200/60 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all"
+                className="group bg-white rounded-3xl p-6 sm:p-7 text-left border border-slate-200/60 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 active:scale-[0.98] transition-all"
               >
-                <div className={"w-14 h-14 rounded-2xl bg-gradient-to-br " + item.gradient + " flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform mb-5"}>
-                  <Icon className="w-7 h-7 text-white" />
+                <div className={"w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br " + item.gradient + " flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform mb-4 sm:mb-5"}>
+                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 mb-1">
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 mb-1">
                   {item.name}
                 </h3>
-                <p className="text-slate-500 text-sm mb-5">{item.desc}</p>
+                <p className="text-slate-500 text-sm mb-4 sm:mb-5">{item.desc}</p>
                 <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
                   Conocer mas
                   <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -302,13 +318,18 @@ function Wizard({ setLocation }: { setLocation: (p: string) => void }) {
 
 function Industries({ setLocation }: { setLocation: (p: string) => void }) {
   return (
-    <section id="sistemas" className="bg-white py-24 lg:py-32">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-purple-600 uppercase tracking-[0.3em] mb-6">Sistemas especializados</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+    <section id="sistemas" className="bg-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-purple-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-purple-400">02</span>
+            <span className="w-6 h-px bg-purple-300" />
+            <span>Sistemas especializados</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
             Construido para
-            <br />
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
             <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
               tu industria.
             </span>
@@ -316,19 +337,19 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
         </div>
 
         {/* Vet featured - Premium target */}
-        <div className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 rounded-3xl border border-emerald-100/60 overflow-hidden mb-6 shadow-xl shadow-emerald-500/5">
-          <div className="grid lg:grid-cols-2 gap-8 p-10 lg:p-14 items-center">
+        <div className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 rounded-3xl border border-emerald-100/60 overflow-hidden mb-5 sm:mb-6 shadow-xl shadow-emerald-500/5">
+          <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 p-6 sm:p-10 lg:p-14 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full mb-5 uppercase tracking-[0.2em]">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full mb-4 sm:mb-5 uppercase tracking-[0.2em]">
                 <Stethoscope className="w-3 h-3" /> Premium · $999/mes
               </div>
-              <h3 className="text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 mb-4 leading-[1.0]">
+              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 mb-3 sm:mb-4 leading-[1.0]">
                 POS Veterinaria
               </h3>
-              <p className="text-lg text-slate-600 mb-6 leading-relaxed">
+              <p className="text-base sm:text-lg text-slate-600 mb-5 sm:mb-6 leading-relaxed">
                 Expediente clinico, agenda de citas, inventario y punto de venta. Todo en uno.
               </p>
-              <ul className="grid grid-cols-2 gap-2.5 mb-7">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 mb-6 sm:mb-7">
                 {["Expediente clinico", "Agenda de citas", "Catalogo servicios", "Recibos con tu marca"].map((feat, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
                     <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -338,17 +359,17 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
               </ul>
               <Button
                 onClick={() => setLocation("/veterinaria-pos")}
-                className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 px-6 font-semibold text-sm hover:-translate-y-0.5 transition-all"
+                className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 px-6 font-semibold text-sm hover:-translate-y-0.5 transition-all"
               >
                 Conocer Veterinaria <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
               </Button>
             </div>
-            <div className="h-64 lg:h-80 bg-gradient-to-br from-emerald-100 to-cyan-100 rounded-3xl flex items-center justify-center text-9xl">🐾</div>
+            <div className="order-first lg:order-last h-44 sm:h-64 lg:h-80 bg-gradient-to-br from-emerald-100 to-cyan-100 rounded-2xl sm:rounded-3xl flex items-center justify-center text-6xl sm:text-8xl lg:text-9xl">🐾</div>
           </div>
         </div>
 
         {/* 4 secundarios en grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-8 sm:mb-12">
           {[
             { name: "Boutique", desc: "Variantes y multi-sucursal", icon: "👗", gradient: "from-purple-50 to-pink-50", path: "/dashboard" },
             { name: "Verduleria", desc: "Frutas y verduras al granel", icon: "🥬", gradient: "from-green-50 to-emerald-50", path: "/verduleria" },
@@ -358,12 +379,12 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
             <button
               key={item.name}
               onClick={() => setLocation(item.path)}
-              className={"group text-left bg-gradient-to-br " + item.gradient + " rounded-3xl p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all"}
+              className={"group text-left bg-gradient-to-br " + item.gradient + " rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 active:scale-[0.98] transition-all"}
             >
-              <div className="text-5xl mb-4">{item.icon}</div>
-              <h3 className="text-xl font-bold tracking-tight text-slate-900 mb-1">{item.name}</h3>
-              <p className="text-slate-600 text-sm mb-4">{item.desc}</p>
-              <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-4">{item.icon}</div>
+              <h3 className="text-base sm:text-xl font-bold tracking-tight text-slate-900 mb-1">{item.name}</h3>
+              <p className="text-slate-600 text-xs sm:text-sm mb-3 sm:mb-4">{item.desc}</p>
+              <div className="flex items-center gap-1 text-xs sm:text-sm font-bold text-slate-900">
                 Ver detalles
                 <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </div>
@@ -372,10 +393,10 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
         </div>
 
         {/* Proximamente */}
-        <div className="bg-slate-50 rounded-3xl p-8 lg:p-10 border border-slate-200/60">
-          <div className="text-center mb-6">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-3">Proximamente</p>
-            <h3 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
+        <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 border border-slate-200/60">
+          <div className="text-center mb-5 sm:mb-6">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-2 sm:mb-3">Proximamente</p>
+            <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
               Mas sistemas en camino
             </h3>
           </div>
@@ -386,8 +407,8 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
               { name: "Refaccionaria", icon: "🔧" },
               { name: "Panaderia", icon: "🥖" },
             ].map((p) => (
-              <div key={p.name} className="bg-white rounded-2xl p-4 border border-slate-200/40 text-center">
-                <div className="text-3xl mb-2">{p.icon}</div>
+              <div key={p.name} className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200/40 text-center">
+                <div className="text-2xl sm:text-3xl mb-1.5 sm:mb-2">{p.icon}</div>
                 <p className="text-xs font-bold text-slate-700">{p.name}</p>
               </div>
             ))}
@@ -415,32 +436,36 @@ function Hardware() {
   };
 
   return (
-    <section id="hardware" className="bg-slate-50 py-24 lg:py-32">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-[0.3em] mb-6">Tienda</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0] mb-5">
+    <section id="hardware" className="bg-slate-50 py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-blue-400">03</span>
+            <span className="w-6 h-px bg-blue-300" />
+            <span>Tienda</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0] mb-4 sm:mb-5">
             Equipo y hardware.
           </h2>
-          <p className="text-lg lg:text-xl text-slate-600 max-w-xl mx-auto font-light">
+          <p className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-xl mx-auto font-light px-2">
             Mas que un sistema. Te equipamos completo.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {products.map((p, i) => {
             const Icon = p.icon;
             return (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200/80 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all relative">
+              <div key={i} className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/80 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all relative">
                 {p.tag && (
-                  <div className={"absolute -top-2.5 right-5 px-2.5 py-1 text-white text-[10px] font-bold rounded-full shadow-lg " + p.tagColor}>{p.tag}</div>
+                  <div className={"absolute -top-2.5 right-4 sm:right-5 px-2.5 py-1 text-white text-[10px] font-bold rounded-full shadow-lg " + p.tagColor}>{p.tag}</div>
                 )}
                 <div className={"w-11 h-11 rounded-xl bg-gradient-to-br " + p.gradient + " flex items-center justify-center shadow-lg mb-3"}>
                   <Icon className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-0.5">{p.title}</h3>
-                <p className="text-xl font-bold text-slate-900 mb-2 tracking-tight">{p.price}</p>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-0.5">{p.title}</h3>
+                <p className="text-lg sm:text-xl font-bold text-slate-900 mb-2 tracking-tight">{p.price}</p>
                 <p className="text-slate-600 text-sm mb-4">{p.desc}</p>
-                <button onClick={() => handleCotizar(p.title)} className="w-full text-sm font-bold text-slate-900 hover:text-emerald-600 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 transition-all">
+                <button onClick={() => handleCotizar(p.title)} className="w-full text-sm font-bold text-slate-900 hover:text-emerald-600 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 active:scale-[0.98] transition-all">
                   Cotizar <ArrowUpRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -467,27 +492,31 @@ function Services() {
   };
 
   return (
-    <section id="servicios" className="bg-white py-24 lg:py-32">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em] mb-6">Servicios profesionales</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+    <section id="servicios" className="bg-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-emerald-400">04</span>
+            <span className="w-6 h-px bg-emerald-300" />
+            <span>Servicios profesionales</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
             Te acompanamos
-            <br />
-            en cada paso.
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>en cada paso.
           </h2>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {services.map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={i} className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-5 border border-slate-200/60 hover:shadow-lg transition-all">
-                <div className={"w-10 h-10 rounded-xl bg-gradient-to-br " + s.gradient + " flex items-center justify-center shadow-md mb-3"}>
+              <div key={i} className="bg-gradient-to-br from-slate-50 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/60 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                <div className={"w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br " + s.gradient + " flex items-center justify-center shadow-md mb-3"}>
                   <Icon className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">{s.title}</h3>
-                <p className="text-lg font-bold text-slate-900 tracking-tight mb-1">{s.price}</p>
-                <p className="text-sm text-slate-600 mb-4">{s.desc}</p>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">{s.title}</h3>
+                <p className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mb-1">{s.price}</p>
+                <p className="text-xs sm:text-sm text-slate-600 mb-3 sm:mb-4">{s.desc}</p>
                 <button onClick={() => handleContratar(s.title)} className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
                   Contratar <ArrowUpRight className="w-3.5 h-3.5" />
                 </button>
@@ -510,32 +539,37 @@ function Features() {
     { icon: CreditCard, title: "Sin contratos", desc: "Pagas mes a mes, cancela cuando quieras." },
   ];
   return (
-    <section className="bg-slate-50 py-24 lg:py-32">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-amber-600 uppercase tracking-[0.3em] mb-6">Lo esencial</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+    <section className="bg-slate-50 py-16 sm:py-24 lg:py-32">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-amber-400">05</span>
+            <span className="w-6 h-px bg-amber-300" />
+            <span>Lo esencial</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
             Todo lo que necesitas,
-            <br />
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
             <span className="text-slate-400">sin lo que estorba.</span>
           </h2>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {features.map((f, i) => {
             const Icon = f.icon;
             return (
               <div
                 key={i}
-                className="bg-white rounded-3xl p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all flex items-start gap-4"
+                className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all flex items-start gap-3 sm:gap-4"
               >
-                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold tracking-tight text-slate-900 mb-1">
+                  <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 mb-1">
                     {f.title}
                   </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             );
@@ -580,35 +614,38 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
   };
 
   return (
-    <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-16 lg:py-20">
-      <div className="max-w-4xl mx-auto px-6 lg:px-8">
-        <div className="bg-white rounded-3xl p-8 lg:p-12 border border-emerald-100 shadow-xl shadow-emerald-500/5 text-center relative overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-200/30 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-200/30 rounded-full blur-3xl" />
+    <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-16 sm:py-24 lg:py-32">
+      <div className="max-w-4xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-3xl sm:rounded-[2rem] p-7 sm:p-10 lg:p-16 border border-emerald-100 shadow-2xl shadow-emerald-500/5 text-center relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 sm:-top-32 sm:-right-32 w-64 h-64 sm:w-96 sm:h-96 bg-emerald-200/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 sm:-bottom-32 sm:-left-32 w-64 h-64 sm:w-96 sm:h-96 bg-cyan-200/30 rounded-full blur-3xl" />
 
           <div className="relative">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full mb-4 shadow-lg">
-              <Gift className="w-3.5 h-3.5" /> Programa de referidos
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+              <span className="text-emerald-400">07</span>
+              <span className="w-6 h-px bg-emerald-300" />
+              <span className="flex items-center gap-1.5"><Gift className="w-3 h-3" /> Programa de referidos</span>
             </div>
-            <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-3">
-              Trae a un amigo,{" "}
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 mb-4 sm:mb-5 leading-[1.05] sm:leading-[1.0]">
+              Trae a un amigo,
+              <br />
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-                ganen ambos
+                ganen ambos.
               </span>
             </h2>
-            <p className="text-slate-600 max-w-xl mx-auto mb-7">
-              Por cada amigo que se suscriba con tu código, ambos reciben{" "}
-              <strong className="text-slate-900">1 mes GRATIS</strong>.
+            <p className="text-base sm:text-lg text-slate-600 max-w-xl mx-auto mb-7 sm:mb-10 font-light px-2">
+              Por cada amigo que se suscriba con tu codigo, ambos reciben{" "}
+              <strong className="text-slate-900 font-bold">1 mes GRATIS</strong>.
             </p>
 
             {/* Si está autenticado: mostrar SU código */}
             {isAuthenticated && referralCode ? (
               <div className="max-w-md mx-auto">
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">
-                  TU CÓDIGO DE REFERIDO
+                <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">
+                  TU CODIGO DE REFERIDO
                 </p>
-                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 mb-4 shadow-xl">
-                  <p className="text-3xl font-bold text-white tracking-wider font-mono">
+                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 sm:p-5 mb-4 shadow-xl">
+                  <p className="text-2xl sm:text-3xl font-bold text-white tracking-wider font-mono">
                     {referralCode}
                   </p>
                 </div>
@@ -667,20 +704,24 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
     { name: "Premium", price: "$999", period: "/mes", desc: "Para multiples negocios.", cta: "Hablar con ventas", featured: false, features: ["Multiples POS", "Sucursales ilimitadas", "Cajeros ilimitados", "API personalizada", "Soporte 24/7"] },
   ];
   return (
-    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-24 lg:py-32">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-rose-600 uppercase tracking-[0.3em] mb-6">Sin sorpresas</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0] mb-5">
+    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-rose-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-rose-400">08</span>
+            <span className="w-6 h-px bg-rose-300" />
+            <span>Sin sorpresas</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0] mb-4 sm:mb-5">
             Precios transparentes.
           </h2>
-          <p className="text-lg lg:text-xl text-slate-600 font-light">
+          <p className="text-base sm:text-lg lg:text-xl text-slate-600 font-light px-2">
             Sin contratos largos. Cancela cuando quieras.
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {plans.map((plan) => (
-            <div key={plan.name} className={plan.featured ? "bg-slate-900 text-white rounded-3xl p-7 shadow-2xl shadow-slate-900/20 relative md:scale-105" : "bg-white rounded-3xl p-7 border border-slate-200/80"}>
+            <div key={plan.name} className={plan.featured ? "bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl shadow-slate-900/20 relative md:scale-105 sm:col-span-2 lg:col-span-1" : "bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-slate-200/80"}>
               {plan.featured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-900 text-xs font-bold rounded-full">MAS POPULAR</div>
               )}
@@ -714,33 +755,36 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
 
 function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLocation: (p: string) => void; isAuthenticated: boolean; onSupport: () => void; onCollab: () => void }) {
   return (
-    <section className="bg-slate-50 py-16 lg:py-20">
-      <div className="max-w-5xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <div className="text-3xl mb-3">⭐⭐⭐⭐⭐</div>
-          <blockquote className="text-xl lg:text-2xl font-medium text-slate-900 leading-relaxed max-w-2xl mx-auto mb-3">
+    <section className="bg-slate-50 py-16 sm:py-24 lg:py-32">
+      <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
+        {/* Testimonio editorial */}
+        <div className="text-center mb-12 sm:mb-20 lg:mb-24">
+          <div className="text-2xl sm:text-3xl mb-4 sm:mb-5 tracking-[0.5em]">⭐⭐⭐⭐⭐</div>
+          <blockquote className="text-lg sm:text-3xl lg:text-4xl font-light text-slate-900 leading-relaxed tracking-tight max-w-3xl mx-auto mb-5 sm:mb-6 italic px-2">
             "Antes anotaba todo en libreta. Ahora controlo mi negocio desde el celular. Cambio mi vida."
           </blockquote>
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 uppercase tracking-[0.2em]">
             <span className="font-bold text-slate-700">Maria G.</span>
             <span>·</span>
             <span>Boutique Mariangel, Cuernavaca</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 lg:p-12 text-center relative overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl" />
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl sm:rounded-[2.5rem] p-8 sm:p-12 lg:p-20 text-center relative overflow-hidden shadow-2xl">
+          <div className="absolute -top-20 -right-20 sm:-top-32 sm:-right-32 w-64 h-64 sm:w-96 sm:h-96 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 sm:-bottom-32 sm:-left-32 w-64 h-64 sm:w-96 sm:h-96 bg-emerald-500/20 rounded-full blur-3xl" />
           <div className="relative">
-            <Zap className="w-10 h-10 text-emerald-300 mx-auto mb-4" />
-            <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-white max-w-2xl mx-auto leading-tight mb-3">
-              ¿Listo para hacer crecer tu negocio?
+            <Zap className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-300 mx-auto mb-4 sm:mb-6" />
+            <h2 className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tighter text-white max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0] mb-4 sm:mb-6">
+              ¿Listo para hacer
+              <br />
+              crecer tu negocio?
             </h2>
-            <p className="text-slate-300 max-w-xl mx-auto mb-7">Empieza gratis hoy. Sin tarjeta de credito, sin contratos.</p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
+            <p className="text-base sm:text-lg lg:text-xl text-slate-300 max-w-xl mx-auto mb-7 sm:mb-10 font-light px-2">Empieza gratis hoy. Sin tarjeta de credito, sin contratos.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7 sm:mb-10">
               <Button
                 onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
-                className="bg-white hover:bg-slate-100 text-slate-900 rounded-full h-11 px-7 text-base font-semibold shadow-xl"
+                className="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-900 rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold shadow-xl hover:-translate-y-0.5 transition-all"
               >
                 {isAuthenticated ? "Ir a mi panel" : "Empezar gratis"} <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
@@ -750,17 +794,17 @@ function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLo
                   window.location.href = "mailto:cyberpiezas207@gmail.com?subject=" + subject;
                 }}
                 variant="outline"
-                className="border-slate-700 hover:bg-slate-800 text-white rounded-full h-11 px-7 text-base font-semibold"
+                className="w-full sm:w-auto border-slate-700 hover:bg-slate-800 text-white rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold"
               >
                 <MessageCircle className="w-4 h-4 mr-1.5" /> Hablar con ventas
               </Button>
             </div>
-            <div className="flex items-center justify-center gap-3 text-sm">
-              <button onClick={onCollab} className="text-emerald-300 hover:text-emerald-200 underline-offset-4 hover:underline flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-sm">
+              <button onClick={onCollab} className="text-emerald-300 hover:text-emerald-200 underline-offset-4 hover:underline flex items-center gap-1.5 transition-colors">
                 <Handshake className="w-3.5 h-3.5" /> Colaborar
               </button>
               <span className="text-slate-600">·</span>
-              <button onClick={onSupport} className="text-rose-300 hover:text-rose-200 underline-offset-4 hover:underline flex items-center gap-1">
+              <button onClick={onSupport} className="text-rose-300 hover:text-rose-200 underline-offset-4 hover:underline flex items-center gap-1.5 transition-colors">
                 <Heart className="w-3.5 h-3.5" /> Apoyar el proyecto
               </button>
             </div>
@@ -773,9 +817,9 @@ function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLo
 
 function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () => void }) {
   return (
-    <footer className="bg-white border-t border-slate-100 py-10">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row justify-between gap-8">
+    <footer className="bg-white border-t border-slate-100 py-10 sm:py-14">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:flex-row justify-between gap-8 sm:gap-10">
           <div className="max-w-sm">
             <div className="flex items-center gap-2.5 mb-3">
               <CyberpiezasLogo size={36} variant="dark" />
@@ -783,7 +827,7 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
             </div>
             <p className="text-sm text-slate-600">Sistemas POS hechos a la medida de tu industria.</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
             <div>
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Sistemas</p>
               <ul className="space-y-2 text-sm text-slate-600">
@@ -830,8 +874,8 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
 
 function DemoModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-8 lg:p-10 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full p-6 sm:p-8 lg:p-10 shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
           <X className="w-4 h-4 text-slate-700" />
         </button>
@@ -868,8 +912,8 @@ function DemoModal({ onClose }: { onClose: () => void }) {
 
 function SupportModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
           <X className="w-4 h-4 text-slate-700" />
         </button>
@@ -922,8 +966,8 @@ function CollabModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
           <X className="w-4 h-4 text-slate-700" />
         </button>
@@ -977,7 +1021,7 @@ function CollabModal({ onClose }: { onClose: () => void }) {
 
 function Story() {
   return (
-    <section id="historia" className="bg-white py-28 lg:py-40 relative overflow-hidden">
+    <section id="historia" className="bg-white py-16 sm:py-28 lg:py-40 relative overflow-hidden">
       {/* Orbes sutiles */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-emerald-100/30 rounded-full blur-3xl" />
@@ -986,11 +1030,13 @@ function Story() {
 
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
         {/* La pregunta */}
-        <div className="text-center mb-28 lg:mb-36">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-8">
-            Historia
-          </p>
-          <h2 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[0.9]">
+        <div className="text-center mb-16 sm:mb-28 lg:mb-36">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-6 sm:mb-8">
+            <span className="text-slate-300">06</span>
+            <span className="w-6 h-px bg-slate-300" />
+            <span>Historia</span>
+          </div>
+          <h2 className="text-3xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[1.0] sm:leading-[0.9]">
             ¿Por que existe
             <br />
             <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
@@ -1000,15 +1046,15 @@ function Story() {
         </div>
 
         {/* Capitulos minimalistas con mas aire */}
-        <div className="space-y-28 lg:space-y-40">
+        <div className="space-y-16 sm:space-y-28 lg:space-y-40">
           {/* Capítulo 1: El origen */}
           <div className="text-center">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">01 · El origen</p>
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">01 · El origen</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
               Empezo en{" "}
               <span className="text-slate-400">Facebook Marketplace</span>.
-              <br />
-              Comprando computadoras viejas, armando piezas,{" "}
+              <br className="hidden sm:block" />
+              <span className="sm:hidden"> </span>Comprando computadoras viejas, armando piezas,{" "}
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
                 distribuyendo lo que otros desechaban
               </span>.
@@ -1017,15 +1063,15 @@ function Story() {
 
           {/* Capítulo 2: La motivación real */}
           <div className="text-center">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">02 · La motivacion</p>
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">02 · La motivacion</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
               Pero lo que cambio todo fue mi mama.
             </p>
-            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
               Su tienda de abarrotes. Le faltaba producto. Le robaban. No sabia los precios.
               Llegaba a casa frustrada, cansada.
             </p>
-            <p className="mt-6 text-2xl lg:text-3xl font-medium text-slate-900 leading-tight max-w-2xl mx-auto">
+            <p className="mt-5 sm:mt-6 text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 leading-tight max-w-2xl mx-auto">
               <span className="bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">
                 Quise ayudarla.
               </span>
@@ -1034,15 +1080,15 @@ function Story() {
 
           {/* Capítulo 3: La mision */}
           <div className="text-center">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">03 · La mision</p>
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">03 · La mision</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
               Si funciono para ella,
               <br />
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
                 puede funcionar para miles.
               </span>
             </p>
-            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
               Bajo costo. Funcional. Pensado para los que no tienen capital,
               pero tienen ganas de salir adelante.
             </p>
@@ -1050,8 +1096,8 @@ function Story() {
 
           {/* Capítulo 4: El compromiso */}
           <div className="text-center">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">04 · El compromiso</p>
-            <p className="text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.15] tracking-tight max-w-3xl mx-auto">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">04 · El compromiso</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
               He sido estafado mas veces de las que puedo contar.
               <br />
               <br />
@@ -1059,7 +1105,7 @@ function Story() {
                 Aqui no.
               </span>
             </p>
-            <p className="mt-6 text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
               Trato justo. Sin letras chiquitas. Sin sorpresas.
               <br />
               Si tu negocio crece, el mio tambien.
@@ -1068,10 +1114,10 @@ function Story() {
         </div>
 
         {/* Cierre con firma editorial */}
-        <div className="mt-32 lg:mt-44 text-center">
-          <div className="inline-block max-w-2xl">
-            <div className="w-px h-16 bg-slate-300 mx-auto mb-10" />
-            <p className="text-2xl lg:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight">
+        <div className="mt-20 sm:mt-32 lg:mt-44 text-center">
+          <div className="inline-block max-w-2xl px-3 sm:px-0">
+            <div className="w-px h-12 sm:h-16 bg-slate-300 mx-auto mb-7 sm:mb-10" />
+            <p className="text-lg sm:text-2xl lg:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight">
               "Construyo la herramienta que mi mama hubiera querido tener desde el principio."
             </p>
             <div className="mt-8 flex flex-col items-center gap-1">
