@@ -1,18 +1,17 @@
-import React from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../_core/hooks/useAuth";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 interface POSSystem {
   id: string;
   name: string;
+  shortName: string;
   description: string;
   icon: string;
   status: "active" | "coming-soon";
   path?: string;
-  color: string;
+  gradient: string;
+  glowColor: string;
   features: string[];
 }
 
@@ -20,75 +19,103 @@ const systems: POSSystem[] = [
   {
     id: "boutique",
     name: "Sistema POS Boutique",
-    description: "Gestión completa para tiendas de ropa y accesorios",
+    shortName: "Boutique",
+    description: "Para tiendas de ropa, zapatos y accesorios. Variantes por talla y color.",
     icon: "👗",
     status: "active",
-    path: "/cyberpiezas",
-    color: "from-purple-500 to-pink-500",
-    features: ["Inventario", "Ventas rápidas", "Reportes", "Control de acceso"],
+    path: "/dashboard",
+    gradient: "from-fuchsia-500 via-pink-500 to-rose-500",
+    glowColor: "shadow-pink-500/30",
+    features: ["Variantes", "Sucursales", "Inventario", "Reportes"],
   },
   {
     id: "abarrotes",
     name: "Sistema POS Abarrotes",
-    description: "Tiendas de abarrotes con codigo de barras y bascula",
+    shortName: "Abarrotes",
+    description: "Tienditas de la esquina con codigo de barras, bascula y productos a granel.",
     icon: "🛒",
     status: "active",
     path: "/abarrotes-pos",
-    color: "from-orange-500 to-red-500",
-    features: ["Codigo de barras", "Productos a granel", "Inventario"],
-  },
-  {
-    id: "restaurant",
-    name: "Sistema POS Restaurante",
-    description: "Solución completa para restaurantes y cafés",
-    icon: "🍽️",
-    status: "coming-soon",
-    color: "from-green-500 to-emerald-500",
-    features: ["Mesas", "Pedidos", "Cocina", "Reportes"],
-  },
-  {
-    id: "refaccionaria",
-    name: "Sistema POS Refaccionaria",
-    description: "Gestión de refacciones y autopartes",
-    icon: "🚗",
-    status: "coming-soon",
-    color: "from-blue-500 to-cyan-500",
-    features: ["Catálogo de partes", "Inventario", "Búsqueda rápida"],
-  },
-  {
-    id: "cafeteria",
-    name: "Sistema POS Cafetería",
-    description: "Punto de venta especializado para cafeterías",
-    icon: "☕",
-    status: "coming-soon",
-    color: "from-amber-600 to-orange-500",
-    features: ["Bebidas personalizadas", "Combos", "Reportes"],
+    gradient: "from-orange-500 via-amber-500 to-yellow-500",
+    glowColor: "shadow-amber-500/30",
+    features: ["Codigo de barras", "Granel", "Inventario", "Bascula"],
   },
   {
     id: "veterinaria",
     name: "Sistema POS Veterinaria",
-    description: "Clinicas veterinarias con expediente clinico y vacunas",
+    shortName: "Veterinaria",
+    description: "Clinicas veterinarias con expediente clinico, vacunas y citas.",
     icon: "🐾",
     status: "active",
     path: "/veterinaria-pos",
-    color: "from-emerald-500 to-cyan-500",
-    features: ["Mascotas", "Expediente clinico", "Vacunas", "POS"],
+    gradient: "from-cyan-500 via-teal-500 to-emerald-500",
+    glowColor: "shadow-teal-500/30",
+    features: ["Mascotas", "Expediente", "Vacunas", "Citas"],
   },
   {
     id: "verduleria",
     name: "Sistema POS Verduleria",
-    description: "Frutas y verduras con grid visual. Ventas rapidas en 30 segundos.",
+    shortName: "Verduleria",
+    description: "Frutas y verduras con grid visual de emojis. Ventas rapidas en segundos.",
     icon: "🥕",
     status: "active",
     path: "/verduleria",
-    color: "from-green-500 to-emerald-500",
-    features: ["Grid visual", "Frutas y verduras", "Venta rapida", "Por kg/pieza"],
+    gradient: "from-green-500 via-emerald-500 to-teal-500",
+    glowColor: "shadow-emerald-500/30",
+    features: ["Grid visual", "Por kg", "Frutas/verduras", "Venta rapida"],
+  },
+  {
+    id: "restaurant",
+    name: "Sistema POS Restaurante",
+    shortName: "Restaurante",
+    description: "Restaurantes y fondas con mesas, comandas y modulo de cocina.",
+    icon: "🍽️",
+    status: "coming-soon",
+    gradient: "from-red-500 via-orange-500 to-amber-500",
+    glowColor: "shadow-orange-500/30",
+    features: ["Mesas", "Comandas", "Cocina", "Propinas"],
+  },
+  {
+    id: "cafeteria",
+    name: "Sistema POS Cafeteria",
+    shortName: "Cafeteria",
+    description: "Cafeterias con bebidas personalizables, combos y carta digital.",
+    icon: "☕",
+    status: "coming-soon",
+    gradient: "from-amber-700 via-orange-600 to-yellow-700",
+    glowColor: "shadow-amber-600/30",
+    features: ["Bebidas", "Combos", "Modificadores", "Carta"],
+  },
+  {
+    id: "refaccionaria",
+    name: "Sistema POS Refaccionaria",
+    shortName: "Refaccionaria",
+    description: "Refacciones y autopartes con busqueda por compatibilidad de vehiculo.",
+    icon: "🚗",
+    status: "coming-soon",
+    gradient: "from-blue-500 via-cyan-500 to-sky-500",
+    glowColor: "shadow-cyan-500/30",
+    features: ["Catalogo", "Compatibilidad", "Marcas", "Modelos"],
+  },
+  {
+    id: "panaderia",
+    name: "Sistema POS Panaderia",
+    shortName: "Panaderia",
+    description: "Panaderias con piezas, charolas, recetas y produccion del dia.",
+    icon: "🥖",
+    status: "coming-soon",
+    gradient: "from-yellow-600 via-orange-500 to-red-600",
+    glowColor: "shadow-orange-500/30",
+    features: ["Piezas", "Charolas", "Recetas", "Produccion"],
   },
 ];
 
 export default function SystemsPanel() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+
+  const activeSystems = systems.filter((s) => s.status === "active");
+  const comingSoonSystems = systems.filter((s) => s.status === "coming-soon");
 
   const handleSystemClick = (system: POSSystem) => {
     if (system.status === "active" && system.path) {
@@ -96,111 +123,164 @@ export default function SystemsPanel() {
     }
   };
 
+  const firstName = user?.name?.split(" ")[0] ?? "";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-16">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-white mb-4">
-            Centro Unificado de Operación
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mt-2">
-              Cyberpiezas
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      {/* Orbes decorativos de fondo */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        {/* Header */}
+        <header className="text-center mb-12 lg:mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-md border border-white/10 rounded-full mb-6">
+            <Sparkles className="w-3.5 h-3.5 text-fuchsia-400" />
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">
+              Centro Unificado
+            </span>
+          </div>
+
+          <h1 className="text-5xl lg:text-7xl font-bold text-white tracking-tight leading-[1.05] mb-5">
+            {firstName ? "Hola, " + firstName : "Tus sistemas"}
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 via-pink-400 to-cyan-400 mt-1">
+              en un solo lugar
             </span>
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Selecciona el sistema POS que necesitas para gestionar tu negocio.
-            Todos tus sistemas en un solo lugar.
+
+          <p className="text-lg lg:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Selecciona el sistema POS que necesitas. Disenado para cada tipo de negocio,
+            con la misma filosofia: simple, rapido, confiable.
           </p>
-        </div>
-      </div>
 
-      {/* Systems Grid */}
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {systems.map((system) => (
-            <div key={system.id} className="h-full">
-              <Card
-                className={`h-full overflow-hidden transition-all duration-300 hover:shadow-2xl ${
-                  system.status === "active"
-                    ? "cursor-pointer hover:scale-105 border-2 border-purple-500/50"
-                    : "opacity-75 hover:opacity-90"
-                }`}
+          {/* Stats row */}
+          <div className="mt-8 inline-flex items-center gap-4 px-5 py-2.5 bg-white/5 backdrop-blur-md border border-white/10 rounded-full">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-sm font-bold text-emerald-400">{activeSystems.length} activos</span>
+            </div>
+            <div className="w-px h-4 bg-white/20" />
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-amber-400 rounded-full" />
+              <span className="text-sm font-medium text-slate-300">{comingSoonSystems.length} en camino</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Activos: featured cards */}
+        <section className="mb-12 lg:mb-16">
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+              Disponibles ahora
+            </h2>
+            <p className="text-xs text-slate-500">{activeSystems.length} sistemas listos</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+            {activeSystems.map((system) => (
+              <button
+                key={system.id}
                 onClick={() => handleSystemClick(system)}
+                className={
+                  "group relative bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-3xl p-6 lg:p-7 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl overflow-hidden " +
+                  system.glowColor
+                }
               >
-                {/* Gradient Background */}
-                <div
-                  className={`h-32 bg-gradient-to-r ${system.color} relative overflow-hidden`}
-                >
-                  <div className="absolute inset-0 opacity-20 backdrop-blur-sm" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl">{system.icon}</span>
-                  </div>
-                </div>
+                {/* Orb decorativo */}
+                <div className={"absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-opacity bg-gradient-to-br " + system.gradient} />
 
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-bold text-white">
-                      {system.name}
-                    </h3>
-                    <Badge
-                      variant={
-                        system.status === "active" ? "default" : "secondary"
-                      }
-                      className={
-                        system.status === "active"
-                          ? "bg-green-500 hover:bg-green-600"
-                          : "bg-slate-500 hover:bg-slate-600"
-                      }
-                    >
-                      {system.status === "active" ? "Activo" : "Próximamente"}
-                    </Badge>
+                <div className="relative">
+                  {/* Icon + Badge */}
+                  <div className="flex items-start justify-between mb-5">
+                    <div className={"w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br shadow-lg " + system.gradient + " " + system.glowColor}>
+                      {system.icon}
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Activo</span>
+                    </span>
                   </div>
 
-                  <p className="text-slate-300 text-sm mb-4">
+                  {/* Title + Description */}
+                  <h3 className="text-2xl font-bold text-white tracking-tight mb-1">
+                    {system.shortName}
+                  </h3>
+                  <p className="text-sm text-slate-400 leading-relaxed mb-5 line-clamp-2">
                     {system.description}
                   </p>
 
                   {/* Features */}
-                  <div className="mb-6">
-                    <div className="flex flex-wrap gap-2">
-                      {system.features.map((feature, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-block px-3 py-1 bg-slate-700/50 text-slate-200 text-xs rounded-full"
-                        >
-                          {feature}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-1.5 mb-5">
+                    {system.features.map((feature, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 bg-white/5 border border-white/10 text-slate-300 text-[11px] font-medium rounded-full"
+                      >
+                        {feature}
+                      </span>
+                    ))}
                   </div>
 
-                  {/* Button */}
-                  <Button
-                    onClick={() => handleSystemClick(system)}
-                    disabled={system.status === "coming-soon"}
-                    className={
-                      system.status === "active"
-                        ? "w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                        : "w-full bg-slate-600 hover:bg-slate-700 cursor-not-allowed"
-                    }
-                  >
-                    {system.status === "active"
-                      ? "Acceder al Sistema"
-                      : "Próximamente"}
-                  </Button>
+                  {/* CTA */}
+                  <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <span className="text-sm font-bold text-white">Acceder al sistema</span>
+                    <div className={"w-9 h-9 rounded-full bg-gradient-to-br flex items-center justify-center group-hover:translate-x-1 transition-transform " + system.gradient}>
+                      <ArrowRight className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
                 </div>
-              </Card>
-            </div>
-          ))}
-        </div>
-      </div>
+              </button>
+            ))}
+          </div>
+        </section>
 
-      {/* Footer Note */}
-      <div className="max-w-7xl mx-auto mt-16 text-center">
-        <p className="text-slate-400 text-sm">
-          🎉 4 sistemas POS disponibles: Boutique, Abarrotes, Veterinaria y Verduleria. Los demas estaran disponibles pronto.
-        </p>
+        {/* Proximamente: cards mas dim */}
+        <section className="mb-12">
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+              Proximamente
+            </h2>
+            <p className="text-xs text-slate-600">En desarrollo</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {comingSoonSystems.map((system) => (
+              <div
+                key={system.id}
+                className="relative bg-white/[0.02] backdrop-blur-md border border-white/5 rounded-2xl p-5 opacity-70 hover:opacity-90 transition-opacity overflow-hidden"
+              >
+                <div className={"absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-20 bg-gradient-to-br " + system.gradient} />
+
+                <div className="relative">
+                  <div className={"w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br opacity-60 mb-3 " + system.gradient}>
+                    {system.icon}
+                  </div>
+                  <h3 className="text-base font-bold text-white tracking-tight mb-1">
+                    {system.shortName}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">
+                    {system.description}
+                  </p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300">Proximamente</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Footer mensaje */}
+        <footer className="text-center pt-8 border-t border-white/10">
+          <p className="text-sm text-slate-500 max-w-2xl mx-auto">
+            <span className="text-white font-bold">CyberPiezas POS</span> - Una plataforma, multiples verticales.
+            Construida para que tu negocio crezca sin cambiar de sistema.
+          </p>
+          <p className="text-xs text-slate-600 mt-2">
+            ¿No ves tu giro? Cuentanos y lo construimos para ti.
+          </p>
+        </footer>
       </div>
     </div>
   );
