@@ -1,11 +1,10 @@
-import { useState } from "react";
-import { useParams, useLocation } from "wouter";
+import { useState, useMemo } from "react";
+import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
   Music,
   MapPin,
-  Calendar,
   Phone,
   Mail,
   Instagram,
@@ -14,15 +13,13 @@ import {
   Send,
   X,
   Check,
-  Star,
   Eye,
-  Sparkles,
-  PartyPopper,
   Loader2,
   MessageCircle,
-  Heart,
+  ArrowDown,
   ArrowRight,
 } from "lucide-react";
+import { getTheme, getThemeCssVars, type TarimaTheme } from "@/lib/tarimaThemes";
 
 const GENRE_LABELS: Record<string, string> = {
   banda: "Banda",
@@ -79,6 +76,21 @@ function getSpotifyEmbed(url?: string | null): string | null {
   return url.replace("open.spotify.com/", "open.spotify.com/embed/");
 }
 
+// Helper: detectar si un color hex es "claro" (para decidir overlays)
+function isLightColor(hex: string): boolean {
+  if (!hex || !hex.startsWith("#")) return false;
+  const h = hex.length === 4
+    ? hex.slice(1).split("").map((c) => c + c).join("")
+    : hex.slice(1);
+  if (h.length !== 6) return false;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  // Formula relativa de luminancia perceptual
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
 export default function TarimaPublic() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
@@ -105,25 +117,53 @@ export default function TarimaPublic() {
     { enabled: !!slug },
   );
 
+  // Resolver tema visual a partir del perfil
+  const theme = useMemo<TarimaTheme>(() => {
+    const profile = profileQuery.data;
+    return getTheme(
+      profile?.themeId,
+      (profile?.customColors as any) ?? null,
+      profile?.fontFamily as any,
+    );
+  }, [profileQuery.data?.themeId, profileQuery.data?.customColors, profileQuery.data?.fontFamily]);
+
+  const cssVars = getThemeCssVars(theme);
+  const isLight = isLightColor(theme.colors.bg);
+
+  // Loading state con tema
   if (profileQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div
+        style={{ background: theme.colors.bg, color: theme.colors.text }}
+        className="min-h-screen flex items-center justify-center"
+      >
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-fuchsia-400 animate-spin mx-auto mb-3" />
-          <p className="text-slate-400">Cargando perfil...</p>
+          <Loader2
+            className="w-12 h-12 animate-spin mx-auto mb-4"
+            style={{ color: theme.colors.primary }}
+          />
+          <p className="text-sm tracking-widest uppercase opacity-50">
+            Cargando perfil
+          </p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (profileQuery.isError || !profileQuery.data) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+      <div
+        style={{ background: theme.colors.bg, color: theme.colors.text }}
+        className="min-h-screen flex items-center justify-center p-6"
+      >
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">🎭</div>
-          <h1 className="text-2xl font-bold text-white mb-2">Artista no encontrado</h1>
-          <p className="text-slate-400">
-            Este perfil no existe o no está publicado todavía.
+          <div className="text-7xl mb-6 opacity-50">🎭</div>
+          <h1 className="text-3xl font-bold tracking-tight mb-3">
+            Artista no encontrado
+          </h1>
+          <p className="opacity-60">
+            Este perfil no existe o no esta publicado todavia.
           </p>
         </div>
       </div>
@@ -132,96 +172,133 @@ export default function TarimaPublic() {
 
   const profile = profileQuery.data;
   const genreEmoji = GENRE_EMOJIS[profile.genre] || "🎵";
-  const genreLabel = GENRE_LABELS[profile.genre] || "Música";
+  const genreLabel = GENRE_LABELS[profile.genre] || "Musica";
   const youtubeEmbed = getYouTubeEmbed(profile.youtubeFeaturedVideo);
   const spotifyEmbed = getSpotifyEmbed(profile.spotifyUrl);
   const whatsappLink = profile.whatsapp
     ? "https://wa.me/" + profile.whatsapp.replace(/\D/g, "")
     : null;
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {/* Cover image con overlay */}
-      <div className="relative h-[280px] sm:h-[360px] lg:h-[440px] overflow-hidden">
-        {profile.coverImage ? (
-          <img
-            src={profile.coverImage}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-fuchsia-600 via-purple-700 to-indigo-900" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/60 to-slate-950" />
-        {/* Orbes decorativos */}
-        <div className="absolute top-10 right-10 w-64 h-64 bg-fuchsia-500/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl" />
-      </div>
+  // Construir la tagline sutil del hero
+  const taglineParts: string[] = [genreLabel];
+  if (profile.location) taglineParts.push(profile.location);
+  if (profile.yearsActive && profile.yearsActive > 0) {
+    taglineParts.push(profile.yearsActive + " años");
+  }
+  const tagline = taglineParts.join(" · ");
 
-      {/* Contenido principal */}
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 -mt-24 sm:-mt-28 pb-16">
-        {/* Avatar + Nombre */}
-        <div className="text-center mb-8">
-          <div className="inline-block relative mb-5">
+  const hasSocials = !!(
+    profile.instagramUrl ||
+    profile.facebookUrl ||
+    profile.tiktokUrl ||
+    profile.youtubeUrl ||
+    profile.spotifyUrl
+  );
+
+  // Color de border/divider con alpha del text color
+  const subtleBorder = isLight
+    ? "rgba(0, 0, 0, 0.08)"
+    : "rgba(255, 255, 255, 0.1)";
+  const subtleBg = isLight
+    ? "rgba(0, 0, 0, 0.03)"
+    : "rgba(255, 255, 255, 0.05)";
+
+  return (
+    <div
+      style={{
+        ...cssVars,
+        background: theme.colors.bg,
+        color: theme.colors.text,
+        fontFamily: theme.fontFamily,
+      } as React.CSSProperties}
+      className="min-h-screen"
+    >
+      {/* =====================================================================
+          HERO - Apple-style massive
+          ===================================================================== */}
+      <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-6 py-24 overflow-hidden">
+        {/* Background */}
+        {profile.coverImage ? (
+          <>
+            <img
+              src={profile.coverImage}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(to bottom, ${theme.colors.bg}40 0%, ${theme.colors.bg}80 50%, ${theme.colors.bg} 100%)`,
+              }}
+            />
+          </>
+        ) : theme.bgGradient ? (
+          <div
+            className="absolute inset-0"
+            style={{ background: theme.bgGradient }}
+          />
+        ) : null}
+
+        {/* Hero content */}
+        <div className="relative z-10 text-center max-w-5xl mx-auto">
+          {/* Avatar */}
+          <div className="inline-block mb-10">
             {profile.profileImage ? (
               <img
                 src={profile.profileImage}
                 alt={profile.artistName}
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover ring-4 ring-slate-950 shadow-2xl"
+                className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover shadow-2xl"
+                style={{
+                  boxShadow: `0 25px 50px -12px ${theme.colors.primary}40`,
+                }}
               />
             ) : (
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center text-6xl ring-4 ring-slate-950 shadow-2xl">
+              <div
+                className="w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center text-7xl shadow-2xl"
+                style={{
+                  background: theme.colors.primary,
+                  boxShadow: `0 25px 50px -12px ${theme.colors.primary}40`,
+                }}
+              >
                 {genreEmoji}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-emerald-500 rounded-full border-4 border-slate-950 flex items-center justify-center">
-              <Check className="w-5 h-5 text-white" strokeWidth={3} />
-            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
+          {/* MASSIVE NAME */}
+          <h1
+            className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 leading-[1.05]"
+            style={{ color: theme.colors.text }}
+          >
             {profile.artistName}
           </h1>
 
-          {/* Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium">
-              <span>{genreEmoji}</span>
-              {genreLabel}
-            </span>
-            {profile.location && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium">
-                <MapPin className="w-3.5 h-3.5" />
-                {profile.location}
-              </span>
-            )}
-            {profile.yearsActive && profile.yearsActive > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium">
-                <Star className="w-3.5 h-3.5 text-amber-400" />
-                {profile.yearsActive} años de experiencia
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-sm font-bold text-emerald-300">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Disponible
-            </span>
-          </div>
+          {/* Sutil tagline */}
+          <p
+            className="text-xs sm:text-sm font-semibold uppercase mb-14"
+            style={{
+              color: theme.colors.text,
+              opacity: 0.55,
+              letterSpacing: "0.25em",
+            }}
+          >
+            {tagline}
+          </p>
 
-          {/* Bio */}
-          {profile.bio && (
-            <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto mb-6">
-              {profile.bio}
-            </p>
-          )}
-
-          {/* CTAs principales */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
               onClick={() => setShowBooking(true)}
-              className="group bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white font-bold rounded-full h-14 px-8 shadow-2xl shadow-fuchsia-500/40 transition-all hover:shadow-fuchsia-500/60 hover:-translate-y-0.5 flex items-center justify-center gap-2"
+              className="group inline-flex items-center justify-center gap-2 font-bold rounded-full px-8 h-14 text-base transition-all hover:-translate-y-0.5"
+              style={{
+                background: theme.colors.primary,
+                color: isLightColor(theme.colors.primary)
+                  ? "#000000"
+                  : "#ffffff",
+                boxShadow: `0 10px 30px -10px ${theme.colors.primary}90`,
+              }}
             >
-              <PartyPopper className="w-5 h-5" />
-              <span>Reservar para mi evento</span>
+              Reservar para mi evento
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
             {whatsappLink && (
@@ -229,7 +306,12 @@ export default function TarimaPublic() {
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full h-14 px-7 shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                className="inline-flex items-center justify-center gap-2 font-bold rounded-full px-7 h-14 text-base transition-all hover:-translate-y-0.5"
+                style={{
+                  background: "#22c55e",
+                  color: "#ffffff",
+                  boxShadow: "0 10px 30px -10px rgba(34, 197, 94, 0.6)",
+                }}
               >
                 <MessageCircle className="w-5 h-5" />
                 WhatsApp
@@ -238,22 +320,58 @@ export default function TarimaPublic() {
           </div>
         </div>
 
-        {/* Redes sociales */}
-        {(profile.instagramUrl || profile.facebookUrl || profile.tiktokUrl || profile.youtubeUrl || profile.spotifyUrl) && (
-          <div className="mb-10">
-            <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-4">
-              Sígueme en
+        {/* Scroll indicator */}
+        <div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce opacity-40"
+          style={{ color: theme.colors.text }}
+        >
+          <ArrowDown className="w-5 h-5" />
+        </div>
+      </section>
+
+      {/* =====================================================================
+          BIO - Editorial style
+          ===================================================================== */}
+      {profile.bio && (
+        <section className="py-20 sm:py-28 px-6">
+          <div className="max-w-2xl mx-auto">
+            <p
+              className="text-xl sm:text-2xl lg:text-3xl font-light leading-relaxed tracking-tight text-center"
+              style={{ color: theme.colors.text, opacity: 0.9 }}
+            >
+              {profile.bio}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+          </div>
+        </section>
+      )}
+
+      {/* =====================================================================
+          SOCIALES - Minimal row
+          ===================================================================== */}
+      {hasSocials && (
+        <section className="py-12 px-6">
+          <div className="max-w-md mx-auto">
+            <p
+              className="text-center text-[10px] font-bold uppercase mb-6"
+              style={{
+                color: theme.colors.text,
+                opacity: 0.5,
+                letterSpacing: "0.3em",
+              }}
+            >
+              Encuentrame en
+            </p>
+            <div className="flex items-center justify-center gap-3">
               {profile.spotifyUrl && (
                 <a
                   href={profile.spotifyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 flex items-center justify-center transition-colors"
                   title="Spotify"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background: subtleBg, color: theme.colors.text }}
                 >
-                  <Music className="w-5 h-5 text-emerald-400" />
+                  <Music className="w-5 h-5" />
                 </a>
               )}
               {profile.youtubeUrl && (
@@ -261,10 +379,11 @@ export default function TarimaPublic() {
                   href={profile.youtubeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 flex items-center justify-center transition-colors"
                   title="YouTube"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background: subtleBg, color: theme.colors.text }}
                 >
-                  <Youtube className="w-5 h-5 text-red-400" />
+                  <Youtube className="w-5 h-5" />
                 </a>
               )}
               {profile.instagramUrl && (
@@ -272,10 +391,11 @@ export default function TarimaPublic() {
                   href={profile.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 flex items-center justify-center transition-colors"
                   title="Instagram"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background: subtleBg, color: theme.colors.text }}
                 >
-                  <Instagram className="w-5 h-5 text-pink-400" />
+                  <Instagram className="w-5 h-5" />
                 </a>
               )}
               {profile.facebookUrl && (
@@ -283,10 +403,11 @@ export default function TarimaPublic() {
                   href={profile.facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 flex items-center justify-center transition-colors"
                   title="Facebook"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background: subtleBg, color: theme.colors.text }}
                 >
-                  <Facebook className="w-5 h-5 text-blue-400" />
+                  <Facebook className="w-5 h-5" />
                 </a>
               )}
               {profile.tiktokUrl && (
@@ -294,23 +415,40 @@ export default function TarimaPublic() {
                   href={profile.tiktokUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 flex items-center justify-center transition-colors"
                   title="TikTok"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background: subtleBg, color: theme.colors.text }}
                 >
-                  <span className="text-base">🎵</span>
+                  <span className="text-lg">🎵</span>
                 </a>
               )}
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* YouTube destacado */}
-        {youtubeEmbed && (
-          <div className="mb-10">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-3">
+      {/* =====================================================================
+          VIDEO DESTACADO - Massive
+          ===================================================================== */}
+      {youtubeEmbed && (
+        <section className="py-20 sm:py-28 px-6">
+          <div className="max-w-5xl mx-auto">
+            <p
+              className="text-center text-[10px] font-bold uppercase mb-8"
+              style={{
+                color: theme.colors.text,
+                opacity: 0.5,
+                letterSpacing: "0.3em",
+              }}
+            >
               Video destacado
             </p>
-            <div className="relative aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
+            <div
+              className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl"
+              style={{
+                boxShadow: `0 25px 60px -15px ${theme.colors.primary}40`,
+              }}
+            >
               <iframe
                 src={youtubeEmbed}
                 title="Video destacado"
@@ -320,15 +458,29 @@ export default function TarimaPublic() {
               />
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Spotify */}
-        {spotifyEmbed && (
-          <div className="mb-10">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-3">
-              Escúchame en Spotify
+      {/* =====================================================================
+          SPOTIFY DESTACADO
+          ===================================================================== */}
+      {spotifyEmbed && (
+        <section className="py-16 px-6">
+          <div className="max-w-2xl mx-auto">
+            <p
+              className="text-center text-[10px] font-bold uppercase mb-6"
+              style={{
+                color: theme.colors.text,
+                opacity: 0.5,
+                letterSpacing: "0.3em",
+              }}
+            >
+              Escuchame en Spotify
             </p>
-            <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
+            <div
+              className="rounded-3xl overflow-hidden"
+              style={{ border: `1px solid ${subtleBorder}` }}
+            >
               <iframe
                 src={spotifyEmbed}
                 width="100%"
@@ -339,62 +491,111 @@ export default function TarimaPublic() {
               />
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* GALERIA DE FOTOS */}
-        {photosQuery.data && photosQuery.data.length > 0 && (
-          <div className="mb-10">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                📸 Galería
+      {/* =====================================================================
+          GALERIA DE FOTOS
+          ===================================================================== */}
+      {photosQuery.data && photosQuery.data.length > 0 && (
+        <section className="py-20 sm:py-28 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p
+                className="text-[10px] font-bold uppercase mb-3"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.3em",
+                }}
+              >
+                Galeria
               </p>
-              <p className="text-xs text-slate-500">{photosQuery.data.length} {photosQuery.data.length === 1 ? "foto" : "fotos"}</p>
+              <h2
+                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                style={{ color: theme.colors.text }}
+              >
+                Mis momentos
+              </h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {photosQuery.data.map((photo) => (
                 <button
                   key={photo.id}
                   onClick={() => setLightboxPhoto(photo.url)}
-                  className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 hover:ring-fuchsia-400 transition-all bg-slate-800"
+                  className="group relative aspect-square rounded-2xl overflow-hidden transition-all hover:scale-[1.02]"
+                  style={{ background: subtleBg }}
                 >
                   <img
                     src={photo.url}
                     alt={photo.title ?? ""}
                     loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
                   {photo.isHighlight && (
-                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500/90 text-white text-[10px] font-bold uppercase tracking-wider rounded-full">
+                    <span
+                      className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                      style={{
+                        background: theme.colors.accent,
+                        color: isLightColor(theme.colors.accent)
+                          ? "#000000"
+                          : "#ffffff",
+                        letterSpacing: "0.15em",
+                      }}
+                    >
                       ⭐
                     </span>
                   )}
                   {photo.title && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-xs font-bold text-white truncate">{photo.title}</p>
+                    <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/80 to-transparent">
+                      <p className="text-xs font-bold text-white truncate">
+                        {photo.title}
+                      </p>
                     </div>
                   )}
                 </button>
               ))}
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* MAS VIDEOS */}
-        {videosQuery.data && videosQuery.data.length > 0 && (
-          <div className="mb-10">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                🎬 Videos
+      {/* =====================================================================
+          MAS VIDEOS
+          ===================================================================== */}
+      {videosQuery.data && videosQuery.data.length > 0 && (
+        <section className="py-20 sm:py-28 px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p
+                className="text-[10px] font-bold uppercase mb-3"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.3em",
+                }}
+              >
+                Videos
               </p>
-              <p className="text-xs text-slate-500">{videosQuery.data.length}</p>
+              <h2
+                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                style={{ color: theme.colors.text }}
+              >
+                Mira y escucha
+              </h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {videosQuery.data.map((video) => {
                 const embed = getYouTubeEmbed(video.url);
                 if (!embed) return null;
                 return (
                   <div key={video.id}>
-                    <div className="relative aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-slate-900">
+                    <div
+                      className="relative aspect-video rounded-2xl overflow-hidden"
+                      style={{
+                        boxShadow: `0 15px 40px -10px ${theme.colors.primary}30`,
+                      }}
+                    >
                       <iframe
                         src={embed}
                         title={video.title ?? "Video"}
@@ -404,34 +605,63 @@ export default function TarimaPublic() {
                       />
                     </div>
                     {video.title && (
-                      <p className="text-sm font-medium text-slate-300 mt-2 px-1">{video.title}</p>
+                      <p
+                        className="text-sm font-medium mt-3 px-1"
+                        style={{ color: theme.colors.text, opacity: 0.8 }}
+                      >
+                        {video.title}
+                      </p>
                     )}
                   </div>
                 );
               })}
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* MAS MUSICA */}
-        {musicQuery.data && musicQuery.data.length > 0 && (
-          <div className="mb-10">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                🎵 Mi música
+      {/* =====================================================================
+          MAS MUSICA
+          ===================================================================== */}
+      {musicQuery.data && musicQuery.data.length > 0 && (
+        <section className="py-20 sm:py-28 px-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <p
+                className="text-[10px] font-bold uppercase mb-3"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.3em",
+                }}
+              >
+                Musica
               </p>
-              <p className="text-xs text-slate-500">{musicQuery.data.length}</p>
+              <h2
+                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                style={{ color: theme.colors.text }}
+              >
+                Mi sonido
+              </h2>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {musicQuery.data.map((track) => {
                 const embed = getSpotifyEmbed(track.url);
                 if (!embed) return null;
                 return (
                   <div key={track.id}>
                     {track.title && (
-                      <p className="text-sm font-bold text-white mb-1.5 px-1">{track.title}</p>
+                      <p
+                        className="text-base font-bold mb-2 px-1"
+                        style={{ color: theme.colors.text }}
+                      >
+                        {track.title}
+                      </p>
                     )}
-                    <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
+                    <div
+                      className="rounded-2xl overflow-hidden"
+                      style={{ border: `1px solid ${subtleBorder}` }}
+                    >
                       <iframe
                         src={embed}
                         width="100%"
@@ -446,66 +676,126 @@ export default function TarimaPublic() {
               })}
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Info de contratación */}
-        {(profile.minBudget || profile.serviceArea) && (
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-10">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-4">
-              Información de contratación
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {profile.minBudget && (
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Desde</p>
-                  <p className="text-2xl font-bold text-white">
-                    ${parseFloat(profile.minBudget).toLocaleString("es-MX")}
-                  </p>
-                </div>
-              )}
-              {profile.serviceArea && (
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Zona de cobertura</p>
-                  <p className="text-base font-medium text-white">
-                    {profile.serviceArea}
-                  </p>
-                </div>
-              )}
+      {/* =====================================================================
+          INFO DE CONTRATACION
+          ===================================================================== */}
+      {(profile.minBudget || profile.serviceArea) && (
+        <section className="py-20 px-6">
+          <div className="max-w-3xl mx-auto">
+            <div
+              className="p-10 sm:p-14 rounded-3xl"
+              style={{
+                background: subtleBg,
+                border: `1px solid ${subtleBorder}`,
+              }}
+            >
+              <p
+                className="text-[10px] font-bold uppercase mb-8"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.3em",
+                }}
+              >
+                Informacion de contratacion
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                {profile.minBudget && (
+                  <div>
+                    <p
+                      className="text-xs mb-2"
+                      style={{ color: theme.colors.text, opacity: 0.5 }}
+                    >
+                      Desde
+                    </p>
+                    <p
+                      className="text-4xl sm:text-5xl font-bold tracking-tight"
+                      style={{ color: theme.colors.text }}
+                    >
+                      ${parseFloat(profile.minBudget).toLocaleString("es-MX")}
+                    </p>
+                  </div>
+                )}
+                {profile.serviceArea && (
+                  <div>
+                    <p
+                      className="text-xs mb-2"
+                      style={{ color: theme.colors.text, opacity: 0.5 }}
+                    >
+                      Zona de cobertura
+                    </p>
+                    <p
+                      className="text-lg font-medium"
+                      style={{ color: theme.colors.text, opacity: 0.9 }}
+                    >
+                      {profile.serviceArea}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* CTA final */}
-        <div className="text-center mt-12">
-          <div className="inline-block bg-gradient-to-r from-fuchsia-500/20 to-purple-500/20 border border-fuchsia-500/30 rounded-3xl p-8 max-w-lg">
-            <Heart className="w-10 h-10 text-fuchsia-400 mx-auto mb-3" />
-            <h2 className="text-2xl font-bold text-white mb-2">¿Listo para vivir tu evento?</h2>
-            <p className="text-slate-300 mb-5">
-              Cuéntame qué tienes en mente y te respondo lo antes posible.
-            </p>
-            <button
-              onClick={() => setShowBooking(true)}
-              className="bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white font-bold rounded-full h-12 px-7 shadow-lg shadow-fuchsia-500/40 transition-all hover:-translate-y-0.5 inline-flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              Enviar solicitud
-            </button>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-white/10 text-center">
-          <a
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+      {/* =====================================================================
+          CTA FINAL - Massive
+          ===================================================================== */}
+      <section className="py-28 sm:py-40 px-6 text-center">
+        <div className="max-w-3xl mx-auto">
+          <h2
+            className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tighter mb-6 leading-[1.05]"
+            style={{ color: theme.colors.text }}
           >
-            <Sparkles className="w-3 h-3" />
-            Powered by CyberPiezas Tarima
-          </a>
-        </footer>
-      </div>
+            ¿Listo para vivir tu evento?
+          </h2>
+          <p
+            className="text-lg sm:text-xl font-light mb-12 max-w-xl mx-auto"
+            style={{ color: theme.colors.text, opacity: 0.65 }}
+          >
+            Cuentame que tienes en mente y te respondo lo antes posible.
+          </p>
+          <button
+            onClick={() => setShowBooking(true)}
+            className="inline-flex items-center justify-center gap-2 font-bold rounded-full px-10 h-16 text-lg transition-all hover:-translate-y-1"
+            style={{
+              background: theme.colors.primary,
+              color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
+              boxShadow: `0 20px 50px -15px ${theme.colors.primary}90`,
+            }}
+          >
+            <Send className="w-5 h-5" />
+            Enviar solicitud
+          </button>
+        </div>
+      </section>
 
-      {/* Lightbox de fotos */}
+      {/* =====================================================================
+          FOOTER
+          ===================================================================== */}
+      <footer
+        className="py-12 px-6 text-center"
+        style={{ borderTop: `1px solid ${subtleBorder}` }}
+      >
+        <a
+          href="/"
+          className="inline-block text-[10px] font-bold uppercase transition-opacity hover:opacity-100"
+          style={{
+            color: theme.colors.text,
+            opacity: 0.4,
+            letterSpacing: "0.3em",
+          }}
+        >
+          Tarima · Powered by CyberPiezas
+        </a>
+      </footer>
+
+      {/* =====================================================================
+          LIGHTBOX
+          ===================================================================== */}
       {lightboxPhoto && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
@@ -513,24 +803,27 @@ export default function TarimaPublic() {
         >
           <button
             onClick={() => setLightboxPhoto(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+            className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
           <img
             src={lightboxPhoto}
             alt=""
-            className="max-w-full max-h-full object-contain rounded-xl"
+            className="max-w-full max-h-full object-contain rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
 
-      {/* Modal de reserva */}
+      {/* =====================================================================
+          MODAL DE RESERVA (con tema)
+          ===================================================================== */}
       {showBooking && (
         <BookingModal
           slug={slug}
           artistName={profile.artistName}
+          theme={theme}
           onClose={() => setShowBooking(false)}
         />
       )}
@@ -539,16 +832,18 @@ export default function TarimaPublic() {
 }
 
 // ============================================================================
-// MODAL DE RESERVA
+// MODAL DE RESERVA - tematizado
 // ============================================================================
 
 function BookingModal({
   slug,
   artistName,
+  theme,
   onClose,
 }: {
   slug: string;
   artistName: string;
+  theme: TarimaTheme;
   onClose: () => void;
 }) {
   const [customerName, setCustomerName] = useState("");
@@ -561,6 +856,12 @@ function BookingModal({
   const [budget, setBudget] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const isLight = isLightColor(theme.colors.bg);
+  const inputBg = isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.06)";
+  const inputBorder = isLight
+    ? "rgba(0, 0, 0, 0.1)"
+    : "rgba(255, 255, 255, 0.1)";
+
   const createBooking = trpc.tarima.bookings.create.useMutation({
     onSuccess: () => {
       setSubmitted(true);
@@ -572,7 +873,7 @@ function BookingModal({
 
   const handleSubmit = () => {
     if (!customerName || !customerPhone) {
-      toast.error("Nombre y teléfono son obligatorios");
+      toast.error("Nombre y telefono son obligatorios");
       return;
     }
     createBooking.mutate({
@@ -588,20 +889,46 @@ function BookingModal({
     });
   };
 
+  const inputStyle = {
+    background: inputBg,
+    border: "1px solid " + inputBorder,
+    color: theme.colors.text,
+  };
+
   if (submitted) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-slate-900 rounded-3xl max-w-md w-full p-8 text-center border border-white/10 shadow-2xl">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
-            <Check className="w-10 h-10 text-emerald-400" strokeWidth={3} />
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div
+          className="rounded-3xl max-w-md w-full p-10 text-center shadow-2xl"
+          style={{
+            background: theme.colors.bg,
+            color: theme.colors.text,
+            border: "1px solid " + inputBorder,
+          }}
+        >
+          <div
+            className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center"
+            style={{ background: "#22c55e" }}
+          >
+            <Check className="w-10 h-10 text-white" strokeWidth={3} />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">¡Solicitud enviada!</h2>
-          <p className="text-slate-300 mb-6">
-            {artistName} recibió tu mensaje y te responderá pronto al teléfono que diste.
+          <h2
+            className="text-3xl font-bold tracking-tight mb-3"
+            style={{ color: theme.colors.text }}
+          >
+            ¡Solicitud enviada!
+          </h2>
+          <p style={{ color: theme.colors.text, opacity: 0.7 }} className="mb-8">
+            {artistName} recibio tu mensaje y te respondera pronto al telefono
+            que diste.
           </p>
           <button
             onClick={onClose}
-            className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold rounded-full h-11 px-6 w-full"
+            className="font-bold rounded-full h-12 px-8 w-full transition-all hover:-translate-y-0.5"
+            style={{
+              background: theme.colors.primary,
+              color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
+            }}
           >
             Cerrar
           </button>
@@ -612,55 +939,100 @@ function BookingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 rounded-3xl max-w-lg w-full my-8 border border-white/10 shadow-2xl"
+        className="rounded-3xl max-w-lg w-full my-8 shadow-2xl"
+        style={{
+          background: theme.colors.bg,
+          color: theme.colors.text,
+          border: "1px solid " + inputBorder,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between sticky top-0 bg-slate-900 rounded-t-3xl">
+        <div
+          className="px-7 py-5 flex items-center justify-between sticky top-0 rounded-t-3xl"
+          style={{
+            background: theme.colors.bg,
+            borderBottom: "1px solid " + inputBorder,
+          }}
+        >
           <div>
-            <h2 className="text-xl font-bold text-white">Reservar a {artistName}</h2>
-            <p className="text-xs text-slate-400">Cuéntame de tu evento</p>
+            <h2
+              className="text-xl font-bold tracking-tight"
+              style={{ color: theme.colors.text }}
+            >
+              Reservar a {artistName}
+            </h2>
+            <p
+              className="text-xs mt-0.5"
+              style={{ color: theme.colors.text, opacity: 0.55 }}
+            >
+              Cuentame de tu evento
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: inputBg, color: theme.colors.text }}
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-4">
-          {/* Datos del cliente */}
+        <div className="p-7 space-y-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <p
+              className="text-[10px] font-bold uppercase mb-2"
+              style={{
+                color: theme.colors.text,
+                opacity: 0.5,
+                letterSpacing: "0.2em",
+              }}
+            >
               Tu nombre *
             </p>
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ej: María González"
-              className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+              placeholder="Ej: Maria Gonzalez"
+              className="w-full rounded-xl px-4 h-11 focus:outline-none"
+              style={inputStyle}
             />
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Teléfono *
+              <p
+                className="text-[10px] font-bold uppercase mb-2"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.2em",
+                }}
+              >
+                Telefono *
               </p>
               <input
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="55 1234 5678"
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                style={inputStyle}
               />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              <p
+                className="text-[10px] font-bold uppercase mb-2"
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.5,
+                  letterSpacing: "0.2em",
+                }}
+              >
                 Email (opcional)
               </p>
               <input
@@ -668,79 +1040,134 @@ function BookingModal({
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                style={inputStyle}
               />
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          <div
+            className="pt-5"
+            style={{ borderTop: "1px solid " + inputBorder }}
+          >
+            <p
+              className="text-[10px] font-bold uppercase mb-4"
+              style={{
+                color: theme.colors.text,
+                opacity: 0.5,
+                letterSpacing: "0.2em",
+              }}
+            >
               Sobre el evento
             </p>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
-                <p className="text-xs text-slate-500 mb-1.5">Tipo de evento</p>
+                <p
+                  className="text-xs mb-1.5"
+                  style={{ color: theme.colors.text, opacity: 0.5 }}
+                >
+                  Tipo de evento
+                </p>
                 <select
                   value={eventType}
                   onChange={(e) => setEventType(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                  className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                  style={inputStyle}
                 >
                   {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
+                    <option key={key} value={key} style={{ background: theme.colors.bg, color: theme.colors.text }}>
+                      {label}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-1.5">Fecha aproximada</p>
+                <p
+                  className="text-xs mb-1.5"
+                  style={{ color: theme.colors.text, opacity: 0.5 }}
+                >
+                  Fecha aproximada
+                </p>
                 <input
                   type="date"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                  className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                  style={inputStyle}
                 />
               </div>
             </div>
 
             <div className="mb-3">
-              <p className="text-xs text-slate-500 mb-1.5">Lugar del evento</p>
+              <p
+                className="text-xs mb-1.5"
+                style={{ color: theme.colors.text, opacity: 0.5 }}
+              >
+                Lugar del evento
+              </p>
               <input
                 value={eventLocation}
                 onChange={(e) => setEventLocation(e.target.value)}
-                placeholder="Ej: Salón Las Palmas, Cuernavaca"
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                placeholder="Ej: Salon Las Palmas, Cuernavaca"
+                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                style={inputStyle}
               />
             </div>
 
             <div className="mb-3">
-              <p className="text-xs text-slate-500 mb-1.5">Presupuesto aproximado (opcional)</p>
+              <p
+                className="text-xs mb-1.5"
+                style={{ color: theme.colors.text, opacity: 0.5 }}
+              >
+                Presupuesto aproximado (opcional)
+              </p>
               <input
                 type="number"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="Ej: 8000"
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 h-11 text-white focus:border-fuchsia-400 focus:outline-none"
+                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                style={inputStyle}
               />
             </div>
 
             <div>
-              <p className="text-xs text-slate-500 mb-1.5">Detalles adicionales</p>
+              <p
+                className="text-xs mb-1.5"
+                style={{ color: theme.colors.text, opacity: 0.5 }}
+              >
+                Detalles adicionales
+              </p>
               <textarea
                 value={eventDescription}
                 onChange={(e) => setEventDescription(e.target.value)}
-                placeholder="Cuéntame más sobre tu evento, horarios, número de invitados, etc..."
+                placeholder="Cuentame mas sobre tu evento, horarios, numero de invitados, etc..."
                 rows={3}
-                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-fuchsia-400 focus:outline-none resize-none"
+                className="w-full rounded-xl px-4 py-3 focus:outline-none resize-none"
+                style={inputStyle}
               />
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 bg-slate-900 rounded-b-3xl">
+        <div
+          className="px-7 py-5 rounded-b-3xl"
+          style={{
+            background: theme.colors.bg,
+            borderTop: "1px solid " + inputBorder,
+          }}
+        >
           <button
             onClick={handleSubmit}
             disabled={createBooking.isPending}
-            className="w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white font-bold rounded-full h-12 shadow-lg shadow-fuchsia-500/40 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full font-bold rounded-full h-12 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
+            style={{
+              background: theme.colors.primary,
+              color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
+              boxShadow: `0 10px 30px -10px ${theme.colors.primary}80`,
+            }}
           >
             {createBooking.isPending ? (
               <>
@@ -754,8 +1181,12 @@ function BookingModal({
               </>
             )}
           </button>
-          <p className="text-[10px] text-slate-500 text-center mt-2">
-            Al enviar aceptas compartir tus datos con el artista para responder tu solicitud.
+          <p
+            className="text-[10px] text-center mt-3"
+            style={{ color: theme.colors.text, opacity: 0.4 }}
+          >
+            Al enviar aceptas compartir tus datos con el artista para responder
+            tu solicitud.
           </p>
         </div>
       </div>
