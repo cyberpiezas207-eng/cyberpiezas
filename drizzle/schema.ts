@@ -1173,3 +1173,50 @@ export const vetAppointments = mysqlTable("vetAppointments", {
 });
 export type VetAppointment = typeof vetAppointments.$inferSelect;
 export type InsertVetAppointment = typeof vetAppointments.$inferInsert;
+
+export const verduleriaProducts = mysqlTable("verduleriaProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  icon: varchar("icon", { length: 10 }).notNull().default("🥬"),
+  unit: mysqlEnum("unit", ["kg", "pieza", "atado", "manojo", "caja", "saco", "litro"]).notNull().default("kg"),
+  category: mysqlEnum("category", ["fruta", "verdura", "tuberculo", "hierba", "otro"]).notNull().default("verdura"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  stock: decimal("stock", { precision: 10, scale: 3 }).default("0"),
+  trackStock: boolean("trackStock").notNull().default(false),
+  isActive: boolean("isActive").notNull().default(true),
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type VerduleriaProduct = typeof verduleriaProducts.$inferSelect;
+export type InsertVerduleriaProduct = typeof verduleriaProducts.$inferInsert;
+
+export const verduleriaSales = mysqlTable("verduleriaSales", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "tarjeta", "transferencia", "credito"]).notNull().default("efectivo"),
+  itemCount: int("itemCount").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type VerduleriaSale = typeof verduleriaSales.$inferSelect;
+export type InsertVerduleriaSale = typeof verduleriaSales.$inferInsert;
+
+export const verduleriaSaleItems = mysqlTable("verduleriaSaleItems", {
+  id: int("id").autoincrement().primaryKey(),
+  saleId: int("saleId").notNull().references(() => verduleriaSales.id),
+  productId: int("productId").references(() => verduleriaProducts.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  icon: varchar("icon", { length: 10 }),
+  unit: varchar("unit", { length: 20 }),
+  quantity: decimal("quantity", { precision: 10, scale: 3 }).notNull(),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+});
+
+export type VerduleriaSaleItem = typeof verduleriaSaleItems.$inferSelect;
+export type InsertVerduleriaSaleItem = typeof verduleriaSaleItems.$inferInsert;
