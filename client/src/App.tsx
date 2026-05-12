@@ -42,6 +42,7 @@ import StoreOrdersPanel from "@/pages/StoreOrdersPanel";
 import SystemsPanel from "@/pages/SystemsPanel";
 
 import AbarrotesPOS from "@/pages/AbarrotesPOS";
+import VerduleriaPOS from "@/pages/VerduleriaPOS";
 import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
@@ -110,6 +111,7 @@ function Router() {
           <AbarrotesPOS />
         </ProtectedRoute>
       </Route>
+      <Route path="/verduleria" component={VerduleriaPOS} />
       <Route path="/home" component={Home} />
       <Route path="/login" component={Home} />
 
