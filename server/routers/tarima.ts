@@ -190,6 +190,46 @@ export const tarimaRouter = router({
           .where(eq(tarimaProfiles.userId, ctx.user.id));
         return { success: true, isPublished: input.isPublished };
       }),
+
+    // Actualizar tema visual del perfil
+    // Permite update parcial: solo themeId, solo customColors, o todo junto
+    updateTheme: protectedProcedure
+      .input(
+        z.object({
+          themeId: z.string().max(50).optional(),
+          customColors: z.object({
+            primary: z.string().max(20).optional(),
+            secondary: z.string().max(20).optional(),
+            bg: z.string().max(20).optional(),
+            text: z.string().max(20).optional(),
+            accent: z.string().max(20).optional(),
+          }).nullable().optional(),
+          fontFamily: z.string().max(50).nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const updateData: any = {};
+        if (input.themeId !== undefined) updateData.themeId = input.themeId;
+        if (input.customColors !== undefined) updateData.customColors = input.customColors;
+        if (input.fontFamily !== undefined) updateData.fontFamily = input.fontFamily;
+
+        if (Object.keys(updateData).length === 0) {
+          return { success: true, message: "No hay cambios" };
+        }
+
+        await conn
+          .update(tarimaProfiles)
+          .set(updateData)
+          .where(eq(tarimaProfiles.userId, ctx.user.id));
+
+        const rows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        return rows[0];
+      }),
   }),
 
   // =========================================================================
