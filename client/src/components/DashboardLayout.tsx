@@ -59,7 +59,7 @@ import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
 
 type AppRole = "admin" | "cashier";
-type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria";
+type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria" | "verduleria";
 
 type MenuSection = "principal" | "operacion" | "administracion" | "cuenta" | "oculto";
 
@@ -96,6 +96,12 @@ const menuItems: MenuItem[] = [
   { icon: Settings2, label: "Configuracion clinica", path: "/veterinaria-pos/configuracion", section: "administracion", program: "veterinaria" },
   { icon: Users, label: "Cajeros y Usuarios", path: "/vet-cajeros", section: "administracion", program: "veterinaria" },
   { icon: CreditCard, label: "Mi Suscripcion", path: "/vet-suscripcion", section: "administracion", program: "veterinaria" },
+
+  // ── Verduleria ─────────────────────────────────────────────
+  { icon: ShoppingCart, label: "Punto de Venta", path: "/verduleria", section: "principal", program: "verduleria" },
+  { icon: Package, label: "Productos", path: "/verduleria/productos", section: "operacion", program: "verduleria" },
+  { icon: ReceiptText, label: "Ventas", path: "/verduleria/ventas", section: "operacion", program: "verduleria" },
+  { icon: Settings2, label: "Configuracion", path: "/verduleria/configuracion", section: "administracion", program: "verduleria" },
 
   // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
@@ -141,6 +147,12 @@ export function filterMenuItemsByAccess(
     }
 
     if (user.role === "admin") {
+      return true;
+    }
+
+    // Verduleria por ahora es accesible para todos los autenticados
+    // (despues podemos requerir programAccess "verduleria")
+    if (item.program === "verduleria") {
       return true;
     }
 
@@ -280,6 +292,9 @@ function DashboardLayoutContent({
   // Detectar si estamos en Veterinaria POS (cualquier sub-ruta)
   const isVeterinariaZone = location.startsWith("/veterinaria-pos");
 
+  // Detectar si estamos en Verduleria (cualquier sub-ruta)
+  const isVerduleriaZone = location.startsWith("/verduleria");
+
   const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
     appSubtitle: "Centro de operación",
@@ -298,6 +313,13 @@ function DashboardLayoutContent({
     ? {
         appTitle: "Veterinaria",
         appSubtitle: "Centro de operación",
+        bannerImageUrl: baseBranding.bannerImageUrl,
+        bannerAltText: baseBranding.bannerAltText,
+      }
+    : isVerduleriaZone
+    ? {
+        appTitle: "🥕 Verdulería",
+        appSubtitle: "Punto de venta visual",
         bannerImageUrl: baseBranding.bannerImageUrl,
         bannerAltText: baseBranding.bannerAltText,
       }
@@ -333,15 +355,26 @@ function DashboardLayoutContent({
       });
     }
 
+    // En zona Verduleria: mostrar SOLO items de verduleria + Centro
+    if (isVerduleriaZone) {
+      return allItems.filter((item) => {
+        if (item.path === "/cyberpiezas") return true;
+        if (item.path?.startsWith("/verduleria")) return true;
+        return false;
+      });
+    }
+
     // Default (zona Boutique): ocultar items que pertenecen a otras zonas
     return allItems.filter((item) => {
       // Ocultar items de Veterinaria cuando NO estamos en su zona
       if (item.path?.startsWith("/veterinaria-pos")) return false;
       if (item.path === "/vet-cajeros") return false;
       if (item.path === "/vet-suscripcion") return false;
+      // Ocultar items de Verduleria cuando NO estamos en su zona
+      if (item.path?.startsWith("/verduleria")) return false;
       return true;
     });
-  }, [user, isCyberpiezasZone, isVeterinariaZone]);
+  }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone]);
 
   const visibleMenuGroups = useMemo(() => {
     return visibleSections
