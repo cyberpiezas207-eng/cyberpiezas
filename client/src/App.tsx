@@ -43,6 +43,8 @@ import SystemsPanel from "@/pages/SystemsPanel";
 
 import AbarrotesPOS from "@/pages/AbarrotesPOS";
 import VerduleriaPOS from "@/pages/VerduleriaPOS";
+import TarimaPublic from "@/pages/TarimaPublic";
+import MiTarima from "@/pages/MiTarima";
 import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
@@ -112,6 +114,13 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/verduleria" component={VerduleriaPOS} />
+       <Route path="/tarima/:slug" component={TarimaPublic} />
+   <Route path="/mi-tarima">
+     <ProtectedRoute>
+       <MiTarima />
+     </ProtectedRoute>
+   </Route>
+
       <Route path="/home" component={Home} />
       <Route path="/login" component={Home} />
 
