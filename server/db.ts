@@ -1,5 +1,6 @@
 import { eq, and, or, gte, lte, like, desc, asc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { mysqlTable, int, varchar, timestamp, mysqlEnum } from "drizzle-orm/mysql-core";
 import {
   InsertUser,
   users,
@@ -95,6 +96,30 @@ export async function getDbOrThrow() {
   return conn;
 }
 
+// ============================================================================
+// VETERINARIA CASHIERS - Tabla independiente para empleados de veterinaria
+// Tenant isolation por ownerUserId (cada admin solo ve sus cajeros)
+// ============================================================================
+export const veterinariaCashiers = mysqlTable("veterinariaCashiers", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerUserId: int("ownerUserId").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  email: varchar("email", { length: 180 }).notNull(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  role: mysqlEnum("role", ["doctor", "asistente", "recepcionista"])
+    .notNull()
+    .default("asistente"),
+  branchName: varchar("branchName", { length: 120 }).notNull().default(""),
+  status: mysqlEnum("status", ["active", "inactive"])
+    .notNull()
+    .default("active"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VeterinariaCashier = typeof veterinariaCashiers.$inferSelect;
+export type InsertVeterinariaCashier = typeof veterinariaCashiers.$inferInsert;
+
 /**
  * Ejecuta migraciones de columnas nuevas directamente como SQL.
  * Se llama al arrancar el servidor para garantizar que las columnas existen
@@ -133,6 +158,22 @@ export async function runStartupMigrations(): Promise<void> {
       \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
       \`updatedAt\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
       FOREIGN KEY (\`userId\`) REFERENCES \`users\`(\`id\`)
+    )`,
+    // Tabla de cajeros/empleados de veterinaria (aislado por ownerUserId)
+    `CREATE TABLE IF NOT EXISTS \`veterinariaCashiers\` (
+      \`id\` int AUTO_INCREMENT PRIMARY KEY,
+      \`ownerUserId\` int NOT NULL,
+      \`name\` varchar(120) NOT NULL,
+      \`email\` varchar(180) NOT NULL,
+      \`passwordHash\` varchar(255) NOT NULL,
+      \`role\` enum('doctor','asistente','recepcionista') NOT NULL DEFAULT 'asistente',
+      \`branchName\` varchar(120) NOT NULL DEFAULT '',
+      \`status\` enum('active','inactive') NOT NULL DEFAULT 'active',
+      \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      \`updatedAt\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+      INDEX \`idx_vetcashiers_owner\` (\`ownerUserId\`),
+      UNIQUE KEY \`uq_vetcashiers_email_owner\` (\`email\`, \`ownerUserId\`),
+      FOREIGN KEY (\`ownerUserId\`) REFERENCES \`users\`(\`id\`)
     )`,
   ];
   for (const migration of migrations) {
@@ -2674,4 +2715,161 @@ export async function listCustomers(userId: number) {
     .from(customers)
     .where(eq(customers.userId, userId))
     .orderBy(asc(customers.name));
+}
+
+
+// ============================================================================
+// VETERINARIA CASHIERS - Storage methods (CRUD scoped by ownerUserId)
+// ============================================================================
+
+export async function createVetCashier(data: {
+  ownerUserId: number;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role?: "doctor" | "asistente" | "recepcionista";
+  branchName?: string;
+}): Promise<VeterinariaCashier> {
+  const conn = await getDbOrThrow();
+  const result = await conn.insert(veterinariaCashiers).values({
+    ownerUserId: data.ownerUserId,
+    name: data.name.trim(),
+    email: data.email.toLowerCase().trim(),
+    passwordHash: data.passwordHash,
+    role: data.role ?? "asistente",
+    branchName: (data.branchName ?? "").trim(),
+  });
+  const id = (result as any).insertId as number;
+  const rows = await conn
+    .select()
+    .from(veterinariaCashiers)
+    .where(eq(veterinariaCashiers.id, id))
+    .limit(1);
+  if (!rows[0]) throw new Error("Error al crear cajero veterinaria");
+  return rows[0];
+}
+
+export async function listVetCashiers(
+  ownerUserId: number,
+  options?: { status?: "active" | "inactive" | "all" },
+): Promise<VeterinariaCashier[]> {
+  const conn = await getDb();
+  if (!conn) return [];
+  const status = options?.status ?? "all";
+  const baseQuery = conn
+    .select()
+    .from(veterinariaCashiers)
+    .where(
+      status === "all"
+        ? eq(veterinariaCashiers.ownerUserId, ownerUserId)
+        : and(
+            eq(veterinariaCashiers.ownerUserId, ownerUserId),
+            eq(veterinariaCashiers.status, status),
+          ),
+    )
+    .orderBy(asc(veterinariaCashiers.name));
+  return await baseQuery;
+}
+
+export async function getVetCashierById(
+  id: number,
+  ownerUserId: number,
+): Promise<VeterinariaCashier | null> {
+  const conn = await getDb();
+  if (!conn) return null;
+  const rows = await conn
+    .select()
+    .from(veterinariaCashiers)
+    .where(
+      and(
+        eq(veterinariaCashiers.id, id),
+        eq(veterinariaCashiers.ownerUserId, ownerUserId),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getVetCashierByEmail(
+  email: string,
+  ownerUserId: number,
+): Promise<VeterinariaCashier | null> {
+  const conn = await getDb();
+  if (!conn) return null;
+  const rows = await conn
+    .select()
+    .from(veterinariaCashiers)
+    .where(
+      and(
+        eq(veterinariaCashiers.email, email.toLowerCase().trim()),
+        eq(veterinariaCashiers.ownerUserId, ownerUserId),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function updateVetCashier(
+  id: number,
+  ownerUserId: number,
+  data: {
+    name?: string;
+    email?: string;
+    passwordHash?: string;
+    role?: "doctor" | "asistente" | "recepcionista";
+    branchName?: string;
+  },
+): Promise<VeterinariaCashier | null> {
+  const conn = await getDbOrThrow();
+  const updateSet: Record<string, unknown> = {};
+  if (data.name !== undefined) updateSet.name = data.name.trim();
+  if (data.email !== undefined) updateSet.email = data.email.toLowerCase().trim();
+  if (data.passwordHash !== undefined) updateSet.passwordHash = data.passwordHash;
+  if (data.role !== undefined) updateSet.role = data.role;
+  if (data.branchName !== undefined) updateSet.branchName = data.branchName.trim();
+  if (Object.keys(updateSet).length === 0) return getVetCashierById(id, ownerUserId);
+  await conn
+    .update(veterinariaCashiers)
+    .set(updateSet)
+    .where(
+      and(
+        eq(veterinariaCashiers.id, id),
+        eq(veterinariaCashiers.ownerUserId, ownerUserId),
+      ),
+    );
+  return getVetCashierById(id, ownerUserId);
+}
+
+export async function setVetCashierStatus(
+  id: number,
+  ownerUserId: number,
+  status: "active" | "inactive",
+): Promise<VeterinariaCashier | null> {
+  const conn = await getDbOrThrow();
+  await conn
+    .update(veterinariaCashiers)
+    .set({ status })
+    .where(
+      and(
+        eq(veterinariaCashiers.id, id),
+        eq(veterinariaCashiers.ownerUserId, ownerUserId),
+      ),
+    );
+  return getVetCashierById(id, ownerUserId);
+}
+
+export async function deleteVetCashier(
+  id: number,
+  ownerUserId: number,
+): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+  await conn
+    .delete(veterinariaCashiers)
+    .where(
+      and(
+        eq(veterinariaCashiers.id, id),
+        eq(veterinariaCashiers.ownerUserId, ownerUserId),
+      ),
+    );
+  return { success: true };
 }
