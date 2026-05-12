@@ -155,15 +155,15 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white text-slate-900 border-slate-200 max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl">
-        <DialogHeader className="pb-2">
-          <div className={"inline-flex w-12 h-12 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " mb-3 shadow-lg"}>
-            <campaign.icon className="h-6 w-6 text-white" />
+      <DialogContent className="bg-white text-slate-900 border-slate-200 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5 sm:p-6">
+        <DialogHeader className="pb-2 text-left">
+          <div className={"inline-flex w-11 h-11 sm:w-12 sm:h-12 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " mb-3 shadow-lg"}>
+            <campaign.icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           </div>
-          <DialogTitle className="text-2xl tracking-tight text-slate-900">
+          <DialogTitle className="text-xl sm:text-2xl tracking-tight text-slate-900">
             {campaign.title}
           </DialogTitle>
-          <DialogDescription className="text-slate-600 text-base">
+          <DialogDescription className="text-slate-600 text-sm sm:text-base">
             {campaign.description}
           </DialogDescription>
         </DialogHeader>
@@ -352,7 +352,7 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || !amount || !email || (!isAnonymous && !name) || (paymentMethod === "transfer" && !comprobante)}
-            className={"w-full rounded-full h-12 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl transition-all hover:scale-[1.01] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"}
+            className={"w-full rounded-full h-12 sm:h-13 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl transition-all hover:scale-[1.01] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"}
           >
             {isSubmitting ? "Procesando..." : "Confirmar donacion"}
           </Button>
@@ -422,23 +422,25 @@ export function Donations() {
       {/* HERO */}
       <section className="relative overflow-hidden bg-white">
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-fuchsia-200/20 rounded-full blur-3xl" />
-          <div className="absolute top-40 -left-40 w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
+          <div className="absolute -top-20 -right-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-fuchsia-200/20 rounded-full blur-3xl" />
+          <div className="absolute top-40 -left-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-16 lg:pb-20">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pt-16 sm:pt-24 lg:pt-32 pb-12 sm:pb-16 lg:pb-20">
           <Link href="/cyberpiezas">
-            <button className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors mb-10 group">
+            <button className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors mb-8 sm:mb-10 group">
               <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
               Volver a CyberPiezas
             </button>
           </Link>
 
           <div className="max-w-4xl">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-6">
-              Donaciones
-            </p>
-            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[0.95]">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+              <span className="text-slate-300">01</span>
+              <span className="w-6 h-px bg-slate-300" />
+              <span>Donaciones</span>
+            </div>
+            <h1 className="text-[2.5rem] sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[1.0] sm:leading-[0.95]">
               Tres causas.
               <br />
               <span className="bg-gradient-to-r from-fuchsia-500 via-purple-500 to-emerald-500 bg-clip-text text-transparent">
@@ -447,18 +449,35 @@ export function Donations() {
               <br />
               <span className="text-slate-400">Cero intermediarios.</span>
             </h1>
-            <p className="mt-10 text-xl sm:text-2xl text-slate-600 max-w-3xl font-light leading-relaxed tracking-tight">
+            <p className="mt-7 sm:mt-10 text-base sm:text-2xl text-slate-600 max-w-3xl font-light leading-relaxed tracking-tight">
               Apoya a CyberPiezas, a un perrito de la calle, o a un negocio que arranca.{" "}
               <span className="text-slate-900 font-normal">Tu eliges. Tu dinero llega directo.</span>
             </p>
+
+            {/* Trust badges */}
+            <div className="hidden sm:flex flex-wrap items-center gap-x-8 gap-y-2 mt-10 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Comprobante mensual publicado</span>
+              <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Sin intermediarios</span>
+              <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Cuenta directa de David</span>
+            </div>
           </div>
         </div>
       </section>
 
       {/* 3 CAUSAS */}
-      <section className="bg-white pb-24 lg:pb-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="grid gap-6 lg:grid-cols-3">
+      <section className="bg-white pb-16 sm:pb-24 lg:pb-32">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+          <div className="mb-10 sm:mb-14">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-fuchsia-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-3 sm:mb-4">
+              <span className="text-fuchsia-400">02</span>
+              <span className="w-6 h-px bg-fuchsia-300" />
+              <span>Elige tu causa</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 leading-[1.05]">
+              Donde quieres que llegue tu apoyo.
+            </h2>
+          </div>
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
             {campaigns.map((campaign) => {
               const confirmed = CONFIRMED_DONATIONS[campaign.id] ?? 0;
               const percentage = Math.min(100, Math.round((confirmed / campaign.goal) * 100));
@@ -467,30 +486,30 @@ export function Donations() {
               return (
                 <Card
                   key={campaign.id}
-                  className="group overflow-hidden border-slate-200/60 bg-white shadow-sm hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all rounded-3xl"
+                  className="group overflow-hidden border-slate-200/60 bg-white shadow-sm hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all rounded-2xl sm:rounded-3xl active:scale-[0.99]"
                 >
                   <div className={"h-1.5 w-full bg-gradient-to-r " + campaign.accent} />
 
-                  <CardHeader className="space-y-5 pt-8">
+                  <CardHeader className="space-y-4 sm:space-y-5 pt-6 sm:pt-8 px-5 sm:px-6">
                     <div
-                      className={"inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " shadow-lg group-hover:scale-110 transition-transform"}
+                      className={"inline-flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " shadow-lg group-hover:scale-110 transition-transform"}
                     >
-                      <Icon className="h-7 w-7 text-white" />
+                      <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                     </div>
-                    <div className="space-y-2">
-                      <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
                         {campaign.title}
                       </CardTitle>
                       <p className="text-sm font-medium text-slate-500">{campaign.subtitle}</p>
-                      <CardDescription className="text-sm leading-relaxed text-slate-600 pt-2">
+                      <CardDescription className="text-sm leading-relaxed text-slate-600 pt-1.5 sm:pt-2">
                         {campaign.description}
                       </CardDescription>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-5">
+                  <CardContent className="space-y-4 sm:space-y-5 px-5 sm:px-6 pb-6">
                     {/* Progress */}
-                    <div className="space-y-3 rounded-2xl border border-slate-200/60 bg-slate-50/50 p-5">
+                    <div className="space-y-3 rounded-xl sm:rounded-2xl border border-slate-200/60 bg-slate-50/50 p-4 sm:p-5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500 font-medium">Recaudado</span>
                         <span className="font-bold text-slate-900">{percentage}%</span>
@@ -501,7 +520,7 @@ export function Donations() {
                           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">
                             Meta
                           </p>
-                          <p className="mt-1 text-lg font-bold text-slate-900 tracking-tight">
+                          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                             {formatCurrency(campaign.goal)}
                           </p>
                         </div>
@@ -509,7 +528,7 @@ export function Donations() {
                           <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">
                             Actual
                           </p>
-                          <p className="mt-1 text-lg font-bold text-slate-900 tracking-tight">
+                          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                             {formatCurrency(confirmed)}
                           </p>
                         </div>
@@ -517,8 +536,8 @@ export function Donations() {
                     </div>
 
                     {/* Que se destina */}
-                    <div className={"rounded-2xl bg-gradient-to-br " + campaign.softBg + " border border-slate-200/40 p-4 text-sm leading-relaxed text-slate-700"}>
-                      <div className="mb-2 flex items-center gap-2 font-bold text-slate-900 text-xs uppercase tracking-[0.15em]">
+                    <div className={"rounded-xl sm:rounded-2xl bg-gradient-to-br " + campaign.softBg + " border border-slate-200/40 p-3.5 sm:p-4 text-sm leading-relaxed text-slate-700"}>
+                      <div className="mb-1.5 sm:mb-2 flex items-center gap-2 font-bold text-slate-900 text-xs uppercase tracking-[0.15em]">
                         <Target className="h-3.5 w-3.5" />
                         Para que se destina
                       </div>
@@ -527,7 +546,7 @@ export function Donations() {
 
                     <Button
                       onClick={() => setOpenDialog(campaign.id)}
-                      className={"w-full rounded-full h-12 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl shadow-slate-900/10 transition-all hover:scale-[1.01] hover:-translate-y-0.5"}
+                      className={"w-full rounded-full h-12 sm:h-13 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl shadow-slate-900/10 transition-all hover:scale-[1.01] hover:-translate-y-0.5 active:scale-[0.98]"}
                     >
                       {campaign.buttonLabel}
                     </Button>
@@ -540,17 +559,19 @@ export function Donations() {
       </section>
 
       {/* TRANSPARENCIA */}
-      <section className="bg-slate-50 py-20 lg:py-28">
-        <div className="max-w-3xl mx-auto px-6 lg:px-8 text-center">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-6">
-            Transparencia
-          </p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 leading-tight mb-6">
+      <section className="bg-slate-50 py-16 sm:py-20 lg:py-28">
+        <div className="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-slate-300">03</span>
+            <span className="w-6 h-px bg-slate-300" />
+            <span>Transparencia</span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 leading-[1.1] sm:leading-tight mb-5 sm:mb-6">
             Todas las donaciones llegan
             <br />
             a la misma cuenta.
           </h2>
-          <p className="text-lg text-slate-600 leading-relaxed font-light">
+          <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-light px-2">
             El concepto que pongas me dice a que causa la quieres asignar.{" "}
             <span className="text-slate-900 font-normal">
               Cada mes publico cuanto se recibio para cada una.
@@ -560,14 +581,14 @@ export function Donations() {
       </section>
 
       {/* CIERRE */}
-      <section className="bg-white py-20 lg:py-28">
-        <div className="max-w-3xl mx-auto px-6 lg:px-8 text-center">
-          <div className="text-3xl mb-6 tracking-[0.5em]">💚</div>
-          <p className="text-2xl sm:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight max-w-xl mx-auto mb-8">
+      <section className="bg-white py-16 sm:py-20 lg:py-28">
+        <div className="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8 text-center">
+          <div className="text-2xl sm:text-3xl mb-5 sm:mb-6 tracking-[0.5em]">💚</div>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight max-w-xl mx-auto mb-6 sm:mb-8 px-2">
             "Cada peso ayuda. Gracias por creer."
           </p>
           <Link href="/cyberpiezas">
-            <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 px-8 text-base font-semibold shadow-xl">
+            <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 sm:h-13 px-7 sm:px-8 text-base font-semibold shadow-xl hover:-translate-y-0.5 transition-all">
               Volver al inicio
             </Button>
           </Link>
