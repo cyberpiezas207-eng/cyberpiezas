@@ -1173,3 +1173,17 @@ export const vetAppointments = mysqlTable("vetAppointments", {
 });
 export type VetAppointment = typeof vetAppointments.$inferSelect;
 export type InsertVetAppointment = typeof vetAppointments.$inferInsert;
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  type: mysqlEnum("type", ["info", "success", "warning", "error"]).notNull().default("info"),
+  category: varchar("category", { length: 50 }),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  actionUrl: varchar("actionUrl", { length: 500 }),
+  isRead: boolean("isRead").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
