@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Heart, PawPrint, Store, Target, X } from "lucide-react";
+import { Heart, PawPrint, Store, Target, ArrowLeft, Copy, Check } from "lucide-react";
 
 // ============================================================
 // DONACIONES CONFIRMADAS — Editar manualmente al verificar
@@ -30,35 +30,38 @@ const CONFIRMED_DONATIONS: Record<string, number> = {
 const campaigns = [
   {
     id: "cyberpiezas",
-    title: "Donación para Cyberpiezas",
+    title: "Para CyberPiezas",
+    subtitle: "Que el proyecto siga creciendo",
     description:
-      "Este apoyo se destina a fortalecer la plataforma, mejorar herramientas, mantener infraestructura y seguir construyendo soluciones útiles para negocios reales.",
+      "Hosting, dominios, infraestructura y tiempo para construir herramientas accesibles para negocios mexicanos.",
     goal: 15000,
-    raised: 0,
     icon: Heart,
     accent: "from-fuchsia-500 via-purple-500 to-indigo-500",
-    buttonLabel: "Apoyar a Cyberpiezas",
+    softBg: "from-fuchsia-50 to-purple-50",
+    buttonLabel: "Apoyar CyberPiezas",
   },
   {
     id: "perrito",
-    title: "Donación para ayudar a un perrito en situación de calle",
+    title: "Para un perrito de la calle",
+    subtitle: "Comida, vacunas y un hogar",
     description:
-      "La meta cubre alimento, valoración veterinaria, medicamentos, baño, resguardo temporal y seguimiento para encontrarle una mejor oportunidad.",
+      "Alimento, valoracion veterinaria, medicamentos, baño, resguardo temporal y seguimiento para encontrarle una mejor oportunidad.",
     goal: 5000,
-    raised: 0,
     icon: PawPrint,
     accent: "from-amber-400 via-orange-500 to-rose-500",
-    buttonLabel: "Apoyar a un perrito",
+    softBg: "from-amber-50 to-orange-50",
+    buttonLabel: "Apoyar un perrito",
   },
   {
     id: "negocio",
-    title: "Ayudemos un negocio",
+    title: "Para un negocio que arranca",
+    subtitle: "Inventario, POS y herramientas",
     description:
-      "Esta campaña busca equipar a un negocio con inventario inicial, punto de venta, cámaras y herramientas básicas para que pueda operar con orden y seguridad.",
+      "Equipar a un negocio con inventario inicial, punto de venta, camaras y herramientas basicas para que pueda operar con orden y seguridad.",
     goal: 40000,
-    raised: 0,
     icon: Store,
     accent: "from-emerald-500 via-teal-500 to-cyan-500",
+    softBg: "from-emerald-50 to-cyan-50",
     buttonLabel: "Impulsar un negocio",
   },
 ] as const;
@@ -86,12 +89,19 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<"transfer" | "paypal">("transfer");
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const bankData = {
-    bank: "AZTECA",
+    bank: "Banco Azteca",
     account: "4027660019183039",
     clabe: "127542013042637791",
     holder: "David Farfan",
+  };
+
+  const handleCopy = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +117,7 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
     }
 
     if (!isAnonymous && !name) {
-      alert("Por favor ingresa tu nombre o marca la opción anónimo");
+      alert("Por favor ingresa tu nombre o marca la opcion anonimo");
       return;
     }
 
@@ -118,12 +128,13 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
 
     setIsSubmitting(true);
     try {
-      // Simular envío de donación
+      // Simular envio de donacion
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const donorName = isAnonymous ? "Anónimo" : name;
+      const donorName = isAnonymous ? "Anonimo" : name;
       alert(
-        `¡Gracias ${donorName}! Tu donación de ${formatCurrency(Number(amount))} para "${campaign.title}" ha sido registrada.\n\nTe enviaremos un recibo a ${email}.`
+        "Gracias " + donorName + "! Tu donacion de " + formatCurrency(Number(amount)) +
+        " para \"" + campaign.title + "\" ha sido registrada.\n\nTe enviaremos un recibo a " + email + "."
       );
 
       // Resetear formulario
@@ -136,7 +147,7 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
       setPaymentMethod("transfer");
       onOpenChange(false);
     } catch (error) {
-      alert("Hubo un error al procesar tu donación. Intenta de nuevo.");
+      alert("Hubo un error al procesar tu donacion. Intenta de nuevo.");
     } finally {
       setIsSubmitting(false);
     }
@@ -144,42 +155,47 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-slate-950 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{campaign.title}</DialogTitle>
-          <DialogDescription className="text-slate-300">{campaign.description}</DialogDescription>
+      <DialogContent className="bg-white text-slate-900 border-slate-200 max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl">
+        <DialogHeader className="pb-2">
+          <div className={"inline-flex w-12 h-12 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " mb-3 shadow-lg"}>
+            <campaign.icon className="h-6 w-6 text-white" />
+          </div>
+          <DialogTitle className="text-2xl tracking-tight text-slate-900">
+            {campaign.title}
+          </DialogTitle>
+          <DialogDescription className="text-slate-600 text-base">
+            {campaign.description}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Nombre */}
-          <div className="space-y-3">
-            <Label htmlFor="name" className="text-white">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-slate-700 font-medium">
               Tu nombre
             </Label>
-            <div className="space-y-2">
-              <Input
-                id="name"
-                placeholder="Juan Pérez"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isAnonymous}
-                className="border-white/20 bg-slate-900 text-white placeholder:text-slate-500 disabled:opacity-50"
+            <Input
+              id="name"
+              placeholder="Juan Perez"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isAnonymous}
+              className="bg-slate-50 border-slate-200 text-slate-900 disabled:opacity-50 h-11 rounded-xl"
+            />
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(e) => setIsAnonymous(e.target.checked)}
+                className="w-4 h-4 rounded"
               />
-              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                Donar como anónimo
-              </label>
-            </div>
+              Donar como anonimo
+            </label>
           </div>
 
           {/* Email */}
-          <div>
-            <Label htmlFor="email" className="text-white">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-slate-700 font-medium">
               Tu email *
             </Label>
             <Input
@@ -188,13 +204,13 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
               placeholder="tu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="border-white/20 bg-slate-900 text-white placeholder:text-slate-500"
+              className="bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl"
             />
           </div>
 
           {/* Monto */}
-          <div>
-            <Label htmlFor="amount" className="text-white">
+          <div className="space-y-2">
+            <Label htmlFor="amount" className="text-slate-700 font-medium">
               Cantidad a donar (MXN) *
             </Label>
             <Input
@@ -203,14 +219,14 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
               placeholder="100"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="border-white/20 bg-slate-900 text-white placeholder:text-slate-500"
+              className="bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl text-lg font-semibold"
               min="1"
             />
           </div>
 
           {/* Mensaje */}
-          <div>
-            <Label htmlFor="message" className="text-white">
+          <div className="space-y-2">
+            <Label htmlFor="message" className="text-slate-700 font-medium">
               Mensaje o dedicatoria (opcional)
             </Label>
             <textarea
@@ -218,16 +234,23 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
               placeholder="Escribe un mensaje opcional..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-900 border border-white/20 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 resize-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 resize-none"
               rows={3}
             />
           </div>
 
-          {/* Método de Pago */}
-          <div>
-            <Label className="text-white mb-3 block">Método de Pago</Label>
+          {/* Metodo de Pago */}
+          <div className="space-y-2">
+            <Label className="text-slate-700 font-medium block mb-2">Metodo de pago</Label>
             <div className="space-y-2">
-              <label className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
+              <label
+                className={
+                  "flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border " +
+                  (paymentMethod === "transfer"
+                    ? "border-slate-900 bg-slate-50"
+                    : "border-slate-200 hover:bg-slate-50")
+                }
+              >
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -236,9 +259,19 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
                   onChange={(e) => setPaymentMethod(e.target.value as "transfer" | "paypal")}
                   className="w-4 h-4"
                 />
-                <span className="text-white">Transferencia Bancaria</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-900 text-sm">Transferencia bancaria</p>
+                  <p className="text-xs text-slate-500">Banco Azteca · CLABE / SPEI</p>
+                </div>
               </label>
-              <label className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors">
+              <label
+                className={
+                  "flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border " +
+                  (paymentMethod === "paypal"
+                    ? "border-slate-900 bg-slate-50"
+                    : "border-slate-200 hover:bg-slate-50")
+                }
+              >
                 <input
                   type="radio"
                   name="paymentMethod"
@@ -247,67 +280,136 @@ function DonationDialog({ campaign, open, onOpenChange }: DonationDialogProps) {
                   onChange={(e) => setPaymentMethod(e.target.value as "transfer" | "paypal")}
                   className="w-4 h-4"
                 />
-                <span className="text-white">PayPal (davids207@hotmail.com)</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-900 text-sm">PayPal</p>
+                  <p className="text-xs text-slate-500">davids207@hotmail.com</p>
+                </div>
               </label>
             </div>
           </div>
 
           {/* Datos Bancarios */}
           {paymentMethod === "transfer" && (
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-4 space-y-2">
-              <h4 className="text-white font-semibold mb-3">Datos Bancarios</h4>
-              <div className="text-sm text-slate-300 space-y-1">
-                <div><span className="text-slate-400">Banco:</span> {bankData.bank}</div>
-                <div><span className="text-slate-400">Tarjeta:</span> {bankData.account}</div>
-                <div><span className="text-slate-400">CLABE:</span> {bankData.clabe}</div>
-                <div><span className="text-slate-400">Titular:</span> {bankData.holder}</div>
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <h4 className="text-slate-900 font-semibold text-sm">Datos bancarios</h4>
+              <div className="space-y-2">
+                <DataRow label="Banco" value={bankData.bank} />
+                <DataRow
+                  label="CLABE"
+                  value={bankData.clabe}
+                  copyable
+                  onCopy={() => handleCopy(bankData.clabe, "clabe")}
+                  copied={copiedField === "clabe"}
+                />
+                <DataRow
+                  label="Tarjeta"
+                  value={bankData.account}
+                  copyable
+                  onCopy={() => handleCopy(bankData.account, "account")}
+                  copied={copiedField === "account"}
+                />
+                <DataRow label="Titular" value={bankData.holder} />
+                <DataRow label="Concepto sugerido" value={campaign.title} highlight />
               </div>
             </div>
           )}
 
           {/* Comprobante */}
           {paymentMethod === "transfer" && (
-            <div>
-              <Label htmlFor="comprobante" className="text-white">
-                Comprobante de Pago (imagen o PDF) *
+            <div className="space-y-2">
+              <Label htmlFor="comprobante" className="text-slate-700 font-medium">
+                Comprobante de pago (imagen o PDF) *
               </Label>
               <input
                 id="comprobante"
                 type="file"
                 onChange={handleFileChange}
                 accept="image/*,.pdf"
-                className="w-full px-4 py-2 bg-slate-900 border border-white/20 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:font-semibold file:text-xs hover:file:bg-slate-800"
               />
               {comprobante && (
-                <p className="text-sm text-green-400 mt-2">✓ {comprobante.name}</p>
+                <p className="text-sm text-emerald-600 mt-2 flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  {comprobante.name}
+                </p>
               )}
             </div>
           )}
 
           {/* Resumen */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm text-slate-300">
-              <span className="font-semibold text-white">Resumen:</span> Donarás{" "}
-              <span className="text-lg font-bold text-white">{amount ? formatCurrency(Number(amount)) : "$0"}</span> para{" "}
-              <span className="font-semibold text-white">{campaign.title}</span>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold text-slate-900">Resumen:</span> Donaras{" "}
+              <span className="text-xl font-bold text-slate-900">
+                {amount ? formatCurrency(Number(amount)) : "$0"}
+              </span>{" "}
+              para{" "}
+              <span className="font-semibold text-slate-900">{campaign.title}</span>
             </p>
           </div>
 
-          {/* Botón Confirmar */}
+          {/* Boton Confirmar */}
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || !amount || !email || (!isAnonymous && !name) || (paymentMethod === "transfer" && !comprobante)}
-            className={`w-full rounded-2xl bg-gradient-to-r ${campaign.accent} text-base font-semibold text-white shadow-lg transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={"w-full rounded-full h-12 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl transition-all hover:scale-[1.01] hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"}
           >
-            {isSubmitting ? "Procesando..." : "Confirmar donación"}
+            {isSubmitting ? "Procesando..." : "Confirmar donacion"}
           </Button>
 
-          <p className="text-xs text-slate-400 text-center">
-            Tu donación es segura y será procesada de manera confidencial.
+          <p className="text-xs text-slate-500 text-center">
+            Tu donacion es segura y sera procesada de manera confidencial.
           </p>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DataRow({
+  label,
+  value,
+  copyable,
+  onCopy,
+  copied,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  copyable?: boolean;
+  onCopy?: () => void;
+  copied?: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 flex-shrink-0">
+        {label}
+      </span>
+      <div className="flex items-center gap-2 min-w-0">
+        <code
+          className={
+            "text-sm font-mono truncate " +
+            (highlight ? "text-slate-900 font-bold" : "text-slate-700")
+          }
+        >
+          {value}
+        </code>
+        {copyable && (
+          <button
+            onClick={onCopy}
+            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+            title="Copiar"
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+            ) : (
+              <Copy className="w-3.5 h-3.5 text-slate-500" />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -316,86 +418,159 @@ export function Donations() {
   const currentCampaign = campaigns.find((c) => c.id === openDialog);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <section className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(168,85,247,0.35),_transparent_40%),radial-gradient(circle_at_right,_rgba(34,211,238,0.2),_transparent_28%),linear-gradient(180deg,_#0f172a_0%,_#020617_100%)]">
-        <div className="container py-16 md:py-24">
-          <div className="max-w-4xl space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-4 py-1 text-sm text-fuchsia-200">
-              <Heart className="h-4 w-4" />
-              Donaciones con propósito claro
-            </div>
-            <h1 className="text-4xl font-black tracking-tight text-white md:text-6xl">
-              Ayuda a que <span className="bg-gradient-to-r from-fuchsia-400 to-cyan-300 bg-clip-text text-transparent">Cyberpiezas</span> también transforme historias.
-            </h1>
-            <p className="max-w-3xl text-lg leading-8 text-slate-300 md:text-xl">
-              Aquí puedes abrir cada causa, revisar para qué se usará el dinero y ver cómo avanza cada meta. La intención es simple:
-              apoyar proyectos reales, ayudar a quien lo necesita y convertir tecnología en oportunidades.
+    <main className="min-h-screen bg-white text-slate-900 antialiased">
+      {/* HERO */}
+      <section className="relative overflow-hidden bg-white">
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-fuchsia-200/20 rounded-full blur-3xl" />
+          <div className="absolute top-40 -left-40 w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-16 lg:pb-20">
+          <Link href="/cyberpiezas">
+            <button className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors mb-10 group">
+              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+              Volver a CyberPiezas
+            </button>
+          </Link>
+
+          <div className="max-w-4xl">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-6">
+              Donaciones
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/cyberpiezas">
-                <Button className="rounded-full bg-white text-slate-950 hover:bg-slate-100">Volver a Cyberpiezas</Button>
-              </Link>
-            </div>
+            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[0.95]">
+              Tres causas.
+              <br />
+              <span className="bg-gradient-to-r from-fuchsia-500 via-purple-500 to-emerald-500 bg-clip-text text-transparent">
+                Una cuenta.
+              </span>
+              <br />
+              <span className="text-slate-400">Cero intermediarios.</span>
+            </h1>
+            <p className="mt-10 text-xl sm:text-2xl text-slate-600 max-w-3xl font-light leading-relaxed tracking-tight">
+              Apoya a CyberPiezas, a un perrito de la calle, o a un negocio que arranca.{" "}
+              <span className="text-slate-900 font-normal">Tu eliges. Tu dinero llega directo.</span>
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="container py-12 md:py-16">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {campaigns.map((campaign) => {
-            const confirmed = CONFIRMED_DONATIONS[campaign.id] ?? 0;
-            const percentage = Math.min(100, Math.round((confirmed / campaign.goal) * 100));
-            const Icon = campaign.icon;
+      {/* 3 CAUSAS */}
+      <section className="bg-white pb-24 lg:pb-32">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-3">
+            {campaigns.map((campaign) => {
+              const confirmed = CONFIRMED_DONATIONS[campaign.id] ?? 0;
+              const percentage = Math.min(100, Math.round((confirmed / campaign.goal) * 100));
+              const Icon = campaign.icon;
 
-            return (
-              <Card key={campaign.id} className="overflow-hidden border-white/10 bg-white/5 text-white shadow-2xl shadow-black/20 backdrop-blur">
-                <div className={`h-2 w-full bg-gradient-to-r ${campaign.accent}`} />
-                <CardHeader className="space-y-4">
-                  <div className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${campaign.accent} shadow-lg`}>
-                    <Icon className="h-7 w-7 text-white" />
-                  </div>
-                  <div className="space-y-2">
-                    <CardTitle className="text-2xl leading-tight text-white">{campaign.title}</CardTitle>
-                    <CardDescription className="text-sm leading-7 text-slate-300">{campaign.description}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                    <div className="flex items-center justify-between text-sm text-slate-300">
-                      <span>Recaudado</span>
-                      <span className="font-semibold text-white">{percentage}%</span>
+              return (
+                <Card
+                  key={campaign.id}
+                  className="group overflow-hidden border-slate-200/60 bg-white shadow-sm hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all rounded-3xl"
+                >
+                  <div className={"h-1.5 w-full bg-gradient-to-r " + campaign.accent} />
+
+                  <CardHeader className="space-y-5 pt-8">
+                    <div
+                      className={"inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br " + campaign.accent + " shadow-lg group-hover:scale-110 transition-transform"}
+                    >
+                      <Icon className="h-7 w-7 text-white" />
                     </div>
-                    <Progress value={percentage} className="h-3 bg-slate-800" />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Meta</p>
-                        <p className="mt-1 text-lg font-bold text-white">{formatCurrency(campaign.goal)}</p>
+                    <div className="space-y-2">
+                      <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+                        {campaign.title}
+                      </CardTitle>
+                      <p className="text-sm font-medium text-slate-500">{campaign.subtitle}</p>
+                      <CardDescription className="text-sm leading-relaxed text-slate-600 pt-2">
+                        {campaign.description}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-5">
+                    {/* Progress */}
+                    <div className="space-y-3 rounded-2xl border border-slate-200/60 bg-slate-50/50 p-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Recaudado</span>
+                        <span className="font-bold text-slate-900">{percentage}%</span>
                       </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Actual</p>
-                        <p className="mt-1 text-lg font-bold text-white">{formatCurrency(confirmed)}</p>
+                      <Progress value={percentage} className="h-2 bg-slate-200" />
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">
+                            Meta
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-slate-900 tracking-tight">
+                            {formatCurrency(campaign.goal)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">
+                            Actual
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-slate-900 tracking-tight">
+                            {formatCurrency(confirmed)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm leading-7 text-emerald-100">
-                    <div className="mb-2 flex items-center gap-2 font-semibold">
-                      <Target className="h-4 w-4" />
-                      ¿Para qué se destina?
+                    {/* Que se destina */}
+                    <div className={"rounded-2xl bg-gradient-to-br " + campaign.softBg + " border border-slate-200/40 p-4 text-sm leading-relaxed text-slate-700"}>
+                      <div className="mb-2 flex items-center gap-2 font-bold text-slate-900 text-xs uppercase tracking-[0.15em]">
+                        <Target className="h-3.5 w-3.5" />
+                        Para que se destina
+                      </div>
+                      <p className="text-sm">{campaign.description}</p>
                     </div>
-                    <p>{campaign.description}</p>
-                  </div>
 
-                  <Button
-                    onClick={() => setOpenDialog(campaign.id)}
-                    className={`w-full rounded-2xl bg-gradient-to-r ${campaign.accent} text-base font-semibold text-white shadow-lg transition hover:scale-[1.01]`}
-                  >
-                    {campaign.buttonLabel}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    <Button
+                      onClick={() => setOpenDialog(campaign.id)}
+                      className={"w-full rounded-full h-12 bg-gradient-to-r " + campaign.accent + " text-base font-semibold text-white shadow-xl shadow-slate-900/10 transition-all hover:scale-[1.01] hover:-translate-y-0.5"}
+                    >
+                      {campaign.buttonLabel}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* TRANSPARENCIA */}
+      <section className="bg-slate-50 py-20 lg:py-28">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 text-center">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-6">
+            Transparencia
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 leading-tight mb-6">
+            Todas las donaciones llegan
+            <br />
+            a la misma cuenta.
+          </h2>
+          <p className="text-lg text-slate-600 leading-relaxed font-light">
+            El concepto que pongas me dice a que causa la quieres asignar.{" "}
+            <span className="text-slate-900 font-normal">
+              Cada mes publico cuanto se recibio para cada una.
+            </span>
+          </p>
+        </div>
+      </section>
+
+      {/* CIERRE */}
+      <section className="bg-white py-20 lg:py-28">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 text-center">
+          <div className="text-3xl mb-6 tracking-[0.5em]">💚</div>
+          <p className="text-2xl sm:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight max-w-xl mx-auto mb-8">
+            "Cada peso ayuda. Gracias por creer."
+          </p>
+          <Link href="/cyberpiezas">
+            <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 px-8 text-base font-semibold shadow-xl">
+              Volver al inicio
+            </Button>
+          </Link>
         </div>
       </section>
 
