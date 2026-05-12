@@ -193,41 +193,58 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab }: 
 
 function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: string) => void; isAuthenticated: boolean; onDemo: () => void }) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-white via-slate-50/40 to-white">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
-        <div className="absolute top-20 -left-40 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl" />
+    <section className="relative overflow-hidden bg-white">
+      {/* Orbes decorativos sutiles */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-purple-200/20 rounded-full blur-3xl" />
+        <div className="absolute top-40 -left-40 w-[500px] h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
       </div>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-16 lg:pt-20 pb-12 lg:pb-16 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-full mb-6 shadow-lg">
-          <Sparkles className="w-3.5 h-3.5" /> Sistema POS para tu negocio
-        </div>
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 max-w-4xl mx-auto leading-[1.05]">
+
+      <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-20 lg:pb-28 text-center">
+        {/* Eyebrow minimal */}
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-8">
+          Hecho en Mexico
+        </p>
+
+        {/* H1 MASIVO */}
+        <h1 className="text-5xl sm:text-7xl lg:text-8xl xl:text-[6.5rem] font-bold tracking-tighter text-slate-900 max-w-5xl mx-auto leading-[0.95]">
           El sistema POS{" "}
           <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
-            que tu negocio merece
+            que tu negocio merece.
           </span>
         </h1>
-        <p className="mt-5 text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto">
-          Boutiques, veterinarias, abarrotes. Un sistema hecho a la medida de tu industria.
+
+        {/* Subhead editorial */}
+        <p className="mt-10 text-xl sm:text-2xl lg:text-3xl text-slate-600 max-w-3xl mx-auto font-light leading-relaxed tracking-tight">
+          Para boutiques, veterinarias, abarrotes y mas.
+          <br className="hidden sm:block" />
+          <span className="text-slate-900 font-normal">
+            Si tu negocio crece, el mio tambien.
+          </span>
         </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+
+        {/* CTAs */}
+        <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button
             onClick={() => { const el = document.getElementById("wizard"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
-            className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 px-7 text-base font-semibold shadow-xl shadow-slate-900/10 hover:scale-[1.02] transition-all"
+            className="bg-slate-900 hover:bg-slate-800 text-white rounded-full h-14 px-8 text-base font-semibold shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:-translate-y-0.5 transition-all"
           >
             Encontrar mi sistema <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
-          <Button onClick={onDemo} variant="outline" className="border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-12 px-7 text-base font-semibold">
+          <Button
+            onClick={onDemo}
+            variant="outline"
+            className="border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-14 px-8 text-base font-semibold"
+          >
             <Play className="w-4 h-4 mr-1.5" /> Ver demo
           </Button>
         </div>
-        <div className="mt-10 inline-flex items-center gap-5 px-6 py-3 bg-white rounded-full border border-slate-200/60 shadow-sm text-sm flex-wrap justify-center max-w-full">
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /><span className="font-medium text-slate-700">3 sistemas POS</span></span>
-          <span className="text-slate-300 hidden sm:inline">·</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /><span className="font-medium text-slate-700">100% en la nube</span></span>
-          <span className="text-slate-300 hidden sm:inline">·</span>
-          <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /><span className="font-medium text-slate-700">Sin contratos</span></span>
+
+        {/* Scroll indicator sutil */}
+        <div className="mt-20 flex flex-col items-center gap-2 text-slate-400 animate-bounce">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em]">
+            Conoce la historia
+          </p>
         </div>
       </div>
     </section>
@@ -886,24 +903,30 @@ function CollabModal({ onClose }: { onClose: () => void }) {
 
 function Story() {
   return (
-    <section id="historia" className="bg-white py-24 lg:py-36">
+    <section id="historia" className="bg-white py-28 lg:py-40 relative overflow-hidden">
+      {/* Orbes sutiles */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-emerald-100/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl" />
+      </div>
+
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
         {/* La pregunta */}
-        <div className="text-center mb-20 lg:mb-24">
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.25em] mb-6">
-            Nuestra historia
+        <div className="text-center mb-28 lg:mb-36">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] mb-8">
+            Historia
           </p>
-          <h2 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-slate-900 leading-[0.95]">
-            ¿Por que existe{" "}
+          <h2 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[0.9]">
+            ¿Por que existe
+            <br />
             <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
-              CyberPiezas
+              CyberPiezas?
             </span>
-            ?
           </h2>
         </div>
 
-        {/* Capítulos minimalistas */}
-        <div className="space-y-20 lg:space-y-28">
+        {/* Capitulos minimalistas con mas aire */}
+        <div className="space-y-28 lg:space-y-40">
           {/* Capítulo 1: El origen */}
           <div className="text-center">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-5">01 · El origen</p>
@@ -970,19 +993,21 @@ function Story() {
           </div>
         </div>
 
-        {/* Cierre con firma */}
-        <div className="mt-24 lg:mt-32 text-center">
-          <div className="inline-block">
-            <div className="w-px h-12 bg-slate-300 mx-auto mb-6" />
-            <p className="text-base text-slate-500 italic max-w-md mx-auto">
+        {/* Cierre con firma editorial */}
+        <div className="mt-32 lg:mt-44 text-center">
+          <div className="inline-block max-w-2xl">
+            <div className="w-px h-16 bg-slate-300 mx-auto mb-10" />
+            <p className="text-2xl lg:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight">
               "Construyo la herramienta que mi mama hubiera querido tener desde el principio."
             </p>
-            <p className="text-sm font-bold text-slate-900 mt-3">
-              — David Antonio Farfan
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Fundador, CyberPiezas
-            </p>
+            <div className="mt-8 flex flex-col items-center gap-1">
+              <p className="text-sm font-bold text-slate-900 tracking-tight">
+                David Antonio Farfan
+              </p>
+              <p className="text-xs text-slate-400 uppercase tracking-[0.25em]">
+                Fundador · CyberPiezas
+              </p>
+            </div>
           </div>
         </div>
       </div>
