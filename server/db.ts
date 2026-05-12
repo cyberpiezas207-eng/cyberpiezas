@@ -119,6 +119,9 @@ export async function runStartupMigrations(): Promise<void> {
     // SKU y código de barras opcionales por variante
     "ALTER TABLE `productVariants` ADD COLUMN `sku` varchar(100) NULL DEFAULT NULL",
     "ALTER TABLE `productVariants` ADD COLUMN `barcode` varchar(50) NULL DEFAULT NULL",
+    // Tarima: campos para temas personalizados
+    "ALTER TABLE `tarimaProfiles` ADD COLUMN `customColors` json NULL DEFAULT NULL",
+    "ALTER TABLE `tarimaProfiles` ADD COLUMN `fontFamily` varchar(50) NULL DEFAULT NULL",
     // Tabla de clientes frecuentes para el POS
     `CREATE TABLE IF NOT EXISTS \`customers\` (
       \`id\` int AUTO_INCREMENT PRIMARY KEY,
