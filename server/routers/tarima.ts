@@ -617,13 +617,13 @@ export const tarimaRouter = router({
         return { success: true };
       }),
 
-    // Reordenar items (drag and drop)
-    // Recibe array de IDs en el orden deseado para un tipo especifico
+    // Reordenar items (mover un item arriba o abajo en su lista)
+    // Alineado con frontend: recibe { id, direction }
     reorder: protectedProcedure
       .input(
         z.object({
-          type: z.enum(["photo", "video", "music"]),
-          orderedIds: z.array(z.number()).min(1),
+          id: z.number(),
+          direction: z.enum(["up", "down"]),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -638,23 +638,59 @@ export const tarimaRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
         }
 
-        // Actualizar sortOrder de cada item segun su posicion
-        // Ownership: el WHERE garantiza que solo afecta items mios del tipo correcto
-        for (let i = 0; i < input.orderedIds.length; i++) {
-          const itemId = input.orderedIds[i];
-          await conn
-            .update(tarimaMedia)
-            .set({ sortOrder: i })
-            .where(
-              and(
-                eq(tarimaMedia.id, itemId),
-                eq(tarimaMedia.profileId, profile.id),
-                eq(tarimaMedia.type, input.type),
-              ),
-            );
+        // Ownership check: el item debe pertenecer al perfil del user
+        const itemRows = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.id, input.id),
+              eq(tarimaMedia.profileId, profile.id),
+            ),
+          )
+          .limit(1);
+        const currentItem = itemRows[0];
+        if (!currentItem) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
         }
 
-        return { success: true, reordered: input.orderedIds.length };
+        // Traer todos los items del mismo type, ordenados por sortOrder
+        const siblings = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.profileId, profile.id),
+              eq(tarimaMedia.type, currentItem.type),
+            ),
+          )
+          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
+
+        // Encontrar la posicion actual del item
+        const currentIndex = siblings.findIndex((s) => s.id === input.id);
+        if (currentIndex === -1) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Item no esta en la lista" });
+        }
+
+        // Determinar el indice del item con el que swapear
+        const swapIndex = input.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (swapIndex < 0 || swapIndex >= siblings.length) {
+          return { success: true, message: "Ya esta en el extremo" };
+        }
+
+        const swapItem = siblings[swapIndex];
+
+        // Intercambiar sortOrder entre los 2 items
+        await conn
+          .update(tarimaMedia)
+          .set({ sortOrder: swapItem.sortOrder })
+          .where(eq(tarimaMedia.id, currentItem.id));
+        await conn
+          .update(tarimaMedia)
+          .set({ sortOrder: currentItem.sortOrder })
+          .where(eq(tarimaMedia.id, swapItem.id));
+
+        return { success: true };
       }),
 
     // Toggle highlight (destacar / quitar destacado)
