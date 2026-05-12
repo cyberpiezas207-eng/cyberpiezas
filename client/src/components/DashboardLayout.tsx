@@ -36,6 +36,7 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
+  Music,
   Package,
   PanelLeft,
   PawPrint,
@@ -59,7 +60,7 @@ import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
 
 type AppRole = "admin" | "cashier";
-type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria" | "verduleria";| "tarima";
+type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria" | "verduleria" | "tarima";
 
 type MenuSection = "principal" | "operacion" | "administracion" | "cuenta" | "oculto";
 
@@ -105,10 +106,6 @@ const menuItems: MenuItem[] = [
 
    // ── Tarima ─────────────────────────────────────────────────
   { icon: Music, label: "Mi Tarima", path: "/mi-tarima", section: "principal", program: "tarima" },
-
-   IMPORTANTE: arriba en los imports de lucide-react, asegurate de tener Music.
-   Si no lo tienes, agregalo a la lista de imports:
-   import { Bell, Calendar, Boxes, ... Music, ... } from "lucide-react";
 
   // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
