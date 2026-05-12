@@ -74,6 +74,16 @@ const systems: POSSystem[] = [
     color: "from-emerald-500 to-cyan-500",
     features: ["Mascotas", "Expediente clinico", "Vacunas", "POS"],
   },
+  {
+    id: "verduleria",
+    name: "Sistema POS Verduleria",
+    description: "Frutas y verduras con grid visual. Ventas rapidas en 30 segundos.",
+    icon: "🥕",
+    status: "active",
+    path: "/verduleria",
+    color: "from-green-500 to-emerald-500",
+    features: ["Grid visual", "Frutas y verduras", "Venta rapida", "Por kg/pieza"],
+  },
 ];
 
 export default function SystemsPanel() {
@@ -189,7 +199,7 @@ export default function SystemsPanel() {
       {/* Footer Note */}
       <div className="max-w-7xl mx-auto mt-16 text-center">
         <p className="text-slate-400 text-sm">
-          🎉 3 sistemas POS disponibles: Boutique, Abarrotes y Veterinaria. Los demas estaran disponibles pronto.
+          🎉 4 sistemas POS disponibles: Boutique, Abarrotes, Veterinaria y Verduleria. Los demas estaran disponibles pronto.
         </p>
       </div>
     </div>
