@@ -11,6 +11,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { paypalRouter } from "./routers/paypal";
 import { personalOperationsRouter } from "./routers/personalOperations";
 import { veterinariaRouter } from "./routers/veterinaria";
+import { verduleriaRouter } from "./routers/verduleria";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -176,6 +177,7 @@ export const appRouter = router({
   customers: customersRouter,
   personalOperations: personalOperationsRouter,
   veterinaria: veterinariaRouter,
+  verduleria: verduleriaRouter,
   auth: router({
     login: publicProcedure
       .input(
