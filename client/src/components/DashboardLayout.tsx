@@ -94,7 +94,7 @@ const menuItems: MenuItem[] = [
   { icon: Calendar, label: "Citas", path: "/veterinaria-pos/citas", section: "operacion", program: "veterinaria" },
   { icon: Package, label: "Productos", path: "/veterinaria-pos/productos", section: "operacion", program: "veterinaria" },
   { icon: Syringe, label: "Servicios", path: "/veterinaria-pos/servicios", section: "operacion", program: "veterinaria" },
-  { icon: Settings2, label: "Configuracion clinica", path: "/veterinaria-pos/configuracion", section: "administracion", program: "veterinaria" },
+  { icon: Settings2, label: "Configuracion clinica", path: "/vet-configuracion", section: "administracion", program: "veterinaria" },
   { icon: Users, label: "Cajeros y Usuarios", path: "/vet-cajeros", section: "administracion", program: "veterinaria" },
   { icon: CreditCard, label: "Mi Suscripcion", path: "/vet-suscripcion", section: "administracion", program: "veterinaria" },
 
@@ -370,8 +370,7 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       return allItems.filter((item) => {
         if (item.path === "/cyberpiezas") return true;
         if (item.path?.startsWith("/veterinaria-pos")) return true;
-        if (item.path === "/vet-cajeros") return true;
-        if (item.path === "/vet-suscripcion") return true;
+        if (item.path?.startsWith("/vet-")) return true;
         return false;
       });
     }
@@ -397,8 +396,7 @@ const isTarimaZone = location.startsWith("/mi-tarima");
     return allItems.filter((item) => {
       // Ocultar items de Veterinaria cuando NO estamos en su zona
       if (item.path?.startsWith("/veterinaria-pos")) return false;
-      if (item.path === "/vet-cajeros") return false;
-      if (item.path === "/vet-suscripcion") return false;
+      if (item.path?.startsWith("/vet-")) return false;
       // Ocultar items de Verduleria cuando NO estamos en su zona
       if (item.path?.startsWith("/verduleria")) return false;
       return true;
