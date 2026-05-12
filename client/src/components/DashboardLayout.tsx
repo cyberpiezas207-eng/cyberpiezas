@@ -59,7 +59,7 @@ import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
 
 type AppRole = "admin" | "cashier";
-type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria" | "verduleria";
+type ProgramCode = "boutique" | "abarrotes" | "celine" | "veterinaria" | "verduleria";| "tarima";
 
 type MenuSection = "principal" | "operacion" | "administracion" | "cuenta" | "oculto";
 
@@ -102,6 +102,13 @@ const menuItems: MenuItem[] = [
   { icon: Package, label: "Productos", path: "/verduleria/productos", section: "operacion", program: "verduleria" },
   { icon: ReceiptText, label: "Ventas", path: "/verduleria/ventas", section: "operacion", program: "verduleria" },
   { icon: Settings2, label: "Configuracion", path: "/verduleria/configuracion", section: "administracion", program: "verduleria" },
+
+   // ── Tarima ─────────────────────────────────────────────────
+  { icon: Music, label: "Mi Tarima", path: "/mi-tarima", section: "principal", program: "tarima" },
+
+   IMPORTANTE: arriba en los imports de lucide-react, asegurate de tener Music.
+   Si no lo tienes, agregalo a la lista de imports:
+   import { Bell, Calendar, Boxes, ... Music, ... } from "lucide-react";
 
   // ── Operación ──────────────────────────────────────────────
   { icon: ReceiptText, label: "Ventas", path: "/sales", section: "operacion", program: "boutique" },
@@ -153,8 +160,13 @@ export function filterMenuItemsByAccess(
     // Verduleria por ahora es accesible para todos los autenticados
     // (despues podemos requerir programAccess "verduleria")
     if (item.program === "verduleria") {
+      
       return true;
     }
+    
+if (item.program === "tarima") {
+     return true;
+   }
 
     return activePrograms.has(item.program);
   });
@@ -294,6 +306,7 @@ function DashboardLayoutContent({
 
   // Detectar si estamos en Verduleria (cualquier sub-ruta)
   const isVerduleriaZone = location.startsWith("/verduleria");
+const isTarimaZone = location.startsWith("/mi-tarima");
 
   const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
@@ -323,7 +336,15 @@ function DashboardLayoutContent({
         bannerImageUrl: baseBranding.bannerImageUrl,
         bannerAltText: baseBranding.bannerAltText,
       }
-    : baseBranding; 
+    : isTarimaZone
+    ? {
+        appTitle: "🎤 Mi Tarima",
+        appSubtitle: "Plataforma para artistas",
+        bannerImageUrl: baseBranding.bannerImageUrl,
+        bannerAltText: baseBranding.bannerAltText,
+      }
+    : baseBranding;
+
 
   // Detectar si estamos en zona Admin/CyberPiezas
   const isCyberpiezasZone =
@@ -363,6 +384,14 @@ function DashboardLayoutContent({
         return false;
       });
     }
+ // En zona Tarima: mostrar SOLO items de tarima + Centro
+    if (isTarimaZone) {
+      return allItems.filter((item) => {
+        if (item.path === "/cyberpiezas") return true;
+        if (item.path?.startsWith("/mi-tarima")) return true;
+        return false;
+      });
+    }
 
     // Default (zona Boutique): ocultar items que pertenecen a otras zonas
     return allItems.filter((item) => {
@@ -374,7 +403,7 @@ function DashboardLayoutContent({
       if (item.path?.startsWith("/verduleria")) return false;
       return true;
     });
-  }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone]);
+  }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone, isTarimaZone]);
 
   const visibleMenuGroups = useMemo(() => {
     return visibleSections
