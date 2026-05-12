@@ -1293,4 +1293,4 @@ export const tarimaBookings = mysqlTable("tarimaBookings", {
 });
 
 export type TarimaBooking = typeof tarimaBookings.$inferSelect;
-export type InsertTarimaBooking = typeof
+export type InsertTarimaBooking = typeof tarimaBookings.$inferInsert;
