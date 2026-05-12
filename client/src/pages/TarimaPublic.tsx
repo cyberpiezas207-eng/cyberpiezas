@@ -83,10 +83,26 @@ export default function TarimaPublic() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
   const [showBooking, setShowBooking] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
 
   const profileQuery = trpc.tarima.profile.getBySlug.useQuery(
     { slug },
     { enabled: !!slug, retry: false },
+  );
+
+  const photosQuery = trpc.tarima.media.listBySlug.useQuery(
+    { slug, type: "photo" },
+    { enabled: !!slug },
+  );
+
+  const videosQuery = trpc.tarima.media.listBySlug.useQuery(
+    { slug, type: "video" },
+    { enabled: !!slug },
+  );
+
+  const musicQuery = trpc.tarima.media.listBySlug.useQuery(
+    { slug, type: "music" },
+    { enabled: !!slug },
   );
 
   if (profileQuery.isLoading) {
@@ -325,6 +341,113 @@ export default function TarimaPublic() {
           </div>
         )}
 
+        {/* GALERIA DE FOTOS */}
+        {photosQuery.data && photosQuery.data.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                📸 Galería
+              </p>
+              <p className="text-xs text-slate-500">{photosQuery.data.length} {photosQuery.data.length === 1 ? "foto" : "fotos"}</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+              {photosQuery.data.map((photo) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setLightboxPhoto(photo.url)}
+                  className="group relative aspect-square rounded-xl overflow-hidden ring-1 ring-white/10 hover:ring-fuchsia-400 transition-all bg-slate-800"
+                >
+                  <img
+                    src={photo.url}
+                    alt={photo.title ?? ""}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {photo.isHighlight && (
+                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500/90 text-white text-[10px] font-bold uppercase tracking-wider rounded-full">
+                      ⭐
+                    </span>
+                  )}
+                  {photo.title && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-xs font-bold text-white truncate">{photo.title}</p>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* MAS VIDEOS */}
+        {videosQuery.data && videosQuery.data.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                🎬 Videos
+              </p>
+              <p className="text-xs text-slate-500">{videosQuery.data.length}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {videosQuery.data.map((video) => {
+                const embed = getYouTubeEmbed(video.url);
+                if (!embed) return null;
+                return (
+                  <div key={video.id}>
+                    <div className="relative aspect-video rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-slate-900">
+                      <iframe
+                        src={embed}
+                        title={video.title ?? "Video"}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full"
+                      />
+                    </div>
+                    {video.title && (
+                      <p className="text-sm font-medium text-slate-300 mt-2 px-1">{video.title}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* MAS MUSICA */}
+        {musicQuery.data && musicQuery.data.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                🎵 Mi música
+              </p>
+              <p className="text-xs text-slate-500">{musicQuery.data.length}</p>
+            </div>
+            <div className="space-y-3">
+              {musicQuery.data.map((track) => {
+                const embed = getSpotifyEmbed(track.url);
+                if (!embed) return null;
+                return (
+                  <div key={track.id}>
+                    {track.title && (
+                      <p className="text-sm font-bold text-white mb-1.5 px-1">{track.title}</p>
+                    )}
+                    <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
+                      <iframe
+                        src={embed}
+                        width="100%"
+                        height="152"
+                        frameBorder="0"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Info de contratación */}
         {(profile.minBudget || profile.serviceArea) && (
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-10">
@@ -381,6 +504,27 @@ export default function TarimaPublic() {
           </a>
         </footer>
       </div>
+
+      {/* Lightbox de fotos */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            onClick={() => setLightboxPhoto(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt=""
+            className="max-w-full max-h-full object-contain rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Modal de reserva */}
       {showBooking && (
