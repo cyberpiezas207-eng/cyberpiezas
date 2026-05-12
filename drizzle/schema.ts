@@ -1170,7 +1170,11 @@ export const vetAppointments = mysqlTable("vetAppointments", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
-  export const notifications = mysqlTable("notifications", {
+});
+export type VetAppointment = typeof vetAppointments.$inferSelect;
+export type InsertVetAppointment = typeof vetAppointments.$inferInsert;
+
+export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id),
   type: mysqlEnum("type", ["info", "success", "warning", "error"]).notNull().default("info"),
@@ -1184,10 +1188,6 @@ export const vetAppointments = mysqlTable("vetAppointments", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
-
-});
-export type VetAppointment = typeof vetAppointments.$inferSelect;
-export type InsertVetAppointment = typeof vetAppointments.$inferInsert;
 
 
 
