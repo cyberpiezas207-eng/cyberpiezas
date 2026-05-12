@@ -64,6 +64,19 @@ const systems: POSSystem[] = [
     glowColor: "shadow-emerald-500/30",
     features: ["Grid visual", "Por kg", "Frutas/verduras", "Venta rapida"],
   },
+   {
+    id: "tarima",
+    name: "Sistema Tarima",
+    shortName: "Tarima",
+    description: "Plataforma para musicos y artistas. Sus clientes los encuentran y los contratan.",
+    icon: "🎤",
+    status: "active",
+    path: "/mi-tarima",
+    gradient: "from-fuchsia-500 via-purple-500 to-indigo-500",
+    glowColor: "shadow-purple-500/30",
+    features: ["Perfil publico", "Bookings", "Redes", "Multimedia"],
+  },
+
   {
     id: "restaurant",
     name: "Sistema POS Restaurante",
