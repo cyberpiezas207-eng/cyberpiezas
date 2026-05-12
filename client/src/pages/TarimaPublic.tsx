@@ -214,9 +214,9 @@ export default function TarimaPublic() {
       className="min-h-screen"
     >
       {/* =====================================================================
-          HERO - Apple-style massive
+          HERO - Apple-style massive (mobile-first)
           ===================================================================== */}
-      <section className="relative min-h-[88vh] flex flex-col items-center justify-center px-6 py-24 overflow-hidden">
+      <section className="relative min-h-screen sm:min-h-[88vh] flex flex-col items-center justify-center px-5 sm:px-6 py-16 sm:py-24 overflow-hidden">
         {/* Background */}
         {profile.coverImage ? (
           <>
@@ -240,21 +240,21 @@ export default function TarimaPublic() {
         ) : null}
 
         {/* Hero content */}
-        <div className="relative z-10 text-center max-w-5xl mx-auto">
+        <div className="relative z-10 text-center max-w-5xl mx-auto w-full">
           {/* Avatar */}
-          <div className="inline-block mb-10">
+          <div className="inline-block mb-7 sm:mb-10">
             {profile.profileImage ? (
               <img
                 src={profile.profileImage}
                 alt={profile.artistName}
-                className="w-36 h-36 sm:w-44 sm:h-44 rounded-full object-cover shadow-2xl"
+                className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 rounded-full object-cover shadow-2xl"
                 style={{
                   boxShadow: `0 25px 50px -12px ${theme.colors.primary}40`,
                 }}
               />
             ) : (
               <div
-                className="w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center text-7xl shadow-2xl"
+                className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 rounded-full flex items-center justify-center text-5xl sm:text-6xl lg:text-7xl shadow-2xl"
                 style={{
                   background: theme.colors.primary,
                   boxShadow: `0 25px 50px -12px ${theme.colors.primary}40`,
@@ -265,9 +265,9 @@ export default function TarimaPublic() {
             )}
           </div>
 
-          {/* MASSIVE NAME */}
+          {/* MASSIVE NAME - mobile first */}
           <h1
-            className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tighter mb-6 leading-[1.05]"
+            className="text-4xl sm:text-7xl lg:text-8xl font-bold tracking-tighter mb-4 sm:mb-6 leading-[1.05] px-2"
             style={{ color: theme.colors.text }}
           >
             {profile.artistName}
@@ -275,7 +275,7 @@ export default function TarimaPublic() {
 
           {/* Sutil tagline */}
           <p
-            className="text-xs sm:text-sm font-semibold uppercase mb-14"
+            className="text-[10px] sm:text-sm font-semibold uppercase mb-10 sm:mb-14"
             style={{
               color: theme.colors.text,
               opacity: 0.55,
@@ -286,10 +286,10 @@ export default function TarimaPublic() {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-2 sm:px-0">
             <button
               onClick={() => setShowBooking(true)}
-              className="group inline-flex items-center justify-center gap-2 font-bold rounded-full px-8 h-14 text-base transition-all hover:-translate-y-0.5"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 font-bold rounded-full px-7 sm:px-8 h-13 sm:h-14 text-base transition-all hover:-translate-y-0.5 active:scale-[0.98]"
               style={{
                 background: theme.colors.primary,
                 color: isLightColor(theme.colors.primary)
@@ -306,7 +306,7 @@ export default function TarimaPublic() {
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 font-bold rounded-full px-7 h-14 text-base transition-all hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 font-bold rounded-full px-7 sm:px-7 h-13 sm:h-14 text-base transition-all hover:-translate-y-0.5 active:scale-[0.98]"
                 style={{
                   background: "#22c55e",
                   color: "#ffffff",
@@ -322,7 +322,7 @@ export default function TarimaPublic() {
 
         {/* Scroll indicator */}
         <div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce opacity-40"
+          className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 animate-bounce opacity-40"
           style={{ color: theme.colors.text }}
         >
           <ArrowDown className="w-5 h-5" />
@@ -333,10 +333,10 @@ export default function TarimaPublic() {
           BIO - Editorial style
           ===================================================================== */}
       {profile.bio && (
-        <section className="py-20 sm:py-28 px-6">
+        <section className="py-14 sm:py-20 lg:py-28 px-5 sm:px-6">
           <div className="max-w-2xl mx-auto">
             <p
-              className="text-xl sm:text-2xl lg:text-3xl font-light leading-relaxed tracking-tight text-center"
+              className="text-lg sm:text-2xl lg:text-3xl font-light leading-relaxed tracking-tight text-center"
               style={{ color: theme.colors.text, opacity: 0.9 }}
             >
               {profile.bio}
@@ -349,7 +349,7 @@ export default function TarimaPublic() {
           SOCIALES - Minimal row
           ===================================================================== */}
       {hasSocials && (
-        <section className="py-12 px-6">
+        <section className="py-10 sm:py-12 px-5 sm:px-6">
           <div className="max-w-md mx-auto">
             <p
               className="text-center text-[10px] font-bold uppercase mb-6"
@@ -368,7 +368,7 @@ export default function TarimaPublic() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Spotify"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: subtleBg, color: theme.colors.text }}
                 >
                   <Music className="w-5 h-5" />
@@ -380,7 +380,7 @@ export default function TarimaPublic() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="YouTube"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: subtleBg, color: theme.colors.text }}
                 >
                   <Youtube className="w-5 h-5" />
@@ -392,7 +392,7 @@ export default function TarimaPublic() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Instagram"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: subtleBg, color: theme.colors.text }}
                 >
                   <Instagram className="w-5 h-5" />
@@ -404,7 +404,7 @@ export default function TarimaPublic() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Facebook"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: subtleBg, color: theme.colors.text }}
                 >
                   <Facebook className="w-5 h-5" />
@@ -416,7 +416,7 @@ export default function TarimaPublic() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="TikTok"
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: subtleBg, color: theme.colors.text }}
                 >
                   <span className="text-lg">🎵</span>
@@ -431,10 +431,10 @@ export default function TarimaPublic() {
           VIDEO DESTACADO - Massive
           ===================================================================== */}
       {youtubeEmbed && (
-        <section className="py-20 sm:py-28 px-6">
+        <section className="py-14 sm:py-20 lg:py-28 px-5 sm:px-6">
           <div className="max-w-5xl mx-auto">
             <p
-              className="text-center text-[10px] font-bold uppercase mb-8"
+              className="text-center text-[10px] font-bold uppercase mb-6 sm:mb-8"
               style={{
                 color: theme.colors.text,
                 opacity: 0.5,
@@ -444,7 +444,7 @@ export default function TarimaPublic() {
               Video destacado
             </p>
             <div
-              className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl"
+              className="relative aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl"
               style={{
                 boxShadow: `0 25px 60px -15px ${theme.colors.primary}40`,
               }}
@@ -465,7 +465,7 @@ export default function TarimaPublic() {
           SPOTIFY DESTACADO
           ===================================================================== */}
       {spotifyEmbed && (
-        <section className="py-16 px-6">
+        <section className="py-12 sm:py-16 px-5 sm:px-6">
           <div className="max-w-2xl mx-auto">
             <p
               className="text-center text-[10px] font-bold uppercase mb-6"
@@ -478,7 +478,7 @@ export default function TarimaPublic() {
               Escuchame en Spotify
             </p>
             <div
-              className="rounded-3xl overflow-hidden"
+              className="rounded-2xl sm:rounded-3xl overflow-hidden"
               style={{ border: `1px solid ${subtleBorder}` }}
             >
               <iframe
@@ -498,11 +498,11 @@ export default function TarimaPublic() {
           GALERIA DE FOTOS
           ===================================================================== */}
       {photosQuery.data && photosQuery.data.length > 0 && (
-        <section className="py-20 sm:py-28 px-6">
+        <section className="py-14 sm:py-20 lg:py-28 px-5 sm:px-6">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8 sm:mb-12">
               <p
-                className="text-[10px] font-bold uppercase mb-3"
+                className="text-[10px] font-bold uppercase mb-2 sm:mb-3"
                 style={{
                   color: theme.colors.text,
                   opacity: 0.5,
@@ -512,7 +512,7 @@ export default function TarimaPublic() {
                 Galeria
               </p>
               <h2
-                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tighter"
                 style={{ color: theme.colors.text }}
               >
                 Mis momentos
@@ -523,7 +523,7 @@ export default function TarimaPublic() {
                 <button
                   key={photo.id}
                   onClick={() => setLightboxPhoto(photo.url)}
-                  className="group relative aspect-square rounded-2xl overflow-hidden transition-all hover:scale-[1.02]"
+                  className="group relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={{ background: subtleBg }}
                 >
                   <img
@@ -564,11 +564,11 @@ export default function TarimaPublic() {
           MAS VIDEOS
           ===================================================================== */}
       {videosQuery.data && videosQuery.data.length > 0 && (
-        <section className="py-20 sm:py-28 px-6">
+        <section className="py-14 sm:py-20 lg:py-28 px-5 sm:px-6">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8 sm:mb-12">
               <p
-                className="text-[10px] font-bold uppercase mb-3"
+                className="text-[10px] font-bold uppercase mb-2 sm:mb-3"
                 style={{
                   color: theme.colors.text,
                   opacity: 0.5,
@@ -578,7 +578,7 @@ export default function TarimaPublic() {
                 Videos
               </p>
               <h2
-                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tighter"
                 style={{ color: theme.colors.text }}
               >
                 Mira y escucha
@@ -591,7 +591,7 @@ export default function TarimaPublic() {
                 return (
                   <div key={video.id}>
                     <div
-                      className="relative aspect-video rounded-2xl overflow-hidden"
+                      className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden"
                       style={{
                         boxShadow: `0 15px 40px -10px ${theme.colors.primary}30`,
                       }}
@@ -624,11 +624,11 @@ export default function TarimaPublic() {
           MAS MUSICA
           ===================================================================== */}
       {musicQuery.data && musicQuery.data.length > 0 && (
-        <section className="py-20 sm:py-28 px-6">
+        <section className="py-14 sm:py-20 lg:py-28 px-5 sm:px-6">
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8 sm:mb-12">
               <p
-                className="text-[10px] font-bold uppercase mb-3"
+                className="text-[10px] font-bold uppercase mb-2 sm:mb-3"
                 style={{
                   color: theme.colors.text,
                   opacity: 0.5,
@@ -638,7 +638,7 @@ export default function TarimaPublic() {
                 Musica
               </p>
               <h2
-                className="text-3xl sm:text-5xl font-bold tracking-tight"
+                className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tighter"
                 style={{ color: theme.colors.text }}
               >
                 Mi sonido
@@ -659,7 +659,7 @@ export default function TarimaPublic() {
                       </p>
                     )}
                     <div
-                      className="rounded-2xl overflow-hidden"
+                      className="rounded-xl sm:rounded-2xl overflow-hidden"
                       style={{ border: `1px solid ${subtleBorder}` }}
                     >
                       <iframe
@@ -683,17 +683,17 @@ export default function TarimaPublic() {
           INFO DE CONTRATACION
           ===================================================================== */}
       {(profile.minBudget || profile.serviceArea) && (
-        <section className="py-20 px-6">
+        <section className="py-14 sm:py-20 px-5 sm:px-6">
           <div className="max-w-3xl mx-auto">
             <div
-              className="p-10 sm:p-14 rounded-3xl"
+              className="p-7 sm:p-10 lg:p-14 rounded-2xl sm:rounded-3xl"
               style={{
                 background: subtleBg,
                 border: `1px solid ${subtleBorder}`,
               }}
             >
               <p
-                className="text-[10px] font-bold uppercase mb-8"
+                className="text-[10px] font-bold uppercase mb-6 sm:mb-8"
                 style={{
                   color: theme.colors.text,
                   opacity: 0.5,
@@ -702,7 +702,7 @@ export default function TarimaPublic() {
               >
                 Informacion de contratacion
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 {profile.minBudget && (
                   <div>
                     <p
@@ -712,7 +712,7 @@ export default function TarimaPublic() {
                       Desde
                     </p>
                     <p
-                      className="text-4xl sm:text-5xl font-bold tracking-tight"
+                      className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tighter"
                       style={{ color: theme.colors.text }}
                     >
                       ${parseFloat(profile.minBudget).toLocaleString("es-MX")}
@@ -728,7 +728,7 @@ export default function TarimaPublic() {
                       Zona de cobertura
                     </p>
                     <p
-                      className="text-lg font-medium"
+                      className="text-base sm:text-lg font-medium"
                       style={{ color: theme.colors.text, opacity: 0.9 }}
                     >
                       {profile.serviceArea}
@@ -744,23 +744,23 @@ export default function TarimaPublic() {
       {/* =====================================================================
           CTA FINAL - Massive
           ===================================================================== */}
-      <section className="py-28 sm:py-40 px-6 text-center">
+      <section className="py-20 sm:py-28 lg:py-40 px-5 sm:px-6 text-center">
         <div className="max-w-3xl mx-auto">
           <h2
-            className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tighter mb-6 leading-[1.05]"
+            className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tighter mb-5 sm:mb-6 leading-[1.05]"
             style={{ color: theme.colors.text }}
           >
             ¿Listo para vivir tu evento?
           </h2>
           <p
-            className="text-lg sm:text-xl font-light mb-12 max-w-xl mx-auto"
+            className="text-base sm:text-lg lg:text-xl font-light mb-8 sm:mb-12 max-w-xl mx-auto px-2"
             style={{ color: theme.colors.text, opacity: 0.65 }}
           >
             Cuentame que tienes en mente y te respondo lo antes posible.
           </p>
           <button
             onClick={() => setShowBooking(true)}
-            className="inline-flex items-center justify-center gap-2 font-bold rounded-full px-10 h-16 text-lg transition-all hover:-translate-y-1"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 font-bold rounded-full px-8 sm:px-10 h-14 sm:h-16 text-base sm:text-lg transition-all hover:-translate-y-1 active:scale-[0.98]"
             style={{
               background: theme.colors.primary,
               color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
@@ -777,7 +777,7 @@ export default function TarimaPublic() {
           FOOTER
           ===================================================================== */}
       <footer
-        className="py-12 px-6 text-center"
+        className="py-10 sm:py-12 px-5 sm:px-6 text-center"
         style={{ borderTop: `1px solid ${subtleBorder}` }}
       >
         <a
@@ -939,11 +939,11 @@ function BookingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="rounded-3xl max-w-lg w-full my-8 shadow-2xl"
+        className="rounded-t-3xl sm:rounded-3xl max-w-lg w-full sm:my-8 shadow-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col"
         style={{
           background: theme.colors.bg,
           color: theme.colors.text,
@@ -953,7 +953,7 @@ function BookingModal({
       >
         {/* Header */}
         <div
-          className="px-7 py-5 flex items-center justify-between sticky top-0 rounded-t-3xl"
+          className="px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between sticky top-0 rounded-t-3xl flex-shrink-0"
           style={{
             background: theme.colors.bg,
             borderBottom: "1px solid " + inputBorder,
@@ -983,7 +983,7 @@ function BookingModal({
         </div>
 
         {/* Form */}
-        <div className="p-7 space-y-5">
+        <div className="p-5 sm:p-7 space-y-5 overflow-y-auto flex-1">
           <div>
             <p
               className="text-[10px] font-bold uppercase mb-2"
@@ -999,7 +999,7 @@ function BookingModal({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Ej: Maria Gonzalez"
-              className="w-full rounded-xl px-4 h-11 focus:outline-none"
+              className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
               style={inputStyle}
             />
           </div>
@@ -1020,7 +1020,7 @@ function BookingModal({
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="55 1234 5678"
-                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                 style={inputStyle}
               />
             </div>
@@ -1040,7 +1040,7 @@ function BookingModal({
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                 style={inputStyle}
               />
             </div>
@@ -1072,7 +1072,7 @@ function BookingModal({
                 <select
                   value={eventType}
                   onChange={(e) => setEventType(e.target.value)}
-                  className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                  className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                   style={inputStyle}
                 >
                   {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
@@ -1093,7 +1093,7 @@ function BookingModal({
                   type="date"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                  className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                   style={inputStyle}
                 />
               </div>
@@ -1110,7 +1110,7 @@ function BookingModal({
                 value={eventLocation}
                 onChange={(e) => setEventLocation(e.target.value)}
                 placeholder="Ej: Salon Las Palmas, Cuernavaca"
-                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                 style={inputStyle}
               />
             </div>
@@ -1127,7 +1127,7 @@ function BookingModal({
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="Ej: 8000"
-                className="w-full rounded-xl px-4 h-11 focus:outline-none"
+                className="w-full rounded-xl px-4 h-12 sm:h-11 focus:outline-none text-base"
                 style={inputStyle}
               />
             </div>
@@ -1153,7 +1153,7 @@ function BookingModal({
 
         {/* Footer */}
         <div
-          className="px-7 py-5 rounded-b-3xl"
+          className="px-5 sm:px-7 py-4 sm:py-5 sm:rounded-b-3xl flex-shrink-0"
           style={{
             background: theme.colors.bg,
             borderTop: "1px solid " + inputBorder,
@@ -1162,7 +1162,7 @@ function BookingModal({
           <button
             onClick={handleSubmit}
             disabled={createBooking.isPending}
-            className="w-full font-bold rounded-full h-12 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
+            className="w-full font-bold rounded-full h-13 sm:h-12 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
             style={{
               background: theme.colors.primary,
               color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
