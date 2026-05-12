@@ -1,3 +1,63 @@
+// =============================================================================
+// SERVER ROUTER: notifications (ADAPTADO a tu tabla existente)
+// =============================================================================
+// REEMPLAZAR el archivo: server/routers/notifications.ts
+// con TODO este contenido.
+//
+// Usa los tipos REALES de tu schema:
+//   "sale" | "low_stock" | "payment_received" | "subscription_change" | "system"
+// =============================================================================
+
+import { z } from "zod";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { router, protectedProcedure } from "../_core/trpc";
+import { notifications } from "../../drizzle/schema";
+import * as db from "../db";
+
+// ============================================================================
+// HELPER GLOBAL: createNotification
+// Usalo desde CUALQUIER otro router para enviar notificaciones programaticas.
+//
+// Ejemplo de uso:
+//   import { createNotification } from "./notifications";
+//   await createNotification({
+//     userId: cliente.id,
+//     type: "low_stock",
+//     title: "Stock bajo",
+//     message: "Producto X tiene solo 2 unidades",
+//     relatedId: producto.id,
+//   });
+// ============================================================================
+
+export type NotificationType =
+  | "sale"
+  | "low_stock"
+  | "payment_received"
+  | "subscription_change"
+  | "system";
+
+export async function createNotification(params: {
+  userId: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  relatedId?: number;
+}) {
+  const conn = await db.getDbOrThrow();
+  await conn.insert(notifications).values({
+    userId: params.userId,
+    type: params.type,
+    title: params.title,
+    message: params.message,
+    relatedId: params.relatedId ?? null,
+    isRead: false,
+  });
+}
+
+// ============================================================================
+// ROUTER
+// ============================================================================
+
 export const notificationsRouter = router({
   // Listar mis notificaciones (paginado simple)
   list: protectedProcedure
