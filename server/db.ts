@@ -84,7 +84,8 @@ export async function getDb() {
 
 /**
  * Obtiene la conexion a DB o lanza error TRPC si no esta disponible.
- * Centraliza el manejo de error para todos los routers.
+ * Usar en routers cuando quieres "asegurar" la conexion sin tener
+ * que validar !conn en cada handler. Centraliza el manejo de error.
  */
 export async function getDbOrThrow() {
   const conn = await getDb();
@@ -93,6 +94,7 @@ export async function getDbOrThrow() {
   }
   return conn;
 }
+
 /**
  * Ejecuta migraciones de columnas nuevas directamente como SQL.
  * Se llama al arrancar el servidor para garantizar que las columnas existen
