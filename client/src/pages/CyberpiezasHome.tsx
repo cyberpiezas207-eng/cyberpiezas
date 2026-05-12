@@ -71,7 +71,7 @@ export function CyberpiezasHome() {
       <Services />
       <Features />
       <Story />
-      <Referrals isAuthenticated={isAuthenticated} setLocation={setLocation} />
+      <Referrals isAuthenticated={isAuthenticated} user={user} setLocation={setLocation} />
       <Pricing setLocation={setLocation} isAuthenticated={isAuthenticated} />
       <FinalCTA
         setLocation={setLocation}
@@ -459,30 +459,113 @@ function Features() {
   );
 }
 
-function Referrals({ isAuthenticated, setLocation }: { isAuthenticated: boolean; setLocation: (p: string) => void }) {
+function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: boolean; user: any; setLocation: (p: string) => void }) {
+  const [copied, setCopied] = useState(false);
+
+  // Generar código único determinista basado en el user
+  const getReferralCode = () => {
+    if (!user) return null;
+    const seed = user.id || user.email || "guest";
+    // Convertir a string base36 (más compacto y único)
+    const hash = String(seed).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const code = (hash * 7919).toString(36).toUpperCase().slice(0, 6).padStart(6, "0");
+    return "CYB-" + code;
+  };
+
+  const referralCode = getReferralCode();
+  const referralLink = referralCode
+    ? "https://cyberpiezas-production.up.railway.app/cyberpiezas?ref=" + referralCode
+    : "";
+
+  const handleCopy = () => {
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleWhatsApp = () => {
+    if (!referralLink) return;
+    const message = encodeURIComponent(
+      "¡Hola! Te recomiendo CyberPiezas — sistemas POS para boutique, veterinaria y abarrotes. Si te suscribes con mi link, ambos recibimos 1 mes GRATIS:\n\n" + referralLink
+    );
+    window.open("https://wa.me/?text=" + message, "_blank");
+  };
+
   return (
     <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-16 lg:py-20">
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
         <div className="bg-white rounded-3xl p-8 lg:p-12 border border-emerald-100 shadow-xl shadow-emerald-500/5 text-center relative overflow-hidden">
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-200/30 rounded-full blur-3xl" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-200/30 rounded-full blur-3xl" />
+
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full mb-4 shadow-lg">
               <Gift className="w-3.5 h-3.5" /> Programa de referidos
             </div>
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-3">
-              Trae a un amigo, <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">ganen ambos</span>
+              Trae a un amigo,{" "}
+              <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+                ganen ambos
+              </span>
             </h2>
             <p className="text-slate-600 max-w-xl mx-auto mb-7">
-              Tu amigo se suscribe, ambos reciben <strong className="text-slate-900">1 mes GRATIS</strong>.
+              Por cada amigo que se suscriba con tu código, ambos reciben{" "}
+              <strong className="text-slate-900">1 mes GRATIS</strong>.
             </p>
-            <Button
-              onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-full h-11 px-7 text-base font-bold shadow-xl shadow-emerald-500/30"
-            >
-              <Gift className="w-4 h-4 mr-1.5" />
-              {isAuthenticated ? "Ver mi codigo" : "Empezar"}
-            </Button>
+
+            {/* Si está autenticado: mostrar SU código */}
+            {isAuthenticated && referralCode ? (
+              <div className="max-w-md mx-auto">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">
+                  TU CÓDIGO DE REFERIDO
+                </p>
+                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 mb-4 shadow-xl">
+                  <p className="text-3xl font-bold text-white tracking-wider font-mono">
+                    {referralCode}
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1 text-left">Tu link único:</p>
+                  <p className="text-xs text-slate-700 break-all text-left font-mono">
+                    {referralLink}
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={handleCopy}
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-full h-11 font-semibold"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" /> ¡Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-1.5" /> Copiar link
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleWhatsApp}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full h-11 font-semibold"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1.5" /> WhatsApp
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-4">
+                  Comparte tu link. Cuando alguien se suscriba, recibes 1 mes gratis automáticamente.
+                </p>
+              </div>
+            ) : (
+              <Button
+                onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
+                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-full h-11 px-7 text-base font-bold shadow-xl shadow-emerald-500/30"
+              >
+                <Gift className="w-4 h-4 mr-1.5" />
+                Empezar y obtener mi código
+              </Button>
+            )}
           </div>
         </div>
       </div>
