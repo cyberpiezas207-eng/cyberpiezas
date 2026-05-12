@@ -73,31 +73,49 @@ function StatCard({
   trend?: number;
   color?: "primary" | "accent" | "green" | "blue";
 }) {
-  const colorClasses = {
-    primary: "bg-primary/10 text-primary",
-    accent: "bg-accent/10 text-accent",
-    green: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
-    blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+  // Estilos premium estilo Apple - gradient sombras coloridas
+  const styles = {
+    primary: {
+      iconBg: "bg-gradient-to-br from-purple-500 to-pink-500",
+      iconShadow: "shadow-lg shadow-purple-500/30",
+      cardShadow: "hover:shadow-xl hover:shadow-purple-500/10",
+    },
+    accent: {
+      iconBg: "bg-gradient-to-br from-amber-500 to-orange-500",
+      iconShadow: "shadow-lg shadow-amber-500/30",
+      cardShadow: "hover:shadow-xl hover:shadow-amber-500/10",
+    },
+    green: {
+      iconBg: "bg-gradient-to-br from-emerald-500 to-cyan-500",
+      iconShadow: "shadow-lg shadow-emerald-500/30",
+      cardShadow: "hover:shadow-xl hover:shadow-emerald-500/10",
+    },
+    blue: {
+      iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500",
+      iconShadow: "shadow-lg shadow-blue-500/30",
+      cardShadow: "hover:shadow-xl hover:shadow-blue-500/10",
+    },
   };
 
+  const s = styles[color];
+
   return (
-    <Card className="border-border/50 shadow-md hover:shadow-lg transition-all duration-300 hover:border-primary/30 overflow-hidden">
-      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/10 to-accent/5 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-          <div className={`rounded-lg p-2.5 ${colorClasses[color]}`}>
-            <Icon className="h-5 w-5" />
+    <Card className={"bg-white border border-slate-200/80 " + s.cardShadow + " hover:border-slate-300 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden"}>
+      <CardContent className="pt-6 pb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>
+            <p className="text-3xl font-bold text-slate-900 tracking-tight">{value}</p>
+          </div>
+          <div className={"w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 " + s.iconBg + " " + s.iconShadow}>
+            <Icon className="h-5 w-5 text-white" />
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-foreground">{value}</div>
-        <div className="flex items-center justify-between mt-3">
-          <p className="text-sm text-muted-foreground">{description}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-slate-600 font-medium">{description}</p>
           {trend !== undefined && (
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${trend > 0 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
-              {trend > 0 ? "↑" : "↓"} {Math.abs(trend)}%
+            <span className={"text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 flex items-center gap-0.5 " + (trend > 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
+              {trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />} {Math.abs(trend)}%
             </span>
           )}
         </div>
@@ -141,38 +159,42 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-2xl border border-purple-800/40 bg-slate-900 p-8 md:p-12 shadow-lg">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-purple-700/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-900/30 rounded-full blur-3xl" />
+      <div className="space-y-6">
+        {/* Hero Section - Estilo Apple */}
+        <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 md:p-10 shadow-2xl shadow-slate-900/10">
+          {/* Orbs decorativos sutiles */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-500/15 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
           </div>
-          
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+
+          <div className="relative z-10 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
-                <Sparkles className="h-4 w-4" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-white shadow-lg">
+                <Sparkles className="h-3.5 w-3.5" />
                 Centro de control
               </div>
-              <h1 className="mt-4 text-4xl md:text-5xl font-bold tracking-tight text-white">Dashboard operativo</h1>
-              <p className="mt-3 max-w-xl text-base leading-7 text-white/90">
-                Bienvenido, <span className="font-semibold">{user?.name}</span>. Aquí tienes una vista rápida de ventas, uso del plan y alertas críticas.
+              <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-white leading-[1.05]">
+                Hola, <span className="bg-gradient-to-r from-purple-300 via-pink-300 to-amber-200 bg-clip-text text-transparent">{user?.name?.split(" ")[0] || "Usuario"}</span>
+              </h1>
+              <p className="mt-3 text-base lg:text-lg leading-relaxed text-slate-300">
+                Aquí está tu negocio en tiempo real. Ventas, alertas y oportunidades para crecer hoy.
               </p>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 shadow-lg hover:bg-white/15 transition-all">
-                <p className="text-xs font-medium uppercase tracking-wider text-white/80">Ventas hoy</p>
-                <p className="mt-2 text-3xl font-bold text-white">{totalSales}</p>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 shadow-lg hover:bg-white/15 hover:scale-[1.02] transition-all">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/70">Ventas hoy</p>
+                <p className="mt-1.5 text-2xl md:text-3xl font-bold text-white tracking-tight">{totalSales}</p>
               </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 shadow-lg hover:bg-white/15 transition-all">
-                <p className="text-xs font-medium uppercase tracking-wider text-white/80">Ingresos</p>
-                <p className="mt-2 text-3xl font-bold text-white">${totalRevenue.toFixed(0)}</p>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 shadow-lg hover:bg-white/15 hover:scale-[1.02] transition-all">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/70">Ingresos</p>
+                <p className="mt-1.5 text-2xl md:text-3xl font-bold text-white tracking-tight">${totalRevenue.toFixed(0)}</p>
               </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 shadow-lg hover:bg-white/15 transition-all sm:col-span-1 col-span-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-white/80">Ticket promedio</p>
-                <p className="mt-2 text-3xl font-bold text-white">${averageTicket.toFixed(0)}</p>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 shadow-lg hover:bg-white/15 hover:scale-[1.02] transition-all sm:col-span-1 col-span-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/70">Ticket promedio</p>
+                <p className="mt-1.5 text-2xl md:text-3xl font-bold text-white tracking-tight">${averageTicket.toFixed(0)}</p>
               </div>
             </div>
           </div>
@@ -206,7 +228,7 @@ export default function Dashboard() {
         {/* Plan Usage */}
         {planUsage.data ? (
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -235,7 +257,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -264,7 +286,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -307,7 +329,7 @@ export default function Dashboard() {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+          <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
             <CardHeader>
               <CardTitle className="text-primary flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -346,7 +368,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+          <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
             <CardHeader>
               <CardTitle className="text-accent flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
@@ -405,7 +427,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
             {/* Widget 1 — Top 5 productos del mes */}
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-primary flex items-center gap-2">
                   <Boxes className="h-5 w-5" />
@@ -450,7 +472,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Widget 2 — Ventas por talla y color */}
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-accent flex items-center gap-2">
                   <Tag className="h-5 w-5" />
@@ -499,7 +521,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Widget 4 — Comparativa de períodos */}
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-blue-500 flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
@@ -518,7 +540,7 @@ export default function Dashboard() {
                       { label: "Ventas mes", current: cmp.thisMonth, prev: cmp.lastMonth, pct: monthPct },
                       { label: "Ingresos mes", current: `$${cmp.thisMonthRevenue.toFixed(0)}`, prev: `$${cmp.lastMonthRevenue.toFixed(0)}`, pct: monthRevPct },
                     ].map((item, i) => (
-                      <div key={i} className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-1">
+                      <div key={i} className="rounded-xl border border-slate-200/80 bg-muted/20 p-3 space-y-1">
                         <p className="text-xs text-muted-foreground">{item.label}</p>
                         <p className="text-xl font-bold text-foreground">{item.current}</p>
                         <div className="flex items-center gap-1">
@@ -547,7 +569,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Widget 5 — Devoluciones del mes */}
-            <Card className="border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+            <Card className="border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-orange-500 flex items-center gap-2">
                   <RefreshCw className="h-5 w-5" />
@@ -594,7 +616,7 @@ export default function Dashboard() {
           </div>
 
           {/* Widget 3 — Productos sin movimiento (full width) */}
-          <Card className="mt-6 border-border/50 shadow-md hover:shadow-lg transition-all overflow-hidden">
+          <Card className="mt-6 border-slate-200/80 shadow-sm hover:shadow-lg transition-all overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -642,7 +664,7 @@ export default function Dashboard() {
 
         {/* Low Stock Products */}
         {user?.role === "admin" && lowStockAlerts.data && lowStockAlerts.data.length > 0 && (
-          <Card className="border-border/50 shadow-md overflow-hidden">
+          <Card className="border-slate-200/80 shadow-md overflow-hidden">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-destructive" />
@@ -664,7 +686,7 @@ export default function Dashboard() {
         )}
 
         {user?.role === "admin" && (!lowStockAlerts.data || lowStockAlerts.data.length === 0) && (
-          <Card className="border-border/50 shadow-md bg-gradient-to-br from-green-50 to-green-50/50 dark:from-green-900/20 dark:to-green-900/10 border-green-200 dark:border-green-800/30">
+          <Card className="border-slate-200/80 shadow-md bg-gradient-to-br from-green-50 to-green-50/50 dark:from-green-900/20 dark:to-green-900/10 border-green-200 dark:border-green-800/30">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-green-100 p-2 text-green-600 dark:bg-green-900/30 dark:text-green-400">
