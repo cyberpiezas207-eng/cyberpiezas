@@ -467,11 +467,15 @@ function Services() {
   };
 
   return (
-    <section id="servicios" className="bg-white py-16 lg:py-20">
+    <section id="servicios" className="bg-white py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <p className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">Servicios profesionales</p>
-          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Te acompanamos en cada paso</h2>
+        <div className="text-center mb-16 lg:mb-20">
+          <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em] mb-6">Servicios profesionales</p>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+            Te acompanamos
+            <br />
+            en cada paso.
+          </h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {services.map((s, i) => {
@@ -506,23 +510,32 @@ function Features() {
     { icon: CreditCard, title: "Sin contratos", desc: "Pagas mes a mes, cancela cuando quieras." },
   ];
   return (
-    <section className="bg-slate-50 py-16 lg:py-20">
+    <section className="bg-slate-50 py-24 lg:py-32">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <p className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">Lo esencial</p>
-          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Todo lo que necesitas, sin lo que estorba</h2>
+        <div className="text-center mb-16 lg:mb-20">
+          <p className="text-xs font-bold text-amber-600 uppercase tracking-[0.3em] mb-6">Lo esencial</p>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
+            Todo lo que necesitas,
+            <br />
+            <span className="text-slate-400">sin lo que estorba.</span>
+          </h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => {
             const Icon = f.icon;
             return (
-              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center flex-shrink-0">
+              <div
+                key={i}
+                className="bg-white rounded-3xl p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all flex items-start gap-4"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center flex-shrink-0">
                   <Icon className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold text-slate-900 mb-0.5">{f.title}</h3>
-                  <p className="text-sm text-slate-600">{f.desc}</p>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 mb-1">
+                    {f.title}
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             );
@@ -654,12 +667,16 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
     { name: "Premium", price: "$999", period: "/mes", desc: "Para multiples negocios.", cta: "Hablar con ventas", featured: false, features: ["Multiples POS", "Sucursales ilimitadas", "Cajeros ilimitados", "API personalizada", "Soporte 24/7"] },
   ];
   return (
-    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-16 lg:py-20">
+    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-10">
-          <p className="text-sm font-bold text-rose-600 uppercase tracking-wider mb-2">Sin sorpresas</p>
-          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Precios transparentes</h2>
-          <p className="mt-2 text-slate-600">Sin contratos largos. Cancela cuando quieras.</p>
+        <div className="text-center mb-16 lg:mb-20">
+          <p className="text-xs font-bold text-rose-600 uppercase tracking-[0.3em] mb-6">Sin sorpresas</p>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0] mb-5">
+            Precios transparentes.
+          </h2>
+          <p className="text-lg lg:text-xl text-slate-600 font-light">
+            Sin contratos largos. Cancela cuando quieras.
+          </p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
           {plans.map((plan) => (
