@@ -467,15 +467,11 @@ function Services() {
   };
 
   return (
-    <section id="servicios" className="bg-white py-24 lg:py-32">
+    <section id="servicios" className="bg-white py-16 lg:py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em] mb-6">Servicios profesionales</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
-            Te acompanamos
-            <br />
-            en cada paso.
-          </h2>
+        <div className="text-center mb-10">
+          <p className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">Servicios profesionales</p>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Te acompanamos en cada paso</h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {services.map((s, i) => {
@@ -510,32 +506,23 @@ function Features() {
     { icon: CreditCard, title: "Sin contratos", desc: "Pagas mes a mes, cancela cuando quieras." },
   ];
   return (
-    <section className="bg-slate-50 py-24 lg:py-32">
+    <section className="bg-slate-50 py-16 lg:py-20">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-amber-600 uppercase tracking-[0.3em] mb-6">Lo esencial</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0]">
-            Todo lo que necesitas,
-            <br />
-            <span className="text-slate-400">sin lo que estorba.</span>
-          </h2>
+        <div className="text-center mb-10">
+          <p className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">Lo esencial</p>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Todo lo que necesitas, sin lo que estorba</h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f, i) => {
             const Icon = f.icon;
             return (
-              <div
-                key={i}
-                className="bg-white rounded-3xl p-6 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1 transition-all flex items-start gap-4"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center flex-shrink-0">
+              <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center flex-shrink-0">
                   <Icon className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold tracking-tight text-slate-900 mb-1">
-                    {f.title}
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                  <h3 className="text-base font-bold text-slate-900 mb-0.5">{f.title}</h3>
+                  <p className="text-sm text-slate-600">{f.desc}</p>
                 </div>
               </div>
             );
@@ -580,24 +567,23 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
   };
 
   return (
-    <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-24 lg:py-32">
+    <section className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 py-16 lg:py-20">
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
-        <div className="bg-white rounded-[2rem] p-10 lg:p-16 border border-emerald-100 shadow-2xl shadow-emerald-500/5 text-center relative overflow-hidden">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-cyan-200/30 rounded-full blur-3xl" />
+        <div className="bg-white rounded-3xl p-8 lg:p-12 border border-emerald-100 shadow-xl shadow-emerald-500/5 text-center relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-200/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-200/30 rounded-full blur-3xl" />
 
           <div className="relative">
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em] mb-6">
-              Programa de referidos
-            </p>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 mb-5 leading-[1.0]">
-              Trae a un amigo,
-              <br />
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full mb-4 shadow-lg">
+              <Gift className="w-3.5 h-3.5" /> Programa de referidos
+            </div>
+            <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-3">
+              Trae a un amigo,{" "}
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-                ganen ambos.
+                ganen ambos
               </span>
             </h2>
-            <p className="text-lg text-slate-600 max-w-xl mx-auto mb-10 font-light">
+            <p className="text-slate-600 max-w-xl mx-auto mb-7">
               Por cada amigo que se suscriba con tu código, ambos reciben{" "}
               <strong className="text-slate-900">1 mes GRATIS</strong>.
             </p>
@@ -668,16 +654,12 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
     { name: "Premium", price: "$999", period: "/mes", desc: "Para multiples negocios.", cta: "Hablar con ventas", featured: false, features: ["Multiples POS", "Sucursales ilimitadas", "Cajeros ilimitados", "API personalizada", "Soporte 24/7"] },
   ];
   return (
-    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-24 lg:py-32">
+    <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-16 lg:py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-16 lg:mb-20">
-          <p className="text-xs font-bold text-rose-600 uppercase tracking-[0.3em] mb-6">Sin sorpresas</p>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.0] mb-5">
-            Precios transparentes.
-          </h2>
-          <p className="text-lg lg:text-xl text-slate-600 font-light">
-            Sin contratos largos. Cancela cuando quieras.
-          </p>
+        <div className="text-center mb-10">
+          <p className="text-sm font-bold text-rose-600 uppercase tracking-wider mb-2">Sin sorpresas</p>
+          <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">Precios transparentes</h2>
+          <p className="mt-2 text-slate-600">Sin contratos largos. Cancela cuando quieras.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
           {plans.map((plan) => (
@@ -715,39 +697,33 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
 
 function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLocation: (p: string) => void; isAuthenticated: boolean; onSupport: () => void; onCollab: () => void }) {
   return (
-    <section className="bg-slate-50 py-24 lg:py-32">
+    <section className="bg-slate-50 py-16 lg:py-20">
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
-        {/* Testimonio editorial */}
-        <div className="text-center mb-20 lg:mb-24">
-          <div className="text-3xl mb-5 tracking-[0.5em]">⭐⭐⭐⭐⭐</div>
-          <blockquote className="text-2xl sm:text-3xl lg:text-4xl font-light text-slate-900 leading-relaxed tracking-tight max-w-3xl mx-auto mb-6 italic">
+        <div className="text-center mb-10">
+          <div className="text-3xl mb-3">⭐⭐⭐⭐⭐</div>
+          <blockquote className="text-xl lg:text-2xl font-medium text-slate-900 leading-relaxed max-w-2xl mx-auto mb-3">
             "Antes anotaba todo en libreta. Ahora controlo mi negocio desde el celular. Cambio mi vida."
           </blockquote>
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 uppercase tracking-[0.2em]">
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
             <span className="font-bold text-slate-700">Maria G.</span>
             <span>·</span>
             <span>Boutique Mariangel, Cuernavaca</span>
           </div>
         </div>
 
-        {/* CTA masivo oscuro */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-[2.5rem] p-12 lg:p-20 text-center relative overflow-hidden shadow-2xl">
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl" />
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 lg:p-12 text-center relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl" />
           <div className="relative">
-            <Zap className="w-12 h-12 text-emerald-300 mx-auto mb-6" />
-            <h2 className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tighter text-white max-w-3xl mx-auto leading-[1.0] mb-6">
-              ¿Listo para hacer
-              <br />
-              crecer tu negocio?
+            <Zap className="w-10 h-10 text-emerald-300 mx-auto mb-4" />
+            <h2 className="text-3xl lg:text-4xl font-bold tracking-tight text-white max-w-2xl mx-auto leading-tight mb-3">
+              ¿Listo para hacer crecer tu negocio?
             </h2>
-            <p className="text-lg lg:text-xl text-slate-300 max-w-xl mx-auto mb-10 font-light">
-              Empieza gratis hoy. Sin tarjeta, sin contratos.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
+            <p className="text-slate-300 max-w-xl mx-auto mb-7">Empieza gratis hoy. Sin tarjeta de credito, sin contratos.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
               <Button
                 onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
-                className="bg-white hover:bg-slate-100 text-slate-900 rounded-full h-14 px-8 text-base font-semibold shadow-xl hover:-translate-y-0.5 transition-all"
+                className="bg-white hover:bg-slate-100 text-slate-900 rounded-full h-11 px-7 text-base font-semibold shadow-xl"
               >
                 {isAuthenticated ? "Ir a mi panel" : "Empezar gratis"} <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
@@ -757,18 +733,18 @@ function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLo
                   window.location.href = "mailto:cyberpiezas207@gmail.com?subject=" + subject;
                 }}
                 variant="outline"
-                className="border-slate-700 hover:bg-slate-800 text-white rounded-full h-14 px-8 text-base font-semibold"
+                className="border-slate-700 hover:bg-slate-800 text-white rounded-full h-11 px-7 text-base font-semibold"
               >
                 <MessageCircle className="w-4 h-4 mr-1.5" /> Hablar con ventas
               </Button>
             </div>
-            <div className="flex items-center justify-center gap-4 text-sm">
-              <button onClick={onCollab} className="text-emerald-300 hover:text-emerald-200 underline-offset-4 hover:underline flex items-center gap-1.5 transition-colors">
-                <Handshake className="w-4 h-4" /> Colaborar
+            <div className="flex items-center justify-center gap-3 text-sm">
+              <button onClick={onCollab} className="text-emerald-300 hover:text-emerald-200 underline-offset-4 hover:underline flex items-center gap-1">
+                <Handshake className="w-3.5 h-3.5" /> Colaborar
               </button>
               <span className="text-slate-600">·</span>
-              <button onClick={onSupport} className="text-rose-300 hover:text-rose-200 underline-offset-4 hover:underline flex items-center gap-1.5 transition-colors">
-                <Heart className="w-4 h-4" /> Apoyar el proyecto
+              <button onClick={onSupport} className="text-rose-300 hover:text-rose-200 underline-offset-4 hover:underline flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5" /> Apoyar el proyecto
               </button>
             </div>
           </div>
@@ -792,13 +768,11 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
             <div>
-              <p className="text-xs font-bold text-slate-900 uppercase tracking-[0.2em] mb-4">Sistemas</p>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Sistemas</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#sistemas" className="hover:text-slate-900 transition-colors">Veterinaria</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900 transition-colors">Boutique</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900 transition-colors">Verduleria</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900 transition-colors">Abarrotes</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900 transition-colors">Tarima</a></li>
+                <li><a href="#sistemas" className="hover:text-slate-900">Boutique</a></li>
+                <li><a href="#sistemas" className="hover:text-slate-900">Veterinaria</a></li>
+                <li><a href="#sistemas" className="hover:text-slate-900">Abarrotes</a></li>
               </ul>
             </div>
             <div>
