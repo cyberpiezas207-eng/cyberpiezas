@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, asc, gte, lte, ne, like, or, sql } from "drizzle-orm";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import { router, protectedProcedure } from "../_core/trpc";
 import {
   pets,
@@ -15,7 +17,38 @@ import {
   customers,
 } from "../../drizzle/schema";
 import * as db from "../db";
+import { veterinariaCashiers } from "../db";
 import { createNotification } from "./notifications";
+
+// ============================================================================
+// PASSWORD HASHING - scrypt nativo de Node (sin dependencias extras)
+// ============================================================================
+
+const scryptAsync = promisify(scrypt);
+
+/**
+ * Hashea un password usando scrypt. Genera salt aleatorio.
+ * Formato: "salt:hash" (ambos hex)
+ */
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const derived = (await scryptAsync(password, salt, 64)) as Buffer;
+  return salt + ":" + derived.toString("hex");
+}
+
+/**
+ * Verifica un password contra el hash almacenado.
+ * Constant-time comparison para evitar timing attacks.
+ */
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  const parts = storedHash.split(":");
+  if (parts.length !== 2) return false;
+  const [salt, hexHash] = parts;
+  const hashBuffer = Buffer.from(hexHash, "hex");
+  const derived = (await scryptAsync(password, salt, 64)) as Buffer;
+  if (derived.length !== hashBuffer.length) return false;
+  return timingSafeEqual(derived, hashBuffer);
+}
 
 // ============================================================================
 // HELPERS
@@ -988,6 +1021,161 @@ export const veterinariaRouter = router({
             ),
           );
         return { success: true };
+      }),
+  }),
+
+  // ============================================================================
+  // CASHIERS - Empleados de la veterinaria (CRUD scoped por ownerUserId)
+  // ============================================================================
+  cashiers: router({
+    /**
+     * Lista cajeros del usuario actual (filtrable por estado).
+     */
+    list: protectedProcedure
+      .input(
+        z
+          .object({
+            status: z.enum(["active", "inactive", "all"]).optional().default("all"),
+          })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const cashiers = await db.listVetCashiers(ctx.user.id, {
+          status: input?.status ?? "all",
+        });
+        // No retornar passwordHash al cliente
+        return cashiers.map((c) => {
+          const { passwordHash, ...safe } = c;
+          return safe;
+        });
+      }),
+
+    /**
+     * Crea un nuevo cajero. Hashea password con scrypt.
+     */
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(2, "Nombre minimo 2 caracteres"),
+          email: z.string().trim().email("Email invalido"),
+          password: z.string().min(6, "Password minimo 6 caracteres"),
+          role: z.enum(["doctor", "asistente", "recepcionista"]).default("asistente"),
+          branchName: z.string().trim().max(120).optional().default(""),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+
+        // Verificar que no exista email duplicado en este tenant
+        const existing = await db.getVetCashierByEmail(input.email, ctx.user.id);
+        if (existing) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Ya existe un cajero con ese email en tu veterinaria",
+          });
+        }
+
+        const passwordHash = await hashPassword(input.password);
+        const created = await db.createVetCashier({
+          ownerUserId: ctx.user.id,
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          role: input.role,
+          branchName: input.branchName,
+        });
+
+        // No retornar passwordHash
+        const { passwordHash: _ph, ...safe } = created;
+        return safe;
+      }),
+
+    /**
+     * Actualiza datos del cajero (no incluye password - usar updatePassword).
+     */
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().trim().min(2).optional(),
+          email: z.string().trim().email().optional(),
+          role: z.enum(["doctor", "asistente", "recepcionista"]).optional(),
+          branchName: z.string().trim().max(120).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+
+        // Si cambia email, verificar que no choque
+        if (input.email !== undefined) {
+          const existing = await db.getVetCashierByEmail(input.email, ctx.user.id);
+          if (existing && existing.id !== input.id) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Ya existe un cajero con ese email",
+            });
+          }
+        }
+
+        const { id, ...data } = input;
+        const updated = await db.updateVetCashier(id, ctx.user.id, data);
+        if (!updated) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cajero no encontrado" });
+        }
+        const { passwordHash: _ph, ...safe } = updated;
+        return safe;
+      }),
+
+    /**
+     * Cambia la password de un cajero (genera nuevo hash).
+     */
+    updatePassword: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          newPassword: z.string().min(6, "Password minimo 6 caracteres"),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const passwordHash = await hashPassword(input.newPassword);
+        const updated = await db.updateVetCashier(input.id, ctx.user.id, { passwordHash });
+        if (!updated) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cajero no encontrado" });
+        }
+        return { success: true };
+      }),
+
+    /**
+     * Activa o desactiva cajero (soft delete - preserva historico).
+     */
+    setStatus: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          status: z.enum(["active", "inactive"]),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const updated = await db.setVetCashierStatus(input.id, ctx.user.id, input.status);
+        if (!updated) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cajero no encontrado" });
+        }
+        const { passwordHash: _ph, ...safe } = updated;
+        return safe;
+      }),
+
+    /**
+     * Elimina cajero PERMANENTEMENTE (hard delete).
+     * Recomendado usar setStatus(inactive) para preservar historico.
+     */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        return await db.deleteVetCashier(input.id, ctx.user.id);
       }),
   }),
 });
