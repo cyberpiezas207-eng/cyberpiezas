@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
 import {
   tarimaProfiles,
   tarimaBookings,
+  tarimaMedia,
 } from "../../drizzle/schema";
 import * as db from "../db";
 import { createNotification } from "./notifications";
@@ -361,5 +362,298 @@ export const tarimaRouter = router({
         viewCount: profile.viewCount ?? 0,
       };
     }),
+  }),
+
+  // =========================================================================
+  // MEDIA (fotos, videos, musica)
+  // =========================================================================
+  media: router({
+    // Listar MIS items (panel /mi-tarima)
+    listMine: protectedProcedure
+      .input(
+        z.object({
+          type: z.enum(["photo", "video", "music"]).optional(),
+        }).optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) return [];
+
+        const conditions: any[] = [eq(tarimaMedia.profileId, profile.id)];
+        if (input?.type) {
+          conditions.push(eq(tarimaMedia.type, input.type));
+        }
+
+        return await conn
+          .select()
+          .from(tarimaMedia)
+          .where(and(...conditions))
+          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
+      }),
+
+    // Listar items PUBLICOS por slug del perfil (pagina /tarima/[slug])
+    listByProfileSlug: publicProcedure
+      .input(
+        z.object({
+          slug: z.string().min(1),
+          type: z.enum(["photo", "video", "music"]).optional(),
+        }),
+      )
+      .query(async ({ input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(
+            and(
+              eq(tarimaProfiles.slug, input.slug),
+              eq(tarimaProfiles.isPublished, true),
+            ),
+          )
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) return [];
+
+        const conditions: any[] = [eq(tarimaMedia.profileId, profile.id)];
+        if (input.type) {
+          conditions.push(eq(tarimaMedia.type, input.type));
+        }
+
+        return await conn
+          .select()
+          .from(tarimaMedia)
+          .where(and(...conditions))
+          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
+      }),
+
+    // Agregar item
+    add: protectedProcedure
+      .input(
+        z.object({
+          type: z.enum(["photo", "video", "music"]),
+          url: z.string().min(1).max(1000),
+          thumbnail: z.string().max(1000).optional(),
+          title: z.string().max(200).optional(),
+          description: z.string().optional(),
+          isHighlight: z.boolean().default(false),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Crea tu perfil primero" });
+        }
+
+        // Calcular siguiente sortOrder para este tipo
+        const lastItems = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.profileId, profile.id),
+              eq(tarimaMedia.type, input.type),
+            ),
+          )
+          .orderBy(desc(tarimaMedia.sortOrder))
+          .limit(1);
+        const nextSortOrder = lastItems[0] ? (lastItems[0].sortOrder ?? 0) + 1 : 0;
+
+        const result = await conn.insert(tarimaMedia).values({
+          profileId: profile.id,
+          type: input.type,
+          url: input.url,
+          thumbnail: input.thumbnail,
+          title: input.title,
+          description: input.description,
+          sortOrder: nextSortOrder,
+          isHighlight: input.isHighlight,
+        });
+        const id = (result as any).insertId as number;
+        const rows = await conn.select().from(tarimaMedia).where(eq(tarimaMedia.id, id));
+        return rows[0];
+      }),
+
+    // Actualizar item (title, descripcion, thumbnail, etc)
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          url: z.string().max(1000).optional(),
+          thumbnail: z.string().max(1000).optional(),
+          title: z.string().max(200).optional(),
+          description: z.string().optional(),
+          isHighlight: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
+        }
+
+        // Ownership: verificar que el item sea de mi perfil
+        const itemRows = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.id, input.id),
+              eq(tarimaMedia.profileId, profile.id),
+            ),
+          )
+          .limit(1);
+        if (itemRows.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
+        }
+
+        const updateData: any = {};
+        for (const k of Object.keys(input)) {
+          if (k !== "id" && (input as any)[k] !== undefined) {
+            updateData[k] = (input as any)[k];
+          }
+        }
+
+        await conn
+          .update(tarimaMedia)
+          .set(updateData)
+          .where(eq(tarimaMedia.id, input.id));
+
+        const rows = await conn.select().from(tarimaMedia).where(eq(tarimaMedia.id, input.id));
+        return rows[0];
+      }),
+
+    // Eliminar item
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
+        }
+
+        // Ownership check
+        const itemRows = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.id, input.id),
+              eq(tarimaMedia.profileId, profile.id),
+            ),
+          )
+          .limit(1);
+        if (itemRows.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
+        }
+
+        await conn
+          .delete(tarimaMedia)
+          .where(eq(tarimaMedia.id, input.id));
+
+        return { success: true };
+      }),
+
+    // Reordenar items (drag and drop)
+    // Recibe array de IDs en el orden deseado para un tipo especifico
+    reorder: protectedProcedure
+      .input(
+        z.object({
+          type: z.enum(["photo", "video", "music"]),
+          orderedIds: z.array(z.number()).min(1),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
+        }
+
+        // Actualizar sortOrder de cada item segun su posicion
+        // Ownership: el WHERE garantiza que solo afecta items mios del tipo correcto
+        for (let i = 0; i < input.orderedIds.length; i++) {
+          const itemId = input.orderedIds[i];
+          await conn
+            .update(tarimaMedia)
+            .set({ sortOrder: i })
+            .where(
+              and(
+                eq(tarimaMedia.id, itemId),
+                eq(tarimaMedia.profileId, profile.id),
+                eq(tarimaMedia.type, input.type),
+              ),
+            );
+        }
+
+        return { success: true, reordered: input.orderedIds.length };
+      }),
+
+    // Toggle highlight (destacar / quitar destacado)
+    toggleHighlight: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
+        }
+
+        const itemRows = await conn
+          .select()
+          .from(tarimaMedia)
+          .where(
+            and(
+              eq(tarimaMedia.id, input.id),
+              eq(tarimaMedia.profileId, profile.id),
+            ),
+          )
+          .limit(1);
+        const item = itemRows[0];
+        if (!item) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
+        }
+
+        const newValue = !item.isHighlight;
+        await conn
+          .update(tarimaMedia)
+          .set({ isHighlight: newValue })
+          .where(eq(tarimaMedia.id, input.id));
+
+        return { success: true, isHighlight: newValue };
+      }),
   }),
 });
