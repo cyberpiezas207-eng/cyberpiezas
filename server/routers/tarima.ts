@@ -10,7 +10,7 @@ import * as db from "../db";
 import { createNotification } from "./notifications";
 
 async function getDbOrThrow() {
-  const conn = await db.getDbOrThrow();
+  const conn = await db.getDb();
   if (!conn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB no disponible" });
   return conn;
 }
@@ -293,7 +293,7 @@ export const tarimaRouter = router({
         return { success: true, bookingId };
       }),
 
-    // Actualizar status de una booking (solo el artista dueño)
+    // Actualizar status de una booking (solo el artista dueno)
     updateStatus: protectedProcedure
       .input(
         z.object({
