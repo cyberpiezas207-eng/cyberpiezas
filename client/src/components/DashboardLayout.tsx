@@ -179,9 +179,9 @@ const MAX_WIDTH = 420;
 type SidebarPalette = "violet" | "midnight" | "emerald";
 
 const sidebarPaletteClasses: Record<SidebarPalette, string> = {
-  violet: "border-r border-sidebar-border/60 bg-gradient-to-b from-primary via-primary/95 to-primary/90 text-white shadow-lg",
-  midnight: "border-r border-slate-900/80 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white shadow-lg",
-  emerald: "border-r border-emerald-950/30 bg-gradient-to-b from-emerald-700 via-emerald-800 to-teal-900 text-white shadow-lg",
+  violet: "border-r border-white/[0.06] bg-gradient-to-b from-violet-950 via-violet-950 to-purple-950 text-white shadow-2xl",
+  midnight: "border-r border-white/[0.06] bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-white shadow-2xl",
+  emerald: "border-r border-white/[0.06] bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-950 text-white shadow-2xl",
 };
 
 export default function DashboardLayout({
@@ -494,44 +494,48 @@ const isTarimaZone = location.startsWith("/mi-tarima");
     <>
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon" className={sidebarPaletteClasses[sidebarPalette]} disableTransition={isResizing}>
-          <SidebarHeader className="h-16 justify-center border-b border-white/10">
-            <div className="flex w-full items-center gap-3 px-2 transition-all">
+          <SidebarHeader className="h-[72px] justify-center border-b border-white/[0.06] px-1">
+            <div className="flex w-full items-center gap-2.5 px-2 transition-all">
               <button
                 onClick={toggleSidebar}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 transition-colors active:scale-[0.96]"
                 aria-label="Alternar navegación"
               >
-                <PanelLeft className="h-4 w-4 text-white/80" />
+                <PanelLeft className="h-4 w-4 text-white/70" />
               </button>
               {!isCollapsed ? (
-                <div className="min-w-0">
-                  <span className="block truncate font-semibold tracking-tight text-white">
-                      {branding.appTitle}
-
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-base font-bold tracking-tight text-white leading-tight">
+                    {branding.appTitle}
                   </span>
-                  <span className="block text-xs text-white/60">
-                      {branding.appSubtitle || "Centro de operación"}
-
+                  <span className="block text-[10px] uppercase tracking-[0.22em] text-white/45 mt-1 font-medium">
+                    {branding.appSubtitle || "Centro de operación"}
                   </span>
                 </div>
               ) : null}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 py-3">
-            <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">Vista actual</p>
-                <p className="mt-2 text-sm font-medium text-white">{activeMenuItem?.label ?? "Módulo principal"}</p>
-                <p className="mt-1 text-xs leading-5 text-white/55">Navegación organizada por áreas para mantener operación, administración y cuenta siempre visibles.</p>
+          <SidebarContent className="gap-0 py-4">
+            <div className="px-4 pb-4 group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-px bg-white/20" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Estas en</p>
               </div>
+              <p className="text-sm font-bold tracking-tight text-white leading-snug">{activeMenuItem?.label ?? "Módulo principal"}</p>
             </div>
-            {visibleMenuGroups.map((group) => (
-              <div key={group.section} className="px-2 py-1.5">
-                <div className="px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40 group-data-[collapsible=icon]:hidden">
-                  {group.label}
+            {visibleMenuGroups.map((group, groupIdx) => (
+              <div key={group.section} className="px-3 py-2">
+                <div className="flex items-center gap-2 px-2 pb-2.5 pt-2 group-data-[collapsible=icon]:hidden">
+                  <span className="text-[9px] font-bold tracking-wider text-white/30 tabular-nums">
+                    {String(groupIdx + 1).padStart(2, "0")}
+                  </span>
+                  <span className="w-3 h-px bg-white/15" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                    {group.label}
+                  </span>
                 </div>
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5">
                   {group.items.map((item) => {
                     const isActive = location === item.path;
                     return (
@@ -540,14 +544,17 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                           isActive={isActive}
                           onClick={() => setLocation(item.path)}
                           tooltip={item.label}
-                          className={`h-11 rounded-xl border font-normal text-white/80 transition-all duration-200 hover:text-white hover:scale-105 ${
+                          className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
                             isActive
-                              ? "border-white/25 bg-white/20 text-white shadow-lg backdrop-blur-sm"
-                              : "border-transparent hover:border-white/15 hover:bg-white/15 hover:shadow-md"
+                              ? "bg-white/[0.10] text-white shadow-sm"
+                              : "text-white/70 hover:text-white hover:bg-white/[0.06] hover:translate-x-0.5"
                           }`}
                         >
-                          <item.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-white/70"}`} />
-                          <span>{item.label}</span>
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-white rounded-r-full group-data-[collapsible=icon]:hidden" />
+                          )}
+                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-white" : "text-white/55 group-hover:text-white/80"}`} />
+                          <span className="tracking-tight">{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
@@ -557,25 +564,28 @@ const isTarimaZone = location.startsWith("/mi-tarima");
             ))}
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-white/10 p-3">
+          <SidebarFooter className="border-t border-white/[0.06] p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/10 group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50">
-                  <Avatar className="h-9 w-9 shrink-0 border border-white/20">
-                    <AvatarFallback className="bg-white/10 text-xs font-medium text-white">
+                <button className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-all hover:bg-white/[0.06] active:scale-[0.98] group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30">
+                  <Avatar className="h-9 w-9 shrink-0 ring-1 ring-white/15">
+                    <AvatarFallback className="bg-gradient-to-br from-white/15 to-white/5 text-sm font-bold text-white">
                       {user?.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                    <p className="truncate text-sm font-medium leading-none text-white">
+                    <p className="truncate text-sm font-bold tracking-tight leading-tight text-white">
                       {user?.name || "Usuario"}
                     </p>
-                    <p className="mt-1.5 truncate text-xs text-white/60">
+                    <p className="mt-1 truncate text-[11px] text-white/50 leading-tight">
                       {user?.email || "Sin correo"}
                     </p>
-                    <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">
-                      {user?.role === "admin" ? "Administrador" : "Cajero"}
-                    </p>
+                    <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/[0.08] border border-white/10">
+                      <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                      <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/70">
+                        {user?.role === "admin" ? "Admin" : "Cajero"}
+                      </p>
+                    </div>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -618,17 +628,17 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       </div>
 
       <SidebarInset>
-        <div className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
+        <div className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:backdrop-blur-xl">
           <div className="flex h-14 items-center justify-between px-3 md:px-6">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {isMobile ? (
                 <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               ) : null}
-              <div className="flex flex-col gap-1">
-                <span className="tracking-tight text-foreground">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-base font-bold tracking-tight text-foreground leading-tight">
                   {activeMenuItem?.label ?? "Módulo principal"}
                 </span>
-                <span className="hidden text-xs text-muted-foreground md:block">
+                <span className="hidden text-[11px] text-muted-foreground md:block leading-tight">
                   {isAdminPanel
                     ? "Centro privado de administración y operaciones."
                     : "Gestión centralizada para ventas, inventario y operación diaria."}
