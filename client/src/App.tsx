@@ -65,6 +65,27 @@ import SubscribersManagement from "@/pages/SubscribersManagement";
 import { Route, Switch, useLocation } from "wouter";
 import { useEffect } from "react";
 
+// =====================================================================
+// REDIRECT a dominio oficial: si alguien entra por *.railway.app
+// se le redirige automaticamente a cyberpiezas.com preservando path,
+// query y hash. Esto se ejecuta al cargar el modulo (antes de renderizar)
+// para que no haya flash visual. Solo afecta produccion (no localhost).
+// =====================================================================
+if (typeof window !== "undefined") {
+  const host = window.location.hostname;
+  const isRailwayDomain = host.endsWith(".railway.app") || host.endsWith(".up.railway.app");
+  const isLocalhost = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.");
+
+  if (isRailwayDomain && !isLocalhost) {
+    const target =
+      "https://cyberpiezas.com" +
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+    window.location.replace(target);
+  }
+}
+
 function Router() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
