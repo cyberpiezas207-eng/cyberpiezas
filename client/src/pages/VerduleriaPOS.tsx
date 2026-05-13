@@ -16,6 +16,10 @@ import {
   Sparkles,
   Apple,
   Carrot,
+  Pencil,
+  Save,
+  PackagePlus,
+  AlertTriangle,
 } from "lucide-react";
 
 // Categorias con iconos
@@ -54,6 +58,9 @@ export function VerduleriaPOS() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
+  // ABM de productos
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   const productsQuery = trpc.verduleria.products.list.useQuery({});
   const statsQuery = trpc.verduleria.sales.stats.useQuery();
@@ -85,6 +92,47 @@ export function VerduleriaPOS() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  // ABM productos (CRUD permanente al catalogo)
+  const createProduct = trpc.verduleria.products.create.useMutation({
+    onSuccess: () => {
+      toast.success("Producto agregado al catalogo");
+      utils.verduleria.products.list.invalidate();
+      setShowProductForm(false);
+      setEditingProduct(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateProduct = trpc.verduleria.products.update.useMutation({
+    onSuccess: () => {
+      toast.success("Producto actualizado");
+      utils.verduleria.products.list.invalidate();
+      setShowProductForm(false);
+      setEditingProduct(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteProduct = trpc.verduleria.products.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Producto eliminado");
+      utils.verduleria.products.list.invalidate();
+      setShowProductForm(false);
+      setEditingProduct(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setShowProductForm(true);
+  };
+
+  const handleNewProduct = () => {
+    setEditingProduct(null);
+    setShowProductForm(true);
+  };
 
   const products = productsQuery.data ?? [];
 
@@ -240,32 +288,63 @@ export function VerduleriaPOS() {
                 />
               </div>
 
+              {/* Barra de acciones del catalogo */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Catalogo · {filteredProducts.length} productos
+                </p>
+                <Button
+                  onClick={handleNewProduct}
+                  className="bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 hover:border-emerald-400 rounded-full h-9 px-4 text-sm font-bold transition-all"
+                >
+                  <PackagePlus className="w-3.5 h-3.5 mr-1.5" />
+                  Agregar al catalogo
+                </Button>
+              </div>
+
               {/* Grid de productos */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredProducts.map((product: any) => (
-                  <button
+                  <div
                     key={product.id}
-                    onClick={() => addToCart(product)}
-                    className="group bg-white rounded-2xl p-4 border border-slate-200 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all text-center active:scale-95"
+                    className="group bg-white rounded-2xl border border-slate-200 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all relative"
                   >
-                    <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
-                      {product.icon}
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 truncate">{product.name}</p>
-                    <p className="text-emerald-600 font-bold text-base mt-1">
-                      ${parseFloat(product.price).toFixed(2)}
-                    </p>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">/{product.unit}</p>
-                  </button>
+                    {/* Boton editar (esquina superior derecha) */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditProduct(product);
+                      }}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 shadow-sm"
+                      title="Editar producto"
+                      aria-label="Editar producto"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-slate-600" />
+                    </button>
+                    {/* Boton agregar al carrito (toda la card) */}
+                    <button
+                      onClick={() => addToCart(product)}
+                      className="w-full p-4 text-center active:scale-95 transition-transform"
+                    >
+                      <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
+                        {product.icon}
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 truncate">{product.name}</p>
+                      <p className="text-emerald-600 font-bold text-base mt-1">
+                        ${parseFloat(product.price).toFixed(2)}
+                      </p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">/{product.unit}</p>
+                    </button>
+                  </div>
                 ))}
-                {/* Boton "Otra cosa" */}
+                {/* Boton "Otra cosa" (venta puntual, NO al catalogo) */}
                 <button
                   onClick={() => setShowQuickAdd(true)}
                   className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-4 border-2 border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50 transition-all text-center"
                 >
                   <div className="text-5xl mb-2">➕</div>
                   <p className="text-sm font-bold text-slate-700">Otra cosa</p>
-                  <p className="text-[10px] text-slate-500 mt-1">Producto puntual</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Solo esta venta</p>
                 </button>
               </div>
 
@@ -397,6 +476,30 @@ export function VerduleriaPOS() {
       {/* Modal: Recibo */}
       {showReceipt && lastSale && (
         <ReceiptModal sale={lastSale} onClose={() => setShowReceipt(false)} />
+      )}
+
+      {/* Modal: Crear/Editar producto del catalogo */}
+      {showProductForm && (
+        <ProductFormModal
+          product={editingProduct}
+          onClose={() => {
+            setShowProductForm(false);
+            setEditingProduct(null);
+          }}
+          onSave={(data) => {
+            if (editingProduct) {
+              updateProduct.mutate({ id: editingProduct.id, ...data });
+            } else {
+              createProduct.mutate(data);
+            }
+          }}
+          onDelete={() => {
+            if (editingProduct && confirm("Eliminar \"" + editingProduct.name + "\" del catalogo? Esta accion no se puede deshacer.")) {
+              deleteProduct.mutate({ id: editingProduct.id });
+            }
+          }}
+          isLoading={createProduct.isPending || updateProduct.isPending || deleteProduct.isPending}
+        />
       )}
     </DashboardLayout>
   );
@@ -684,6 +787,235 @@ function ReceiptModal({ sale, onClose }: { sale: any; onClose: () => void }) {
         </div>
       </div>
     </>
+  );
+}
+
+
+// ============================================================================
+// Modal: Crear/Editar producto del catalogo (ABM permanente)
+// ============================================================================
+
+const UNITS = ["kg", "pieza", "atado", "manojo", "caja", "saco", "litro"];
+const PRODUCT_CATEGORIES = [
+  { id: "fruta", label: "Fruta", icon: "🍎" },
+  { id: "verdura", label: "Verdura", icon: "🥬" },
+  { id: "tuberculo", label: "Raiz", icon: "🥕" },
+  { id: "hierba", label: "Hierba", icon: "🌿" },
+  { id: "otro", label: "Otro", icon: "📦" },
+];
+
+function ProductFormModal({
+  product,
+  onClose,
+  onSave,
+  onDelete,
+  isLoading,
+}: {
+  product: any | null;
+  onClose: () => void;
+  onSave: (data: any) => void;
+  onDelete: () => void;
+  isLoading: boolean;
+}) {
+  const isEditing = !!product;
+  const [name, setName] = useState(product?.name ?? "");
+  const [icon, setIcon] = useState(product?.icon ?? "🥬");
+  const [price, setPrice] = useState(product?.price ?? "");
+  const [unit, setUnit] = useState(product?.unit ?? "kg");
+  const [category, setCategory] = useState(product?.category ?? "verdura");
+  const [stock, setStock] = useState(product?.stock ?? "0");
+  const [trackStock, setTrackStock] = useState(product?.trackStock ?? false);
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error("Falta el nombre");
+      return;
+    }
+    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+      toast.error("Precio invalido");
+      return;
+    }
+    onSave({
+      name: name.trim(),
+      icon,
+      price: parseFloat(price).toFixed(2),
+      unit,
+      category,
+      stock: trackStock ? stock : "0",
+      trackStock,
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[95vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-1">
+              {isEditing ? "Editar producto" : "Nuevo producto"}
+            </p>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              {isEditing ? product.name : "Agregar al catalogo"}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4 text-slate-600" />
+          </button>
+        </div>
+
+        {/* Icono */}
+        <div className="mb-4">
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Icono</p>
+          <div className="bg-slate-50 rounded-xl p-2 max-h-36 overflow-y-auto grid grid-cols-9 gap-1">
+            {COMMON_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => setIcon(emoji)}
+                className={
+                  "text-2xl p-1.5 rounded-lg transition-all " +
+                  (icon === emoji ? "bg-emerald-100 ring-2 ring-emerald-500" : "hover:bg-slate-200")
+                }
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Nombre */}
+        <div className="mb-4">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Nombre
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej: Manzana roja"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 focus:border-emerald-400 focus:outline-none text-base"
+          />
+        </div>
+
+        {/* Precio + Unidad en fila */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="col-span-2">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Precio (MXN)
+            </label>
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0.00"
+              type="number"
+              step="0.01"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 focus:border-emerald-400 focus:outline-none text-base font-semibold"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Unidad
+            </label>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-12 text-slate-900 focus:border-emerald-400 focus:outline-none text-base"
+            >
+              {UNITS.map((u) => (
+                <option key={u} value={u}>
+                  /{u}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Categoria */}
+        <div className="mb-4">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+            Categoria
+          </label>
+          <div className="grid grid-cols-5 gap-2">
+            {PRODUCT_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategory(cat.id)}
+                className={
+                  "px-2 py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1 " +
+                  (category === cat.id
+                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200")
+                }
+              >
+                <span className="text-lg">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stock toggle */}
+        <div className="mb-5 bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={trackStock}
+              onChange={(e) => setTrackStock(e.target.checked)}
+              className="w-5 h-5 rounded accent-emerald-500"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-slate-900">Llevar control de stock</p>
+              <p className="text-xs text-slate-500">Te avisaremos cuando quede poco</p>
+            </div>
+          </label>
+          {trackStock && (
+            <div className="mt-3 pl-8">
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">
+                Stock actual
+              </label>
+              <input
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                placeholder="0"
+                type="number"
+                step="0.001"
+                className="w-32 bg-white border border-slate-200 rounded-lg px-3 h-10 text-slate-900 focus:border-emerald-400 focus:outline-none text-sm"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Botones */}
+        <div className="flex gap-2">
+          {isEditing && (
+            <Button
+              onClick={onDelete}
+              disabled={isLoading}
+              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300 rounded-full h-12 px-4 font-bold text-sm transition-all"
+              title="Eliminar producto"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="flex-1 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white rounded-full h-12 font-bold shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            <Save className="w-4 h-4 mr-1.5" />
+            {isLoading ? "Guardando..." : isEditing ? "Guardar cambios" : "Agregar al catalogo"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
