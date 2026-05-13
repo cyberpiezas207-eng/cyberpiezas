@@ -399,6 +399,8 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       if (item.path?.startsWith("/vet-")) return false;
       // Ocultar items de Verduleria cuando NO estamos en su zona
       if (item.path?.startsWith("/verduleria")) return false;
+      // Ocultar items de Tarima cuando NO estamos en su zona
+      if (item.path?.startsWith("/mi-tarima")) return false;
       return true;
     });
   }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone, isTarimaZone]);
