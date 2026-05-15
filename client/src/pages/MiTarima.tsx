@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import CloudinaryUpload, { CloudinaryUploadDropzone } from "@/components/CloudinaryUpload";
 import { Button } from "@/components/ui/button";
 import {
   Music,
@@ -24,15 +25,7 @@ import {
   MapPin,
   Send,
   Loader2,
-  Palette,
 } from "lucide-react";
-import {
-  ALL_THEMES,
-  TARIMA_THEMES,
-  getTheme,
-  type TarimaThemeId,
-  type TarimaTheme,
-} from "@/lib/tarimaThemes";
 
 const GENRE_OPTIONS = [
   { value: "banda", label: "🎺 Banda" },
@@ -77,7 +70,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function MiTarima() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"perfil" | "bookings" | "multimedia" | "diseno">("perfil");
+  const [activeTab, setActiveTab] = useState<"perfil" | "bookings" | "multimedia">("perfil");
 
   const profileQuery = trpc.tarima.profile.getMine.useQuery();
   const statsQuery = trpc.tarima.bookings.stats.useQuery();
@@ -169,17 +162,6 @@ export default function MiTarima() {
                   📸 Multimedia
                 </button>
                 <button
-                  onClick={() => setActiveTab("diseno")}
-                  className={
-                    "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
-                    (activeTab === "diseno"
-                      ? "border-b-2 border-fuchsia-500 text-fuchsia-600"
-                      : "text-slate-500 hover:text-slate-900")
-                  }
-                >
-                  🎨 Diseño
-                </button>
-                <button
                   onClick={() => setActiveTab("bookings")}
                   className={
                     "flex-1 py-4 px-6 text-sm font-bold transition-colors " +
@@ -205,11 +187,6 @@ export default function MiTarima() {
                 )}
                 {activeTab === "multimedia" && (
                   <MultimediaTab />
-                )}
-                {activeTab === "diseno" && (
-                  <DesignTab profile={profile} onSaved={() => {
-                    utils.tarima.profile.getMine.invalidate();
-                  }} />
                 )}
                 {activeTab === "bookings" && (
                   <BookingsList
@@ -534,26 +511,105 @@ function EditProfileForm({ profile, onSaved }: { profile: any; onSaved: () => vo
 
       {/* Imágenes */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-3">📸 Imágenes (URL)</h3>
-        <div className="space-y-3">
-          <Field label="Foto de perfil (URL)">
-            <input
-              value={formData.profileImage}
-              onChange={(e) => handleChange("profileImage", e.target.value)}
-              placeholder="https://..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
-            />
-          </Field>
-          <Field label="Foto de portada (URL)">
-            <input
-              value={formData.coverImage}
-              onChange={(e) => handleChange("coverImage", e.target.value)}
-              placeholder="https://..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 focus:border-fuchsia-400 focus:outline-none"
-            />
-          </Field>
-          <p className="text-xs text-slate-500">
-            💡 Tip: Sube tus fotos a Imgur o tu Google Drive y pega el link directo. Próximamente: upload integrado.
+        <h3 className="text-sm font-bold text-slate-900 mb-3">📸 Imágenes</h3>
+        <div className="space-y-4">
+          {/* FOTO DE PERFIL */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+              Foto de perfil
+            </p>
+            <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+              {/* Preview */}
+              {formData.profileImage ? (
+                <img
+                  src={formData.profileImage}
+                  alt=""
+                  className="w-20 h-20 rounded-full object-cover ring-2 ring-fuchsia-200 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center text-3xl flex-shrink-0">
+                  🎤
+                </div>
+              )}
+              {/* Acciones */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 mb-2">
+                  Tu foto que verán los clientes. Cuadrada (1:1) se ve mejor.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <CloudinaryUpload
+                    label={formData.profileImage ? "Cambiar foto" : "Subir foto"}
+                    size="sm"
+                    folder="tarima/perfil"
+                    onUploaded={(url) => {
+                      handleChange("profileImage", url);
+                      toast.success("Foto cargada. Recuerda guardar cambios.");
+                    }}
+                  />
+                  {formData.profileImage && (
+                    <button
+                      onClick={() => handleChange("profileImage", "")}
+                      className="h-9 px-3 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-full"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* FOTO DE PORTADA */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+              Foto de portada
+            </p>
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+              {/* Preview */}
+              {formData.coverImage ? (
+                <div className="relative h-32 w-full">
+                  <img
+                    src={formData.coverImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
+              ) : (
+                <div className="h-32 w-full bg-gradient-to-br from-fuchsia-200 via-purple-200 to-indigo-200 flex items-center justify-center">
+                  <p className="text-slate-500 text-sm font-medium">Sin portada</p>
+                </div>
+              )}
+              {/* Acciones */}
+              <div className="p-4">
+                <p className="text-xs text-slate-500 mb-2">
+                  La imagen grande detrás de tu nombre. Horizontal (16:9) se ve mejor.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <CloudinaryUpload
+                    label={formData.coverImage ? "Cambiar portada" : "Subir portada"}
+                    size="sm"
+                    folder="tarima/cover"
+                    onUploaded={(url) => {
+                      handleChange("coverImage", url);
+                      toast.success("Portada cargada. Recuerda guardar cambios.");
+                    }}
+                  />
+                  {formData.coverImage && (
+                    <button
+                      onClick={() => handleChange("coverImage", "")}
+                      className="h-9 px-3 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-full"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500 italic">
+            💡 Las fotos se suben directamente desde tu celular o computadora. Acepta JPG, PNG, WebP hasta 10MB.
           </p>
         </div>
       </section>
@@ -873,14 +929,22 @@ function MediaSection({ type }: { type: "photo" | "video" | "music" }) {
     onError: (err) => toast.error(err.message),
   });
 
+  // Para fotos: usamos createMedia directo desde el upload
+  const createMedia = trpc.tarima.media.create.useMutation({
+    onSuccess: () => {
+      utils.tarima.media.listMine.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const items = mediaQuery.data ?? [];
 
   const typeLabels: Record<string, { singular: string; plural: string; helpUrl: string; placeholder: string }> = {
     photo: {
       singular: "foto",
       plural: "Fotos",
-      helpUrl: "https://imgur.com",
-      placeholder: "https://i.imgur.com/abc123.jpg",
+      helpUrl: "",
+      placeholder: "",
     },
     video: {
       singular: "video",
@@ -909,16 +973,36 @@ function MediaSection({ type }: { type: "photo" | "video" | "music" }) {
               : items.length + " " + (items.length === 1 ? config.singular : config.plural.toLowerCase())}
           </p>
         </div>
-        <Button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-9 px-4 text-xs font-bold"
-        >
-          {showAddForm ? "Cancelar" : "+ Agregar"}
-        </Button>
+        {/* Para videos/musica, mantener el boton +Agregar (URLs).
+            Para fotos, no es necesario - el dropzone arriba se encarga. */}
+        {type !== "photo" && (
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-full h-9 px-4 text-xs font-bold"
+          >
+            {showAddForm ? "Cancelar" : "+ Agregar"}
+          </Button>
+        )}
       </div>
 
-      {/* Formulario de agregar */}
-      {showAddForm && (
+      {/* PARA FOTOS: Dropzone GRANDE con upload directo */}
+      {type === "photo" && (
+        <div className="mb-4">
+          <CloudinaryUploadDropzone
+            multiple
+            folder="tarima/galeria"
+            onUploaded={(url) => {
+              createMedia.mutate({ type: "photo", url });
+            }}
+          />
+          <p className="text-xs text-slate-500 mt-2 italic">
+            💡 Sube hasta 10MB por foto. Acepta JPG, PNG, WebP.
+          </p>
+        </div>
+      )}
+
+      {/* PARA VIDEOS Y MUSICA: Formulario manual de URL */}
+      {showAddForm && type !== "photo" && (
         <AddMediaForm
           type={type}
           placeholder={config.placeholder}
@@ -931,10 +1015,10 @@ function MediaSection({ type }: { type: "photo" | "video" | "music" }) {
       )}
 
       {/* Lista de items */}
-      {items.length === 0 && !showAddForm && (
+      {items.length === 0 && type !== "photo" && !showAddForm && (
         <div className="bg-slate-50 rounded-2xl p-8 text-center border-2 border-dashed border-slate-200">
           <div className="text-4xl mb-2">
-            {type === "photo" ? "📸" : type === "video" ? "🎬" : "🎵"}
+            {type === "video" ? "🎬" : "🎵"}
           </div>
           <p className="text-sm text-slate-600 mb-3">
             No tienes {config.plural.toLowerCase()} todavía.
@@ -1091,355 +1175,4 @@ function AddMediaForm({
       </div>
     </div>
   );
-}
-
-
-// ============================================================================
-// Tab DISEÑO - Selector de tema visual + colores personalizados
-// ============================================================================
-
-function DesignTab({ profile, onSaved }: { profile: any; onSaved: () => void }) {
-  // Tema actual (si themeId no es valido, fallback a classic)
-  const initialThemeId: TarimaThemeId =
-    profile.themeId && profile.themeId in TARIMA_THEMES
-      ? (profile.themeId as TarimaThemeId)
-      : "classic";
-
-  const [selectedThemeId, setSelectedThemeId] = useState<TarimaThemeId>(initialThemeId);
-  const [customColors, setCustomColors] = useState<Record<string, string>>(
-    (profile.customColors as any) ?? {},
-  );
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  // Si cambia el profile (otra carga), re-sync
-  useEffect(() => {
-    setSelectedThemeId(initialThemeId);
-    setCustomColors((profile.customColors as any) ?? {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.id]);
-
-  const baseTheme = TARIMA_THEMES[selectedThemeId];
-  const previewTheme = getTheme(selectedThemeId, customColors as any);
-  const hasCustomColors = Object.keys(customColors).length > 0;
-
-  const updateTheme = trpc.tarima.profile.updateTheme.useMutation({
-    onSuccess: () => {
-      toast.success("Tema guardado");
-      onSaved();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const handleSave = () => {
-    updateTheme.mutate({
-      themeId: selectedThemeId,
-      customColors:
-        Object.keys(customColors).length > 0 ? (customColors as any) : null,
-    });
-  };
-
-  const handleReset = () => {
-    setCustomColors({});
-    toast.success("Colores restablecidos al template");
-  };
-
-  const updateColor = (key: string, value: string) => {
-    setCustomColors({ ...customColors, [key]: value });
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header explicativo */}
-      <div className="bg-fuchsia-50 border border-fuchsia-200 rounded-2xl p-5">
-        <div className="flex items-start gap-3">
-          <Palette className="w-5 h-5 text-fuchsia-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-1">
-              Personaliza el diseño de tu página
-            </h3>
-            <p className="text-xs text-slate-600">
-              Elige un template prediseñado y opcionalmente ajusta los colores
-              al estilo de tu marca. Los cambios se aplican a tu página pública
-              cuando guardas.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Live Preview */}
-      <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-          Vista previa en vivo
-        </p>
-        <PreviewMini theme={previewTheme} artistName={profile.artistName} />
-      </div>
-
-      {/* Grid de templates */}
-      <div>
-        <div className="flex items-baseline justify-between mb-3">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Templates ({ALL_THEMES.length})
-          </p>
-          <p className="text-xs text-slate-400">Click para seleccionar</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {ALL_THEMES.map((theme) => (
-            <TemplateCard
-              key={theme.id}
-              theme={theme}
-              isSelected={theme.id === selectedThemeId}
-              onSelect={() => setSelectedThemeId(theme.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Personalizar colores (plegable) */}
-      <div>
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 flex items-center gap-2"
-        >
-          <span>{showAdvanced ? "▼" : "▶"}</span>
-          Personalizar colores
-          {hasCustomColors && (
-            <span className="text-[10px] bg-fuchsia-100 text-fuchsia-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-              Personalizado
-            </span>
-          )}
-        </button>
-
-        {showAdvanced && (
-          <div className="mt-3 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-            <p className="text-xs text-slate-600">
-              Sobrescribe colores especificos del template. Lo que no toques
-              mantiene el valor original del template seleccionado.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <ColorInput
-                label="Primario"
-                value={customColors.primary || baseTheme.colors.primary}
-                onChange={(v) => updateColor("primary", v)}
-              />
-              <ColorInput
-                label="Secundario"
-                value={customColors.secondary || baseTheme.colors.secondary}
-                onChange={(v) => updateColor("secondary", v)}
-              />
-              <ColorInput
-                label="Fondo"
-                value={customColors.bg || baseTheme.colors.bg}
-                onChange={(v) => updateColor("bg", v)}
-              />
-              <ColorInput
-                label="Texto"
-                value={customColors.text || baseTheme.colors.text}
-                onChange={(v) => updateColor("text", v)}
-              />
-              <ColorInput
-                label="Accent"
-                value={customColors.accent || baseTheme.colors.accent}
-                onChange={(v) => updateColor("accent", v)}
-              />
-            </div>
-            {hasCustomColors && (
-              <button
-                onClick={handleReset}
-                className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
-              >
-                <span>↺</span>
-                Restablecer al template original
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Acciones */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <Button
-          onClick={handleSave}
-          disabled={updateTheme.isPending}
-          className="bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold rounded-full h-12 px-8 shadow-lg shadow-fuchsia-500/30"
-        >
-          {updateTheme.isPending ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              Guardar tema
-            </>
-          )}
-        </Button>
-        {profile.isPublished && (
-          <a
-            href={"/tarima/" + profile.slug}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-full h-12 px-6 text-sm transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Ver mi pagina
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TemplateCard({
-  theme,
-  isSelected,
-  onSelect,
-}: {
-  theme: TarimaTheme;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      onClick={onSelect}
-      className={
-        "relative group text-left rounded-2xl overflow-hidden transition-all border-2 " +
-        (isSelected
-          ? "border-fuchsia-500 shadow-lg shadow-fuchsia-500/20 scale-[1.02]"
-          : "border-slate-200 hover:border-slate-300 hover:scale-[1.01]")
-      }
-    >
-      {/* Preview visual */}
-      <div
-        className="h-28 flex items-center justify-center relative overflow-hidden"
-        style={{
-          background: theme.bgGradient || theme.colors.bg,
-          color: theme.colors.text,
-          fontFamily: theme.fontFamily,
-        }}
-      >
-        <p className="text-3xl font-bold tracking-tighter">Aa</p>
-        {/* Color swatches */}
-        <div className="absolute bottom-2 left-2 flex gap-1">
-          <span
-            className="w-3 h-3 rounded-full ring-1 ring-white/30"
-            style={{ background: theme.colors.primary }}
-          />
-          <span
-            className="w-3 h-3 rounded-full ring-1 ring-white/30"
-            style={{ background: theme.colors.secondary }}
-          />
-          <span
-            className="w-3 h-3 rounded-full ring-1 ring-white/30"
-            style={{ background: theme.colors.accent }}
-          />
-        </div>
-        {isSelected && (
-          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-fuchsia-500 flex items-center justify-center shadow-lg">
-            <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="bg-white p-3">
-        <p className="text-sm font-bold text-slate-900 mb-0.5">{theme.name}</p>
-        <p className="text-[10px] text-slate-500 line-clamp-1">
-          {theme.vibe} · {theme.target}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function PreviewMini({
-  theme,
-  artistName,
-}: {
-  theme: TarimaTheme;
-  artistName: string;
-}) {
-  return (
-    <div
-      className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm"
-      style={{
-        background: theme.bgGradient || theme.colors.bg,
-        color: theme.colors.text,
-        fontFamily: theme.fontFamily,
-      }}
-    >
-      <div className="px-6 py-10 sm:py-14 text-center">
-        <div
-          className="w-20 h-20 mx-auto rounded-full mb-5 flex items-center justify-center text-3xl shadow-xl"
-          style={{
-            background: theme.colors.primary,
-            color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
-          }}
-        >
-          🎵
-        </div>
-        <h2 className="text-3xl sm:text-4xl font-bold tracking-tighter mb-3">
-          {artistName || "Tu nombre artistico"}
-        </h2>
-        <p
-          className="text-[10px] font-bold uppercase mb-7"
-          style={{ opacity: 0.55, letterSpacing: "0.25em" }}
-        >
-          {theme.vibe} · {theme.target}
-        </p>
-        <div
-          className="inline-block font-bold rounded-full px-6 py-2.5 text-xs pointer-events-none"
-          style={{
-            background: theme.colors.primary,
-            color: isLightColor(theme.colors.primary) ? "#000000" : "#ffffff",
-          }}
-        >
-          Reservar para mi evento
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ColorInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-        {label}
-      </p>
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-11 rounded-xl cursor-pointer border border-slate-200"
-      />
-      <p className="text-[10px] text-slate-500 mt-1 font-mono">{value}</p>
-    </div>
-  );
-}
-
-// Helper: detectar si un hex es claro (para decidir text-color)
-function isLightColor(hex: string): boolean {
-  if (!hex || !hex.startsWith("#")) return false;
-  const h =
-    hex.length === 4
-      ? hex
-          .slice(1)
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : hex.slice(1);
-  if (h.length !== 6) return false;
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
 }
