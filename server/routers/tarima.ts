@@ -9,9 +9,10 @@ import {
 } from "../../drizzle/schema";
 import * as db from "../db";
 import { createNotification } from "./notifications";
+import crypto from "crypto";
 
 async function getDbOrThrow() {
-  const conn = await db.getDb();
+  const conn = await db.getDbOrThrow();
   if (!conn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB no disponible" });
   return conn;
 }
@@ -190,46 +191,6 @@ export const tarimaRouter = router({
           .where(eq(tarimaProfiles.userId, ctx.user.id));
         return { success: true, isPublished: input.isPublished };
       }),
-
-    // Actualizar tema visual del perfil
-    // Permite update parcial: solo themeId, solo customColors, o todo junto
-    updateTheme: protectedProcedure
-      .input(
-        z.object({
-          themeId: z.string().max(50).optional(),
-          customColors: z.object({
-            primary: z.string().max(20).optional(),
-            secondary: z.string().max(20).optional(),
-            bg: z.string().max(20).optional(),
-            text: z.string().max(20).optional(),
-            accent: z.string().max(20).optional(),
-          }).nullable().optional(),
-          fontFamily: z.string().max(50).nullable().optional(),
-        }),
-      )
-      .mutation(async ({ ctx, input }) => {
-        const conn = await getDbOrThrow();
-        const updateData: any = {};
-        if (input.themeId !== undefined) updateData.themeId = input.themeId;
-        if (input.customColors !== undefined) updateData.customColors = input.customColors;
-        if (input.fontFamily !== undefined) updateData.fontFamily = input.fontFamily;
-
-        if (Object.keys(updateData).length === 0) {
-          return { success: true, message: "No hay cambios" };
-        }
-
-        await conn
-          .update(tarimaProfiles)
-          .set(updateData)
-          .where(eq(tarimaProfiles.userId, ctx.user.id));
-
-        const rows = await conn
-          .select()
-          .from(tarimaProfiles)
-          .where(eq(tarimaProfiles.userId, ctx.user.id))
-          .limit(1);
-        return rows[0];
-      }),
   }),
 
   // =========================================================================
@@ -334,7 +295,7 @@ export const tarimaRouter = router({
         return { success: true, bookingId };
       }),
 
-    // Actualizar status de una booking (solo el artista dueno)
+    // Actualizar status de una booking (solo el artista dueño)
     updateStatus: protectedProcedure
       .input(
         z.object({
@@ -408,36 +369,48 @@ export const tarimaRouter = router({
   // MEDIA (fotos, videos, musica)
   // =========================================================================
   media: router({
-    // Listar MIS items (panel /mi-tarima)
-    listMine: protectedProcedure
+    // Obtener signature firmada para upload directo a Cloudinary
+    // El cliente sube directo a Cloudinary, no pasa por nuestro servidor
+    getUploadSignature: protectedProcedure
       .input(
         z.object({
-          type: z.enum(["photo", "video", "music"]).optional(),
+          folder: z.string().optional(),
         }).optional(),
       )
-      .query(async ({ ctx, input }) => {
-        const conn = await getDbOrThrow();
-        const profileRows = await conn
-          .select()
-          .from(tarimaProfiles)
-          .where(eq(tarimaProfiles.userId, ctx.user.id))
-          .limit(1);
-        const profile = profileRows[0];
-        if (!profile) return [];
-
-        const conditions: any[] = [eq(tarimaMedia.profileId, profile.id)];
-        if (input?.type) {
-          conditions.push(eq(tarimaMedia.type, input.type));
+      .mutation(async ({ ctx, input }) => {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (!cloudName || !apiKey || !apiSecret) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Cloudinary no esta configurado en el servidor",
+          });
         }
-
-        return await conn
-          .select()
-          .from(tarimaMedia)
-          .where(and(...conditions))
-          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
+        const timestamp = Math.round(Date.now() / 1000);
+        const folder = (input?.folder ?? "tarima") + "/user-" + ctx.user.id;
+        // Generar signature SHA1 con los params + secret
+        // Los params se ordenan alfabeticamente y se concatenan key=value&key=value
+        const params: Record<string, string> = {
+          folder,
+          timestamp: String(timestamp),
+        };
+        const sortedKeys = Object.keys(params).sort();
+        const toSign = sortedKeys.map((k) => k + "=" + params[k]).join("&");
+        const signature = crypto
+          .createHash("sha1")
+          .update(toSign + apiSecret)
+          .digest("hex");
+        return {
+          cloudName,
+          apiKey,
+          timestamp,
+          folder,
+          signature,
+        };
       }),
 
-    // Listar items PUBLICOS por slug del perfil (pagina /tarima/[slug])
+    // Listar media PUBLICO (por slug)
     listBySlug: publicProcedure
       .input(
         z.object({
@@ -459,12 +432,10 @@ export const tarimaRouter = router({
           .limit(1);
         const profile = profileRows[0];
         if (!profile) return [];
-
         const conditions: any[] = [eq(tarimaMedia.profileId, profile.id)];
         if (input.type) {
           conditions.push(eq(tarimaMedia.type, input.type));
         }
-
         return await conn
           .select()
           .from(tarimaMedia)
@@ -472,7 +443,34 @@ export const tarimaRouter = router({
           .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
       }),
 
-    // Agregar item (Crear) - alineado con frontend
+    // Listar MI media (autenticado)
+    listMine: protectedProcedure
+      .input(
+        z.object({
+          type: z.enum(["photo", "video", "music"]).optional(),
+        }).optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const profileRows = await conn
+          .select()
+          .from(tarimaProfiles)
+          .where(eq(tarimaProfiles.userId, ctx.user.id))
+          .limit(1);
+        const profile = profileRows[0];
+        if (!profile) return [];
+        const conditions: any[] = [eq(tarimaMedia.profileId, profile.id)];
+        if (input?.type) {
+          conditions.push(eq(tarimaMedia.type, input.type));
+        }
+        return await conn
+          .select()
+          .from(tarimaMedia)
+          .where(and(...conditions))
+          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
+      }),
+
+    // Crear nuevo item de media
     create: protectedProcedure
       .input(
         z.object({
@@ -493,23 +491,16 @@ export const tarimaRouter = router({
           .limit(1);
         const profile = profileRows[0];
         if (!profile) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Crea tu perfil primero" });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Crea tu perfil primero" });
         }
-
-        // Calcular siguiente sortOrder para este tipo
-        const lastItems = await conn
+        // Obtener el sortOrder mas alto + 1
+        const existing = await conn
           .select()
           .from(tarimaMedia)
-          .where(
-            and(
-              eq(tarimaMedia.profileId, profile.id),
-              eq(tarimaMedia.type, input.type),
-            ),
-          )
+          .where(eq(tarimaMedia.profileId, profile.id))
           .orderBy(desc(tarimaMedia.sortOrder))
           .limit(1);
-        const nextSortOrder = lastItems[0] ? (lastItems[0].sortOrder ?? 0) + 1 : 0;
-
+        const nextOrder = (existing[0]?.sortOrder ?? -1) + 1;
         const result = await conn.insert(tarimaMedia).values({
           profileId: profile.id,
           type: input.type,
@@ -517,7 +508,7 @@ export const tarimaRouter = router({
           thumbnail: input.thumbnail,
           title: input.title,
           description: input.description,
-          sortOrder: nextSortOrder,
+          sortOrder: nextOrder,
           isHighlight: input.isHighlight,
         });
         const id = (result as any).insertId as number;
@@ -525,13 +516,11 @@ export const tarimaRouter = router({
         return rows[0];
       }),
 
-    // Actualizar item (title, descripcion, thumbnail, etc)
+    // Actualizar item
     update: protectedProcedure
       .input(
         z.object({
           id: z.number(),
-          url: z.string().max(1000).optional(),
-          thumbnail: z.string().max(1000).optional(),
           title: z.string().max(200).optional(),
           description: z.string().optional(),
           isHighlight: z.boolean().optional(),
@@ -548,36 +537,21 @@ export const tarimaRouter = router({
         if (!profile) {
           throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
         }
-
-        // Ownership: verificar que el item sea de mi perfil
-        const itemRows = await conn
-          .select()
-          .from(tarimaMedia)
-          .where(
-            and(
-              eq(tarimaMedia.id, input.id),
-              eq(tarimaMedia.profileId, profile.id),
-            ),
-          )
-          .limit(1);
-        if (itemRows.length === 0) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
-        }
-
+        const { id, ...rest } = input;
         const updateData: any = {};
-        for (const k of Object.keys(input)) {
-          if (k !== "id" && (input as any)[k] !== undefined) {
-            updateData[k] = (input as any)[k];
-          }
+        for (const k of Object.keys(rest)) {
+          if ((rest as any)[k] !== undefined) updateData[k] = (rest as any)[k];
         }
-
         await conn
           .update(tarimaMedia)
           .set(updateData)
-          .where(eq(tarimaMedia.id, input.id));
-
-        const rows = await conn.select().from(tarimaMedia).where(eq(tarimaMedia.id, input.id));
-        return rows[0];
+          .where(
+            and(
+              eq(tarimaMedia.id, id),
+              eq(tarimaMedia.profileId, profile.id),
+            ),
+          );
+        return { success: true };
       }),
 
     // Eliminar item
@@ -594,31 +568,18 @@ export const tarimaRouter = router({
         if (!profile) {
           throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
         }
-
-        // Ownership check
-        const itemRows = await conn
-          .select()
-          .from(tarimaMedia)
+        await conn
+          .delete(tarimaMedia)
           .where(
             and(
               eq(tarimaMedia.id, input.id),
               eq(tarimaMedia.profileId, profile.id),
             ),
-          )
-          .limit(1);
-        if (itemRows.length === 0) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
-        }
-
-        await conn
-          .delete(tarimaMedia)
-          .where(eq(tarimaMedia.id, input.id));
-
+          );
         return { success: true };
       }),
 
-    // Reordenar items (mover un item arriba o abajo en su lista)
-    // Alineado con frontend: recibe { id, direction }
+    // Reordenar (mover arriba/abajo)
     reorder: protectedProcedure
       .input(
         z.object({
@@ -637,99 +598,31 @@ export const tarimaRouter = router({
         if (!profile) {
           throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
         }
-
-        // Ownership check: el item debe pertenecer al perfil del user
-        const itemRows = await conn
+        const allItems = await conn
           .select()
           .from(tarimaMedia)
-          .where(
-            and(
-              eq(tarimaMedia.id, input.id),
-              eq(tarimaMedia.profileId, profile.id),
-            ),
-          )
-          .limit(1);
-        const currentItem = itemRows[0];
-        if (!currentItem) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
+          .where(eq(tarimaMedia.profileId, profile.id))
+          .orderBy(asc(tarimaMedia.sortOrder));
+        const currentIdx = allItems.findIndex((m) => m.id === input.id);
+        if (currentIdx === -1) {
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
-
-        // Traer todos los items del mismo type, ordenados por sortOrder
-        const siblings = await conn
-          .select()
-          .from(tarimaMedia)
-          .where(
-            and(
-              eq(tarimaMedia.profileId, profile.id),
-              eq(tarimaMedia.type, currentItem.type),
-            ),
-          )
-          .orderBy(asc(tarimaMedia.sortOrder), desc(tarimaMedia.createdAt));
-
-        // Encontrar la posicion actual del item
-        const currentIndex = siblings.findIndex((s) => s.id === input.id);
-        if (currentIndex === -1) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Item no esta en la lista" });
+        const targetIdx = input.direction === "up" ? currentIdx - 1 : currentIdx + 1;
+        if (targetIdx < 0 || targetIdx >= allItems.length) {
+          return { success: true, noop: true };
         }
-
-        // Determinar el indice del item con el que swapear
-        const swapIndex = input.direction === "up" ? currentIndex - 1 : currentIndex + 1;
-        if (swapIndex < 0 || swapIndex >= siblings.length) {
-          return { success: true, message: "Ya esta en el extremo" };
-        }
-
-        const swapItem = siblings[swapIndex];
-
-        // Intercambiar sortOrder entre los 2 items
+        const currentItem = allItems[currentIdx];
+        const targetItem = allItems[targetIdx];
+        // Swap sortOrders
         await conn
           .update(tarimaMedia)
-          .set({ sortOrder: swapItem.sortOrder })
+          .set({ sortOrder: targetItem.sortOrder })
           .where(eq(tarimaMedia.id, currentItem.id));
         await conn
           .update(tarimaMedia)
           .set({ sortOrder: currentItem.sortOrder })
-          .where(eq(tarimaMedia.id, swapItem.id));
-
+          .where(eq(tarimaMedia.id, targetItem.id));
         return { success: true };
-      }),
-
-    // Toggle highlight (destacar / quitar destacado)
-    toggleHighlight: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        const conn = await getDbOrThrow();
-        const profileRows = await conn
-          .select()
-          .from(tarimaProfiles)
-          .where(eq(tarimaProfiles.userId, ctx.user.id))
-          .limit(1);
-        const profile = profileRows[0];
-        if (!profile) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes perfil" });
-        }
-
-        const itemRows = await conn
-          .select()
-          .from(tarimaMedia)
-          .where(
-            and(
-              eq(tarimaMedia.id, input.id),
-              eq(tarimaMedia.profileId, profile.id),
-            ),
-          )
-          .limit(1);
-        const item = itemRows[0];
-        if (!item) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Item no encontrado" });
-        }
-
-        const newValue = !item.isHighlight;
-        await conn
-          .update(tarimaMedia)
-          .set({ isHighlight: newValue })
-          .where(eq(tarimaMedia.id, input.id));
-
-        return { success: true, isHighlight: newValue };
       }),
   }),
 });
