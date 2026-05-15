@@ -1,26 +1,38 @@
+// =============================================================================
+// CloudinaryUpload - Version UNSIGNED (sin necesitar env vars en backend)
+// =============================================================================
+// REEMPLAZAR archivo: client/src/components/CloudinaryUpload.tsx
+//
+// Usa upload preset UNSIGNED de Cloudinary.
+// No requiere variables de entorno en el backend.
+// Solo necesita el cloud name (PUBLICO) y el preset name.
+// =============================================================================
+
 import { useRef, useState } from "react";
-import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Camera, Loader2, Upload, X, Check } from "lucide-react";
+import { Camera, Loader2, Upload, X } from "lucide-react";
+
+// =============================================================================
+// CONFIGURACION - Aqui defines tu cuenta de Cloudinary
+// =============================================================================
+// Estos valores son PUBLICOS (aparecen en URLs de imagenes).
+// Puedes hardcodearlos sin problema de seguridad.
+// =============================================================================
+
+const CLOUDINARY_CLOUD_NAME = "ds32jsifc";
+const CLOUDINARY_UPLOAD_PRESET = "tarima_upload";
+
+// =============================================================================
 
 interface CloudinaryUploadProps {
-  // Callback cuando se sube exitosamente. Devuelve la URL secura.
   onUploaded: (url: string) => void;
-  // Si es true, permite subir multiples archivos
   multiple?: boolean;
-  // Maximo size en MB (default 10)
   maxSizeMB?: number;
-  // Texto del boton
   label?: string;
-  // Estilo del boton: "primary" | "secondary" | "ghost"
   variant?: "primary" | "secondary" | "ghost";
-  // Folder en Cloudinary (default: "tarima")
   folder?: string;
-  // Icono custom
   icon?: React.ReactNode;
-  // Tamano del boton
   size?: "sm" | "md" | "lg";
-  // Clases CSS extras
   className?: string;
 }
 
@@ -41,14 +53,11 @@ export default function CloudinaryUpload({
   const [currentFile, setCurrentFile] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
 
-  const getSignature = trpc.tarima.media.getUploadSignature.useMutation();
-
   const handleClick = () => {
     fileInputRef.current?.click();
   };
 
   const uploadOneFile = async (file: File): Promise<string | null> => {
-    // 1. Validar tamaño
     const sizeMB = file.size / (1024 * 1024);
     if (sizeMB > maxSizeMB) {
       toast.error(
@@ -56,29 +65,15 @@ export default function CloudinaryUpload({
       );
       return null;
     }
-
-    // 2. Validar tipo
     if (!file.type.startsWith("image/")) {
       toast.error(file.name + " no es una imagen");
       return null;
     }
 
-    // 3. Obtener signature firmada del backend
-    let signatureData;
-    try {
-      signatureData = await getSignature.mutateAsync({ folder });
-    } catch (err: any) {
-      toast.error("Error de configuracion: " + err.message);
-      return null;
-    }
-
-    // 4. Subir directo a Cloudinary
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("api_key", signatureData.apiKey);
-    formData.append("timestamp", String(signatureData.timestamp));
-    formData.append("signature", signatureData.signature);
-    formData.append("folder", signatureData.folder);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", folder);
 
     return new Promise<string | null>((resolve) => {
       const xhr = new XMLHttpRequest();
@@ -108,7 +103,7 @@ export default function CloudinaryUpload({
       });
       xhr.open(
         "POST",
-        "https://api.cloudinary.com/v1_1/" + signatureData.cloudName + "/image/upload",
+        "https://api.cloudinary.com/v1_1/" + CLOUDINARY_CLOUD_NAME + "/image/upload",
       );
       xhr.send(formData);
     });
@@ -147,13 +142,11 @@ export default function CloudinaryUpload({
       );
     }
 
-    // Limpiar input para permitir subir mismo archivo otra vez
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  // Estilos por variant
   const variantStyles = {
     primary:
       "bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white shadow-lg shadow-fuchsia-500/30",
@@ -180,7 +173,7 @@ export default function CloudinaryUpload({
       />
       <button
         onClick={handleClick}
-        disabled={uploading || getSignature.isPending}
+        disabled={uploading}
         className={
           "inline-flex items-center justify-center gap-2 rounded-full font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed " +
           variantStyles[variant] +
@@ -211,7 +204,7 @@ export default function CloudinaryUpload({
 }
 
 // ============================================================================
-// Boton GRANDE drag&drop para galerias
+// Dropzone GRANDE para galerias
 // ============================================================================
 
 export function CloudinaryUploadDropzone({
@@ -232,8 +225,6 @@ export function CloudinaryUploadDropzone({
   const [currentFile, setCurrentFile] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
 
-  const getSignature = trpc.tarima.media.getUploadSignature.useMutation();
-
   const handleClick = () => {
     if (!uploading) fileInputRef.current?.click();
   };
@@ -248,19 +239,12 @@ export function CloudinaryUploadDropzone({
       toast.error(file.name + " no es una imagen");
       return null;
     }
-    let signatureData;
-    try {
-      signatureData = await getSignature.mutateAsync({ folder });
-    } catch (err: any) {
-      toast.error("Error: " + err.message);
-      return null;
-    }
+
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("api_key", signatureData.apiKey);
-    formData.append("timestamp", String(signatureData.timestamp));
-    formData.append("signature", signatureData.signature);
-    formData.append("folder", signatureData.folder);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", folder);
+
     return new Promise<string | null>((resolve) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (e) => {
@@ -272,6 +256,7 @@ export function CloudinaryUploadDropzone({
           if (xhr.status >= 200 && xhr.status < 300 && response.secure_url) {
             resolve(response.secure_url as string);
           } else {
+            console.error("Cloudinary error:", response);
             toast.error("Error: " + (response.error?.message || "Desconocido"));
             resolve(null);
           }
@@ -284,7 +269,10 @@ export function CloudinaryUploadDropzone({
         toast.error("Error de red");
         resolve(null);
       });
-      xhr.open("POST", "https://api.cloudinary.com/v1_1/" + signatureData.cloudName + "/image/upload");
+      xhr.open(
+        "POST",
+        "https://api.cloudinary.com/v1_1/" + CLOUDINARY_CLOUD_NAME + "/image/upload",
+      );
       xhr.send(formData);
     });
   };
