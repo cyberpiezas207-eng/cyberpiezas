@@ -1,3 +1,9 @@
+// =============================================================================
+// PricingPlans - Pagina publica para comprar planes
+// =============================================================================
+// REEMPLAZAR archivo: client/src/pages/PricingPlans.tsx
+// =============================================================================
+
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -293,7 +299,7 @@ function CheckoutModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [paymentMethod, setPaymentMethod] = useState<"transferencia" | "efectivo" | "mercadopago">("transferencia");
+  const [paymentMethod, setPaymentMethod] = useState<"transferencia" | "mercadopago">("transferencia");
   const [proofUrl, setProofUrl] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
 
@@ -307,7 +313,7 @@ function CheckoutModal({
   });
 
   const handleSubmit = () => {
-    if (paymentMethod !== "efectivo" && !proofUrl) {
+    if (!proofUrl) {
       toast.error("Por favor sube tu comprobante de pago");
       return;
     }
@@ -395,10 +401,9 @@ function CheckoutModal({
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               💳 Método de pago
             </h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { id: "transferencia", label: "Transferencia", icon: "🏦" },
-                { id: "efectivo", label: "Efectivo", icon: "💵" },
                 { id: "mercadopago", label: "MercadoPago", icon: "💳" },
               ].map((method) => (
                 <button
@@ -423,24 +428,13 @@ function CheckoutModal({
             <section className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <h4 className="text-sm font-bold text-blue-900 mb-2">🏦 Datos para transferencia</h4>
               <div className="text-xs text-blue-800 space-y-1">
-                <p><span className="font-bold">Banco:</span> BBVA</p>
-                <p><span className="font-bold">A nombre de:</span> David Antonio Farfán Gómez</p>
-                <p><span className="font-bold">CLABE:</span> 012180012345678901</p>
+                <p><span className="font-bold">Banco:</span> Banco Azteca</p>
+                <p><span className="font-bold">A nombre de:</span> David Farfán</p>
+                <p><span className="font-bold">CLABE:</span> 127542013042637791</p>
                 <p><span className="font-bold">Concepto:</span> {plan.name} - {planType}</p>
               </div>
               <p className="text-xs text-blue-700 mt-2 italic">
                 💡 Después de transferir, sube el comprobante aquí abajo.
-              </p>
-            </section>
-          )}
-
-          {paymentMethod === "efectivo" && (
-            <section className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-              <h4 className="text-sm font-bold text-emerald-900 mb-1">💵 Pago en efectivo</h4>
-              <p className="text-xs text-emerald-800">
-                Contacta al admin por WhatsApp para acordar el lugar y hora de pago.
-                <br />
-                Al confirmar, tu suscripción quedará pendiente hasta que se reciba el pago.
               </p>
             </section>
           )}
@@ -457,11 +451,10 @@ function CheckoutModal({
           )}
 
           {/* UPLOAD COMPROBANTE */}
-          {paymentMethod !== "efectivo" && (
-            <section>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                📎 Comprobante de pago *
-              </h3>
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+              📎 Comprobante de pago *
+            </h3>
               {proofUrl ? (
                 <div className="space-y-2">
                   <div className="relative rounded-xl overflow-hidden border-2 border-emerald-300">
@@ -499,7 +492,6 @@ function CheckoutModal({
                 </div>
               )}
             </section>
-          )}
 
           {/* NOTAS */}
           <section>
