@@ -1,330 +1,540 @@
 import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
+import CloudinaryUpload from "@/components/CloudinaryUpload";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, Zap } from "lucide-react";
+import {
+  Sparkles,
+  Check,
+  Loader2,
+  X,
+  Calendar,
+  DollarSign,
+  CreditCard,
+  Banknote,
+  Upload,
+  Gift,
+} from "lucide-react";
 
-type PlanType = "free" | "pro" | "business";
+const POS_FEATURES: Record<string, string[]> = {
+  boutique: [
+    "POS completo de boutique",
+    "Productos ilimitados",
+    "Ventas ilimitadas",
+    "Múltiples sucursales",
+    "Reportes y gráficas",
+    "Notificaciones automáticas",
+    "Soporte prioritario",
+  ],
+  abarrotes: [
+    "POS para tiendita",
+    "Inventario ilimitado",
+    "Códigos de barras",
+    "Ventas con fiado",
+    "Reportes diarios",
+    "Notificaciones de stock bajo",
+    "Soporte prioritario",
+  ],
+  veterinaria: [
+    "POS para clínica veterinaria",
+    "Expediente de mascotas",
+    "Citas y vacunación",
+    "Productos + servicios",
+    "Recibos profesionales",
+    "Notificaciones automáticas",
+    "Soporte prioritario",
+  ],
+  verduleria: [
+    "POS para verdulería",
+    "Catálogo visual con emojis",
+    "Ventas rápidas",
+    "Productos ilimitados",
+    "Reportes diarios",
+    "Notificaciones de ventas",
+    "Soporte prioritario",
+  ],
+  tarima: [
+    "Página pública para artistas",
+    "URL personalizada",
+    "Galería ilimitada de fotos",
+    "Videos de YouTube",
+    "Música de Spotify",
+    "Sistema de bookings",
+    "Soporte prioritario",
+  ],
+};
 
-interface Plan {
-  id: PlanType;
-  name: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  description: string;
-  popular?: boolean;
-  features: string[];
-  cta: string;
-  icon: string;
+export default function PricingPlans() {
+  const [planType, setPlanType] = useState<"monthly" | "yearly">("monthly");
+  const [selectedPos, setSelectedPos] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+
+  const plansQuery = trpc.pagos.plans.list.useQuery();
+  const discountQuery = trpc.pagos.plans.todayDiscount.useQuery();
+
+  const plans = plansQuery.data ?? [];
+  const todayDiscount = discountQuery.data;
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6 max-w-6xl mx-auto">
+        {/* HERO */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-fuchsia-900 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl -mr-48 -mt-48" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl -ml-48 -mb-48" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-3 h-3" />
+              <span className="text-xs font-bold uppercase tracking-wider">Suscríbete</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+              Planes CyberPiezas
+            </h1>
+            <p className="text-white/80 text-lg max-w-2xl">
+              Una suscripción por cada sistema que necesites. Sin contratos largos, cancela cuando quieras.
+            </p>
+          </div>
+        </div>
+
+        {/* BANNER PROMO si hay descuento hoy */}
+        {todayDiscount?.active && (
+          <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-5 text-white shadow-xl shadow-amber-500/30 animate-pulse-slow">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <Gift className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold">¡Promoción del día!</h3>
+                <p className="text-white/90 text-sm">
+                  Hoy día {todayDiscount.today}: <span className="font-bold">{todayDiscount.percentage}% OFF</span> en planes mensuales. Solo por hoy.
+                </p>
+              </div>
+              <div className="text-right hidden sm:block">
+                <p className="text-3xl font-bold">{todayDiscount.percentage}%</p>
+                <p className="text-xs uppercase tracking-wider">OFF</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TOGGLE MENSUAL/ANUAL */}
+        <div className="flex justify-center">
+          <div className="inline-flex bg-slate-100 rounded-full p-1">
+            <button
+              onClick={() => setPlanType("monthly")}
+              className={
+                "h-10 px-6 rounded-full text-sm font-bold transition-all " +
+                (planType === "monthly"
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-slate-600 hover:text-slate-900")
+              }
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setPlanType("yearly")}
+              className={
+                "h-10 px-6 rounded-full text-sm font-bold transition-all relative " +
+                (planType === "yearly"
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-slate-600 hover:text-slate-900")
+              }
+            >
+              Anual
+              <span className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                AHORRA
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* GRID DE PLANES */}
+        {plansQuery.isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 mx-auto animate-spin text-fuchsia-500" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plans.map((plan: any) => (
+              <PlanCard
+                key={plan.posCode}
+                plan={plan}
+                planType={planType}
+                onSubscribe={() => setSelectedPos(plan.posCode)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* INFO ADICIONAL */}
+        <div className="bg-slate-50 rounded-2xl p-6 text-center">
+          <p className="text-sm text-slate-600">
+            <span className="font-bold">💡 ¿Necesitas varios sistemas?</span> Suscríbete a cada uno por separado.
+            Cada sistema funciona de forma independiente con su propio panel.
+          </p>
+        </div>
+      </div>
+
+      {/* MODAL DE CHECKOUT */}
+      {selectedPos && (
+        <CheckoutModal
+          posCode={selectedPos}
+          planType={planType}
+          plan={plans.find((p: any) => p.posCode === selectedPos)}
+          onClose={() => setSelectedPos(null)}
+          onSuccess={() => {
+            setSelectedPos(null);
+            toast.success("✅ Solicitud enviada. El admin la revisará pronto.");
+            setLocation("/mis-suscripciones");
+          }}
+        />
+      )}
+    </DashboardLayout>
+  );
 }
 
-const plans: Plan[] = [
-  {
-    id: "free",
-    name: "Gratis",
-    monthlyPrice: 0,
-    annualPrice: 0,
-    description: "Para empezar sin riesgo",
-    features: [
-      "1 sucursal",
-      "Hasta 50 productos",
-      "1 cajero",
-      "POS Boutique",
-      "Soporte por correo",
-    ],
-    cta: "Empezar gratis",
-    icon: "🏠",
-  },
-  {
-    id: "pro",
-    name: "Profesional",
-    monthlyPrice: 249,
-    annualPrice: 2390,
-    description: "El favorito de los negocios en crecimiento",
-    popular: true,
-    features: [
-      "Hasta 2 sucursales",
-      "Productos ilimitados",
-      "5 cajeros",
-      "Tienda pública con link propio",
-      "Reportes avanzados",
-      "Soporte prioritario por WhatsApp",
-    ],
-    cta: "Elegir profesional",
-    icon: "⭐",
-  },
-  {
-    id: "business",
-    name: "Negocio",
-    monthlyPrice: 500,
-    annualPrice: 4800,
-    description: "Para negocios con operación compleja",
-    features: [
-      "Hasta 4 sucursales",
-      "Cajeros ilimitados",
-      "Impresión de tickets y cajón de dinero",
-      "Notificaciones avanzadas",
-      "Soporte prioritario",
-    ],
-    cta: "Elegir negocio",
-    icon: "🚀",
-  },
-];
+// =============================================================================
+// PLAN CARD
+// =============================================================================
+function PlanCard({
+  plan,
+  planType,
+  onSubscribe,
+}: {
+  plan: any;
+  planType: "monthly" | "yearly";
+  onSubscribe: () => void;
+}) {
+  const pricing = planType === "monthly" ? plan.monthly : plan.yearly;
+  const features = POS_FEATURES[plan.posCode] || [];
 
-export function PricingPlans() {
-  const [, setLocation] = useLocation();
-  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
-  const [isAnnual, setIsAnnual] = useState(false);
+  return (
+    <div className="bg-white border-2 border-slate-200 hover:border-fuchsia-300 rounded-3xl p-6 transition-all hover:shadow-xl hover:-translate-y-1 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-50 to-purple-100 flex items-center justify-center text-2xl">
+          {plan.icon}
+        </div>
+        <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+      </div>
 
-  const handleSelectPlan = (planId: PlanType) => {
-    setSelectedPlan(planId);
-    setLocation(`/checkout?plan=${planId}&billing=${isAnnual ? "annual" : "monthly"}`);
-  };
+      {/* Precio */}
+      <div className="mb-5">
+        {pricing.discountApplied ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-slate-900">
+                ${pricing.finalAmount.toFixed(0)}
+              </span>
+              <span className="text-sm text-slate-400 line-through">
+                ${pricing.originalAmount.toFixed(0)}
+              </span>
+              <span className="text-sm text-slate-500">
+                /{planType === "monthly" ? "mes" : "año"}
+              </span>
+            </div>
+            <p className="text-xs text-emerald-600 font-bold mt-1">
+              🎁 -{pricing.discountPercentage}% solo hoy
+            </p>
+          </>
+        ) : (
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-bold text-slate-900">
+              ${pricing.finalAmount.toFixed(0)}
+            </span>
+            <span className="text-sm text-slate-500">
+              /{planType === "monthly" ? "mes" : "año"}
+            </span>
+          </div>
+        )}
+        {planType === "yearly" && (
+          <p className="text-xs text-emerald-600 font-bold mt-1">
+            💰 Ahorras ${(plan.monthly.originalAmount * 12 - plan.yearly.originalAmount).toFixed(0)} al año
+          </p>
+        )}
+      </div>
 
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+      {/* Features */}
+      <ul className="space-y-2 mb-6 flex-1">
+        {features.map((feat: string, idx: number) => (
+          <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
+            <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+            <span>{feat}</span>
+          </li>
+        ))}
+      </ul>
 
-  const faqs = [
-    {
-      q: "¿Puedo cambiar de plan?",
-      a: "Sí, puedes subir a un plan superior en cualquier momento desde tu panel. El cambio aplica en tu próxima fecha de cobro. No es posible bajar de plan una vez activo.",
-    },
-    {
-      q: "¿Hay permanencia?",
-      a: "No. Nuestros planes son mes a mes o anuales sin penalización por cancelar. Puedes darte de baja cuando quieras.",
-    },
-    {
-      q: "¿Qué pasa con mis datos si cancelo?",
-      a: "Tus datos se conservan 30 días después de cancelar. Durante ese tiempo puedes exportar tu inventario y el historial de ventas antes de que se eliminen.",
-    },
-    {
-      q: "¿Puedo probar antes de pagar?",
-      a: "Sí. Todos los planes incluyen 30 días gratis sin necesidad de tarjeta de crédito. Solo crea tu cuenta y empieza a usarlo.",
-    },
-    {
-      q: "¿Cómo se hace el pago?",
-      a: "Aceptamos transferencia bancaria y pago en efectivo con referencia. Te indicamos los datos al momento de activar tu plan.",
-    },
-  ];
+      {/* CTA */}
+      <Button
+        onClick={onSubscribe}
+        className="w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white rounded-full h-12 font-bold shadow-lg shadow-fuchsia-500/30"
+      >
+        Suscribirme
+      </Button>
+    </div>
+  );
+}
 
-  const getPrice = (plan: Plan) => {
-    if (isAnnual && plan.annualPrice > 0) {
-      return { amount: plan.annualPrice.toLocaleString(), period: "/año" };
+// =============================================================================
+// CHECKOUT MODAL
+// =============================================================================
+function CheckoutModal({
+  posCode,
+  planType,
+  plan,
+  onClose,
+  onSuccess,
+}: {
+  posCode: string;
+  planType: "monthly" | "yearly";
+  plan: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [paymentMethod, setPaymentMethod] = useState<"transferencia" | "efectivo" | "mercadopago">("transferencia");
+  const [proofUrl, setProofUrl] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
+
+  const pricing = planType === "monthly" ? plan.monthly : plan.yearly;
+
+  const createRequest = trpc.pagos.requests.create.useMutation({
+    onSuccess: () => {
+      onSuccess();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSubmit = () => {
+    if (paymentMethod !== "efectivo" && !proofUrl) {
+      toast.error("Por favor sube tu comprobante de pago");
+      return;
     }
-    return { amount: plan.monthlyPrice.toLocaleString(), period: "/mes" };
+    createRequest.mutate({
+      posCode: posCode as any,
+      planType,
+      paymentMethod,
+      proofUrl: proofUrl || undefined,
+      customerNotes: customerNotes || undefined,
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 p-4 md:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <Button
-            variant="ghost"
-            onClick={() => setLocation("/")}
-            className="mb-6 mx-auto block"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver
-          </Button>
-          <h1 className="mb-4 text-5xl font-bold text-slate-900">
-            Planes de Suscripción
-          </h1>
-          <p className="mb-2 text-xl text-slate-600">
-            Controla tu inventario, tus ventas y tu caja desde el celular — sin perder un solo peso
-          </p>
-          <div className="inline-block rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-800">
-            ✨ Primeros 30 días gratis, sin tarjeta de crédito
-          </div>
-
-          {/* Toggle mensual / anual */}
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <span className={`text-sm font-medium ${!isAnnual ? "text-slate-900" : "text-slate-400"}`}>
-              Mensual
-            </span>
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div className="sticky top-0 bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white p-6 rounded-t-3xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-white/80">Confirmar suscripción</p>
+              <h2 className="text-2xl font-bold mt-1">
+                {plan.icon} {plan.name}
+              </h2>
+            </div>
             <button
-              onClick={() => setIsAnnual(!isAnnual)}
-              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none ${
-                isAnnual ? "bg-purple-600" : "bg-slate-300"
-              }`}
-              aria-label="Cambiar ciclo de facturación"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"
             >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-                  isAnnual ? "translate-x-8" : "translate-x-1"
-                }`}
-              />
+              <X className="w-5 h-5" />
             </button>
-            <span className={`text-sm font-medium ${isAnnual ? "text-slate-900" : "text-slate-400"}`}>
-              Anual
-            </span>
-            {isAnnual && (
-              <Badge className="bg-green-500 text-white text-xs font-bold px-3 py-1 animate-pulse">
-                Ahorra 20%
-              </Badge>
-            )}
           </div>
         </div>
 
-        {/* Oferta especial */}
-        <Card className="mb-12 border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50">
-          <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-3 text-center">
-              <div>
-                <p className="text-sm text-slate-600 mb-1">✅ Instalación incluida</p>
-                <p className="font-semibold text-slate-900">Configuramos todo por ti</p>
+        {/* BODY */}
+        <div className="p-6 space-y-5">
+          {/* RESUMEN */}
+          <section className="bg-slate-50 rounded-2xl p-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+              Resumen
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Plan:</span>
+                <span className="font-bold text-slate-900">
+                  {planType === "monthly" ? "Mensual" : "Anual"}
+                </span>
               </div>
-              <div>
-                <p className="text-sm text-slate-600 mb-1">✅ Capacitación gratis</p>
-                <p className="font-semibold text-slate-900">Aprende a usar el sistema</p>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Sistema:</span>
+                <span className="font-bold text-slate-900">{plan.name}</span>
               </div>
-              <div>
-                <p className="text-sm text-slate-600 mb-1">✅ Sin contrato anual</p>
-                <p className="font-semibold text-slate-900">Mes a mes, cancela cuando quieras</p>
+              {pricing.discountApplied && (
+                <>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Precio normal:</span>
+                    <span className="line-through">
+                      ${pricing.originalAmount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Descuento ({pricing.discountPercentage}%):</span>
+                    <span>
+                      -${(pricing.originalAmount - pricing.finalAmount).toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between items-baseline">
+                <span className="text-slate-700 font-bold">Total:</span>
+                <span className="text-3xl font-bold text-slate-900">
+                  ${pricing.finalAmount.toFixed(2)}
+                </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </section>
 
-        {/* Planes */}
-        <div className="grid gap-8 md:grid-cols-3 items-stretch mb-12">
-          {plans.map((plan) => {
-            const cardBg =
-              plan.id === "pro"
-                ? "bg-purple-50"
-                : plan.id === "business"
-                ? "bg-blue-50"
-                : "bg-white";
-            const cardBorder =
-              plan.id === "pro"
-                ? "border-2 border-purple-400 shadow-xl shadow-purple-200"
-                : plan.id === "business"
-                ? "border-2 border-blue-300 shadow-lg shadow-blue-100"
-                : "border border-slate-200";
-            const btnClass =
-              plan.id === "pro"
-                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : plan.id === "business"
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "bg-slate-200 hover:bg-slate-300 text-slate-900";
-            return (
-              <div key={plan.id} className="relative">
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                    <Badge className="bg-purple-600 text-white px-4 py-1 text-sm font-semibold">
-                      <Zap className="mr-1 h-3 w-3 inline" />
-                      Más popular
-                    </Badge>
-                  </div>
-                )}
-                <Card
-                  className={`h-full flex flex-col transition-all duration-300 cursor-default hover:scale-105 hover:shadow-xl ${
-                    cardBg
-                  } ${
-                    cardBorder
-                  } ${
-                    plan.popular ? "scale-105" : ""
-                  }`}
-                >
-                  <CardHeader className="pb-2">
-                    {/* Ícono ilustrativo */}
-                    <div className="text-4xl mb-2">{plan.icon}</div>
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    <CardDescription>{plan.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col">
-                    <div className="mb-6">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-slate-900">
-                          ${getPrice(plan).amount}
-                        </span>
-                        <span className="text-slate-600">{getPrice(plan).period}</span>
-                      </div>
-                      {plan.id !== "free" && isAnnual && (
-                        <p className="text-xs text-green-600 font-semibold mt-1">
-                          Equivale a ${Math.round(plan.annualPrice / 12).toLocaleString()}/mes
-                        </p>
-                      )}
-                      <p className="text-sm text-slate-500 mt-2">
-                        Después de 30 días gratis
-                      </p>
-                    </div>
-
-                    <Button
-                      onClick={() => handleSelectPlan(plan.id)}
-                      className={`w-full mb-6 font-semibold py-6 text-base ${btnClass}`}
-                    >
-                      {plan.cta}
-                    </Button>
-
-                    <div className="space-y-3 flex-1">
-                      {plan.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-3">
-                          <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-slate-700">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Preguntas frecuentes — acordeón */}
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center">
-            Preguntas frecuentes
-          </h2>
-          <div className="space-y-3">
-            {faqs.map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm"
-              >
+          {/* MÉTODO DE PAGO */}
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+              💳 Método de pago
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "transferencia", label: "Transferencia", icon: "🏦" },
+                { id: "efectivo", label: "Efectivo", icon: "💵" },
+                { id: "mercadopago", label: "MercadoPago", icon: "💳" },
+              ].map((method) => (
                 <button
-                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 transition-colors duration-200"
+                  key={method.id}
+                  onClick={() => setPaymentMethod(method.id as any)}
+                  className={
+                    "p-3 rounded-xl border-2 transition-all text-center " +
+                    (paymentMethod === method.id
+                      ? "border-fuchsia-500 bg-fuchsia-50"
+                      : "border-slate-200 bg-white hover:border-slate-300")
+                  }
                 >
-                  <span className="font-semibold text-slate-800 text-base">{item.q}</span>
-                  <span
-                    className={`ml-4 flex-shrink-0 text-2xl font-light text-purple-600 transition-transform duration-300 ${
-                      openFaq === idx ? "rotate-45" : "rotate-0"
-                    }`}
-                  >
-                    +
-                  </span>
+                  <div className="text-2xl mb-1">{method.icon}</div>
+                  <div className="text-xs font-bold text-slate-700">{method.label}</div>
                 </button>
-                {openFaq === idx && (
-                  <div className="px-6 pb-5 pt-1 text-slate-600 text-sm leading-relaxed border-t border-slate-100">
-                    {item.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </section>
 
-        {/* CTA final */}
-        <div className="mt-16 text-center">
-          <p className="text-slate-600 mb-4">
-            ¿Dudas? Contáctanos por WhatsApp
-          </p>
+          {/* INSTRUCCIONES DE PAGO */}
+          {paymentMethod === "transferencia" && (
+            <section className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <h4 className="text-sm font-bold text-blue-900 mb-2">🏦 Datos para transferencia</h4>
+              <div className="text-xs text-blue-800 space-y-1">
+                <p><span className="font-bold">Banco:</span> BBVA</p>
+                <p><span className="font-bold">A nombre de:</span> David Antonio Farfán Gómez</p>
+                <p><span className="font-bold">CLABE:</span> 012180012345678901</p>
+                <p><span className="font-bold">Concepto:</span> {plan.name} - {planType}</p>
+              </div>
+              <p className="text-xs text-blue-700 mt-2 italic">
+                💡 Después de transferir, sube el comprobante aquí abajo.
+              </p>
+            </section>
+          )}
+
+          {paymentMethod === "efectivo" && (
+            <section className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+              <h4 className="text-sm font-bold text-emerald-900 mb-1">💵 Pago en efectivo</h4>
+              <p className="text-xs text-emerald-800">
+                Contacta al admin por WhatsApp para acordar el lugar y hora de pago.
+                <br />
+                Al confirmar, tu suscripción quedará pendiente hasta que se reciba el pago.
+              </p>
+            </section>
+          )}
+
+          {paymentMethod === "mercadopago" && (
+            <section className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
+              <h4 className="text-sm font-bold text-cyan-900 mb-1">💳 MercadoPago</h4>
+              <p className="text-xs text-cyan-800">
+                Solicita el link de pago al admin por WhatsApp.
+                <br />
+                Después de pagar, sube el comprobante o captura.
+              </p>
+            </section>
+          )}
+
+          {/* UPLOAD COMPROBANTE */}
+          {paymentMethod !== "efectivo" && (
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                📎 Comprobante de pago *
+              </h3>
+              {proofUrl ? (
+                <div className="space-y-2">
+                  <div className="relative rounded-xl overflow-hidden border-2 border-emerald-300">
+                    <img
+                      src={proofUrl}
+                      alt="Comprobante"
+                      className="w-full max-h-64 object-contain bg-slate-50"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <button
+                        onClick={() => setProofUrl("")}
+                        className="w-8 h-8 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-emerald-600 text-center font-bold">
+                    ✅ Comprobante cargado
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
+                  <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                  <p className="text-sm text-slate-600 mb-3">
+                    Sube foto o captura de tu pago
+                  </p>
+                  <CloudinaryUpload
+                    label="Subir comprobante"
+                    folder="pagos/comprobantes"
+                    onUploaded={(url) => {
+                      setProofUrl(url);
+                    }}
+                  />
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* NOTAS */}
+          <section>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+              💬 Notas (opcional)
+            </h3>
+            <textarea
+              value={customerNotes}
+              onChange={(e) => setCustomerNotes(e.target.value)}
+              placeholder="Algo que quieras decirle al admin..."
+              rows={2}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-fuchsia-400 focus:outline-none"
+            />
+          </section>
+
+          {/* SUBMIT */}
           <Button
-            size="lg"
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-6 px-8 text-lg"
-            onClick={() => {
-              const phone = "5215551234567"; // Reemplazar con número real
-              window.open(`https://wa.me/${phone}?text=Hola, tengo dudas sobre los planes de suscripción`, "_blank");
-            }}
+            onClick={handleSubmit}
+            disabled={createRequest.isPending}
+            className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-full h-14 font-bold text-base shadow-lg shadow-emerald-500/30"
           >
-            💬 Hablar por WhatsApp
+            {createRequest.isPending ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Check className="w-5 h-5 mr-2" />
+                Enviar solicitud (${pricing.finalAmount.toFixed(0)})
+              </>
+            )}
           </Button>
+          <p className="text-xs text-slate-500 text-center">
+            El admin revisará tu pago y activará tu acceso pronto.
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
-export default PricingPlans;
