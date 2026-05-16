@@ -3,8 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
 import {
-  posPaymentRequests,
-  posSubscriptions,
+  planRequests,
+  planAccess,
   users,
 } from "../../drizzle/schema";
 import * as db from "../db";
@@ -146,12 +146,12 @@ export const pagosRouter = router({
         // Verificar que no tenga ya una solicitud pendiente del mismo POS
         const existing = await conn
           .select()
-          .from(posPaymentRequests)
+          .from(planRequests)
           .where(
             and(
-              eq(posPaymentRequests.userId, ctx.user.id),
-              eq(posPaymentRequests.posCode, input.posCode),
-              eq(posPaymentRequests.status, "pending"),
+              eq(planRequests.userId, ctx.user.id),
+              eq(planRequests.posCode, input.posCode),
+              eq(planRequests.status, "pending"),
             ),
           )
           .limit(1);
@@ -163,7 +163,7 @@ export const pagosRouter = router({
         }
 
         // Insertar request
-        const result = await conn.insert(posPaymentRequests).values({
+        const result = await conn.insert(planRequests).values({
           userId: ctx.user.id,
           posCode: input.posCode,
           planType: input.planType,
@@ -211,9 +211,9 @@ export const pagosRouter = router({
       const conn = await getDbOrThrow();
       return await conn
         .select()
-        .from(posPaymentRequests)
-        .where(eq(posPaymentRequests.userId, ctx.user.id))
-        .orderBy(desc(posPaymentRequests.createdAt));
+        .from(planRequests)
+        .where(eq(planRequests.userId, ctx.user.id))
+        .orderBy(desc(planRequests.createdAt));
     }),
 
     // Cancelar mi solicitud pendiente
@@ -222,13 +222,13 @@ export const pagosRouter = router({
       .mutation(async ({ ctx, input }) => {
         const conn = await getDbOrThrow();
         await conn
-          .update(posPaymentRequests)
+          .update(planRequests)
           .set({ status: "cancelled" })
           .where(
             and(
-              eq(posPaymentRequests.id, input.id),
-              eq(posPaymentRequests.userId, ctx.user.id),
-              eq(posPaymentRequests.status, "pending"),
+              eq(planRequests.id, input.id),
+              eq(planRequests.userId, ctx.user.id),
+              eq(planRequests.status, "pending"),
             ),
           );
         return { success: true };
@@ -253,13 +253,13 @@ export const pagosRouter = router({
         // Join con users para mostrar nombre
         const conditions: any[] = [];
         if (input?.status) {
-          conditions.push(eq(posPaymentRequests.status, input.status));
+          conditions.push(eq(planRequests.status, input.status));
         }
         const query = conditions.length > 0
-          ? conn.select().from(posPaymentRequests).where(and(...conditions))
-          : conn.select().from(posPaymentRequests);
+          ? conn.select().from(planRequests).where(and(...conditions))
+          : conn.select().from(planRequests);
         const requests = await query
-          .orderBy(desc(posPaymentRequests.createdAt))
+          .orderBy(desc(planRequests.createdAt))
           .limit(input?.limit ?? 100);
         // Agregar info del usuario
         const enriched = [];
@@ -288,8 +288,8 @@ export const pagosRouter = router({
         // Obtener solicitud
         const reqRows = await conn
           .select()
-          .from(posPaymentRequests)
-          .where(eq(posPaymentRequests.id, input.requestId))
+          .from(planRequests)
+          .where(eq(planRequests.id, input.requestId))
           .limit(1);
         const req = reqRows[0];
         if (!req) {
@@ -309,7 +309,7 @@ export const pagosRouter = router({
         }
 
         // Crear suscripcion
-        await conn.insert(posSubscriptions).values({
+        await conn.insert(planAccess).values({
           userId: req.userId,
           posCode: req.posCode,
           planType: req.planType,
@@ -322,14 +322,14 @@ export const pagosRouter = router({
 
         // Actualizar solicitud
         await conn
-          .update(posPaymentRequests)
+          .update(planRequests)
           .set({
             status: "approved",
             adminNotes: input.adminNotes,
             reviewedBy: ctx.user.id,
             reviewedAt: new Date(),
           })
-          .where(eq(posPaymentRequests.id, input.requestId));
+          .where(eq(planRequests.id, input.requestId));
 
         // Notificar al suscriptor
         try {
@@ -364,8 +364,8 @@ export const pagosRouter = router({
         const conn = await getDbOrThrow();
         const reqRows = await conn
           .select()
-          .from(posPaymentRequests)
-          .where(eq(posPaymentRequests.id, input.requestId))
+          .from(planRequests)
+          .where(eq(planRequests.id, input.requestId))
           .limit(1);
         const req = reqRows[0];
         if (!req) {
@@ -375,14 +375,14 @@ export const pagosRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Esta solicitud ya fue procesada" });
         }
         await conn
-          .update(posPaymentRequests)
+          .update(planRequests)
           .set({
             status: "rejected",
             adminNotes: input.adminNotes,
             reviewedBy: ctx.user.id,
             reviewedAt: new Date(),
           })
-          .where(eq(posPaymentRequests.id, input.requestId));
+          .where(eq(planRequests.id, input.requestId));
 
         // Notificar al suscriptor
         try {
@@ -408,18 +408,18 @@ export const pagosRouter = router({
       const lastOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
       const monthRequests = await conn
         .select()
-        .from(posPaymentRequests)
+        .from(planRequests)
         .where(
           and(
-            gte(posPaymentRequests.createdAt, firstOfMonth),
-            lte(posPaymentRequests.createdAt, lastOfMonth),
+            gte(planRequests.createdAt, firstOfMonth),
+            lte(planRequests.createdAt, lastOfMonth),
           ),
         );
       const approved = monthRequests.filter((r) => r.status === "approved");
       const pending = await conn
         .select()
-        .from(posPaymentRequests)
-        .where(eq(posPaymentRequests.status, "pending"));
+        .from(planRequests)
+        .where(eq(planRequests.status, "pending"));
       const monthRevenue = approved.reduce((sum, r) => sum + parseFloat(r.finalAmount), 0);
       return {
         pendingCount: pending.length,
@@ -438,9 +438,9 @@ export const pagosRouter = router({
       const conn = await getDbOrThrow();
       return await conn
         .select()
-        .from(posSubscriptions)
-        .where(eq(posSubscriptions.userId, ctx.user.id))
-        .orderBy(desc(posSubscriptions.createdAt));
+        .from(planAccess)
+        .where(eq(planAccess.userId, ctx.user.id))
+        .orderBy(desc(planAccess.createdAt));
     }),
 
     // Verificar si tengo acceso activo a un POS especifico
@@ -451,13 +451,13 @@ export const pagosRouter = router({
         const now = new Date();
         const subs = await conn
           .select()
-          .from(posSubscriptions)
+          .from(planAccess)
           .where(
             and(
-              eq(posSubscriptions.userId, ctx.user.id),
-              eq(posSubscriptions.posCode, input.posCode),
-              eq(posSubscriptions.status, "active"),
-              gte(posSubscriptions.endDate, now),
+              eq(planAccess.userId, ctx.user.id),
+              eq(planAccess.posCode, input.posCode),
+              eq(planAccess.status, "active"),
+              gte(planAccess.endDate, now),
             ),
           )
           .limit(1);
