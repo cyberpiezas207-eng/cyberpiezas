@@ -1313,7 +1313,7 @@ export const tarimaMedia = mysqlTable("tarimaMedia", {
 export type TarimaMedia = typeof tarimaMedia.$inferSelect;
 export type InsertTarimaMedia = typeof tarimaMedia.$inferInsert;
 
-export const posPaymentRequests = mysqlTable("posPaymentRequests", {
+export const planRequests = mysqlTable("planRequests", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id),
   // Que POS quiere comprar
@@ -1343,10 +1343,10 @@ export const posPaymentRequests = mysqlTable("posPaymentRequests", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
-export type PosPaymentRequest = typeof posPaymentRequests.$inferSelect;
-export type InsertPosPaymentRequest = typeof posPaymentRequests.$inferInsert;
+export type PlanRequest = typeof planRequests.$inferSelect;
+export type InsertPlanRequest = typeof planRequests.$inferInsert;
 
-export const posSubscriptions = mysqlTable("posSubscriptions", {
+export const planAccess = mysqlTable("planAccess", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id),
   posCode: mysqlEnum("posCode", [
@@ -1360,11 +1360,12 @@ export const posSubscriptions = mysqlTable("posSubscriptions", {
   status: mysqlEnum("status", ["active", "expired", "cancelled"]).notNull().default("active"),
   startDate: timestamp("startDate").notNull(),
   endDate: timestamp("endDate").notNull(),
-  paymentRequestId: int("paymentRequestId").references(() => posPaymentRequests.id),
+  paymentRequestId: int("paymentRequestId").references(() => planRequests.id),
   amountPaid: decimal("amountPaid", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
 
-export type PosSubscription = typeof posSubscriptions.$inferSelect;
-export type InsertPosSubscription = typeof posSubscriptions.$inferInsert;
+export type PlanAccess = typeof planAccess.$inferSelect;
+export type InsertPlanAccess = typeof planAccess.$inferInsert;
+
