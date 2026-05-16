@@ -345,6 +345,127 @@ export default function TermsAndConditions() {
             </p>
           </Clause>
 
+          <Clause numeral="XII" title="De la Resolución de Controversias y Arbitraje">
+            <p>
+              <DropCap>L</DropCap>as partes acuerdan que, en caso de surgir cualquier
+              controversia, diferencia o reclamación derivada del presente acuerdo,
+              intentarán resolverla primeramente mediante <strong>negociación directa
+              y de buena fe</strong> dentro de los treinta (30) días naturales
+              siguientes a la notificación escrita de la controversia. Si no se
+              alcanzara acuerdo, las partes podrán someterse, de común consentimiento,
+              a <strong>procedimiento de mediación o arbitraje</strong> ante la Cámara
+              Nacional de Comercio (CANACO) o institución equivalente. Únicamente
+              agotadas estas instancias, podrá acudirse a los tribunales competentes
+              señalados en la cláusula X. Esta cláusula tiene por objeto evitar la
+              judicialización innecesaria de diferencias menores y preservar la
+              relación comercial.
+            </p>
+          </Clause>
+
+          <Clause numeral="XIII" title="De las Cookies y Tecnologías de Rastreo">
+            <p>
+              <DropCap>L</DropCap>a plataforma utiliza cookies y tecnologías similares
+              para su correcto funcionamiento, las cuales se clasifican en:
+              <em> (a) Cookies técnicas necesarias</em>, indispensables para la
+              prestación del servicio (sesión, autenticación, preferencias),
+              cuyo uso no requiere consentimiento expreso;
+              <em> (b) Cookies analíticas</em>, utilizadas para medir el desempeño y
+              uso de la plataforma de forma agregada y anónima;
+              <em> (c) Cookies de terceros</em>, provenientes de proveedores de
+              infraestructura (servicios de almacenamiento en la nube y procesamiento
+              de pagos), sujetos a sus propias políticas. El Cliente podrá administrar
+              o eliminar las cookies desde la configuración de su navegador,
+              entendiendo que ello podrá afectar la funcionalidad del servicio.
+            </p>
+          </Clause>
+
+          <Clause numeral="XIV" title="De los Derechos ARCO y Aviso de Privacidad">
+            <p>
+              <DropCap>C</DropCap>onforme a la <em>Ley Federal de Protección de Datos
+              Personales en Posesión de los Particulares</em> (LFPDPPP), el Cliente
+              tiene en todo momento los siguientes <strong>derechos ARCO</strong>:
+              <em> (A) Acceso</em> — conocer qué datos personales tenemos sobre él;
+              <em> (R) Rectificación</em> — solicitar corrección de datos inexactos;
+              <em> (C) Cancelación</em> — solicitar la supresión de sus datos;
+              <em> (O) Oposición</em> — oponerse al tratamiento de sus datos para
+              fines específicos. Para ejercer estos derechos, deberá enviar
+              solicitud por escrito al correo <strong>cyberpiezas207@gmail.com</strong>,
+              incluyendo identificación oficial y descripción clara del derecho que
+              ejerce. El Proveedor responderá en un plazo máximo de
+              <strong> veinte (20) días hábiles</strong>. La presente cláusula constituye
+              también el aviso de privacidad simplificado conforme a la LFPDPPP.
+            </p>
+          </Clause>
+
+          <Clause numeral="XV" title="Del Uso por Menores de Edad">
+            <p>
+              <DropCap>L</DropCap>os servicios de CyberPiezas están dirigidos a personas
+              mayores de dieciocho (18) años, con capacidad jurídica para contratar
+              conforme a la legislación mexicana. <strong>Está estrictamente prohibida
+              la suscripción y uso por parte de menores de edad sin autorización
+              expresa y por escrito de quien ejerza la patria potestad o tutela</strong>.
+              En el caso particular de la plataforma <em>Tarima</em>, los artistas
+              menores de edad únicamente podrán publicar contenido bajo supervisión
+              y autorización escrita de su padre, madre o tutor legal, quien asumirá
+              la responsabilidad por las publicaciones. El Proveedor se reserva el
+              derecho de suspender cualquier cuenta cuando se acredite o presuma
+              fundadamente la participación de menores sin autorización. Queda
+              absolutamente prohibido y será objeto de denuncia inmediata ante la
+              autoridad competente cualquier contenido que sexualice, exponga o
+              ponga en riesgo a menores de edad.
+            </p>
+          </Clause>
+
+          <Clause numeral="XVI" title="De los Términos Específicos por Producto">
+            <p className="mb-3">
+              <DropCap>L</DropCap>os siguientes lineamientos aplican según el producto
+              contratado y prevalecen sobre las disposiciones generales en caso de
+              contradicción:
+            </p>
+            <p className="mb-3 pl-4 border-l-2 border-amber-900/30">
+              <strong>(a) Para Sistemas de Punto de Venta</strong> (Boutique, Abarrotes,
+              Veterinaria, Verdulería): los datos de los clientes finales del
+              Suscriptor son <em>propiedad exclusiva</em> de éste último; el Proveedor
+              actúa como mero <em>procesador técnico</em>. El Cliente es responsable de
+              cumplir con sus obligaciones fiscales (facturación, impuestos, retenciones)
+              y de la veracidad de la información que ingresa al sistema. El Proveedor
+              no se hace responsable por errores en cobros, cambio incorrecto,
+              o cualquier discrepancia en transacciones operadas por el Cliente o sus
+              empleados.
+            </p>
+            <p className="mb-3 pl-4 border-l-2 border-amber-900/30">
+              <strong>(b) Para la Plataforma Tarima</strong>: el artista es propietario
+              del contenido (fotografías, videos, audios, textos) que publica y
+              <em> garantiza tener todos los derechos</em> de autor y de imagen sobre el
+              mismo. Al publicar, otorga al Proveedor licencia limitada para
+              almacenar, transmitir y mostrar el contenido en la plataforma. El
+              Proveedor se reserva el derecho de <strong>remover sin previo aviso
+              cualquier contenido</strong> que: contenga material sexual explícito,
+              violencia, apología del delito, sustancias prohibidas, infrinja derechos
+              de terceros, o contravenga los presentes términos. Las reservaciones,
+              mensajes y comunicaciones entre artistas y contratantes son
+              responsabilidad de las partes; el Proveedor facilita la herramienta
+              pero <strong>no garantiza el cumplimiento de pagos ni la celebración
+              efectiva de eventos</strong> acordados a través de la plataforma.
+            </p>
+          </Clause>
+
+          <Clause numeral="XVII" title="Del Cumplimiento Internacional">
+            <p>
+              <DropCap>E</DropCap>n el supuesto de que el Cliente preste servicios a
+              titulares de datos personales residentes en la Unión Europea, Reino Unido
+              u otras jurisdicciones con regulaciones específicas (GDPR, UK-DPA, CCPA),
+              el Cliente actuará como <em>Controlador</em> de dichos datos y el
+              Proveedor como <em>Procesador</em>, asumiendo este último únicamente las
+              obligaciones técnicas de seguridad razonable y confidencialidad. El
+              Cliente deberá notificar al Proveedor por escrito de tal circunstancia,
+              y celebrar, en su caso, un <strong>Acuerdo de Procesamiento de Datos
+              (DPA)</strong> accesorio al presente. El Proveedor no asume
+              responsabilidad por incumplimientos del Cliente respecto a las
+              normativas internacionales aplicables a sus propios usuarios finales.
+            </p>
+          </Clause>
+
           {/* CIERRE */}
           <div className="text-center my-10 text-amber-900/40 text-2xl select-none">
             ✦  ❦  ✦  ❦  ✦
