@@ -90,7 +90,6 @@ const visibleSections: MenuSection[] = ["principal", "operacion", "administracio
 const menuItems: MenuItem[] = [
   // ── Principal ──────────────────────────────────────────────
   { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
-  { icon: Sparkles, label: "Precios y Planes", path: "/pricing", section: "principal" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
   { icon: Stethoscope, label: "Punto de Venta", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
   { icon: PawPrint, label: "Mascotas", path: "/veterinaria-pos/mascotas", section: "operacion", program: "veterinaria" },
