@@ -8,7 +8,6 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import DashboardLayout from "@/components/DashboardLayout";
 import CloudinaryUpload from "@/components/CloudinaryUpload";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,8 +83,33 @@ export default function PricingPlans() {
   const todayDiscount = discountQuery.data;
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-white">
+      {/* NavBar simple */}
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
+          <button onClick={() => setLocation("/cyberpiezas")} className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">C</span>
+            </div>
+            <span className="font-bold text-lg tracking-tight text-slate-900">CyberPiezas</span>
+          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setLocation("/cyberpiezas")} className="text-sm text-slate-600 hover:text-slate-900 font-medium">
+              Inicio
+            </button>
+            <button onClick={() => setLocation("/sistemas")} className="text-sm text-slate-600 hover:text-slate-900 font-medium">
+              Mi Panel
+            </button>
+            <button onClick={() => setLocation("/mis-suscripciones")} className="text-sm bg-slate-900 text-white rounded-full px-4 h-9 font-medium hover:bg-slate-800">
+              Mis Suscripciones
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Contenido */}
+      <div className="px-4 py-8 md:py-12">
+        <div className="space-y-6 max-w-6xl mx-auto">
         {/* HERO */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-fuchsia-900 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl -mr-48 -mt-48" />
@@ -181,6 +205,7 @@ export default function PricingPlans() {
             Cada sistema funciona de forma independiente con su propio panel.
           </p>
         </div>
+        </div>
       </div>
 
       {/* MODAL DE CHECKOUT */}
@@ -197,7 +222,7 @@ export default function PricingPlans() {
           }}
         />
       )}
-    </DashboardLayout>
+    </div>
   );
 }
 
