@@ -1312,3 +1312,59 @@ export const tarimaMedia = mysqlTable("tarimaMedia", {
 
 export type TarimaMedia = typeof tarimaMedia.$inferSelect;
 export type InsertTarimaMedia = typeof tarimaMedia.$inferInsert;
+
+export const posPaymentRequests = mysqlTable("posPaymentRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  // Que POS quiere comprar
+  posCode: mysqlEnum("posCode", [
+    "boutique",
+    "abarrotes",
+    "veterinaria",
+    "verduleria",
+    "tarima",
+  ]).notNull(),
+  // Plan: monthly o yearly
+  planType: mysqlEnum("planType", ["monthly", "yearly"]).notNull(),
+  // Precios
+  originalAmount: decimal("originalAmount", { precision: 10, scale: 2 }).notNull(),
+  finalAmount: decimal("finalAmount", { precision: 10, scale: 2 }).notNull(),
+  discountApplied: boolean("discountApplied").notNull().default(false),
+  discountPercentage: int("discountPercentage").default(0),
+  // Pago
+  paymentMethod: mysqlEnum("paymentMethod", ["transferencia", "efectivo", "mercadopago"]).notNull(),
+  proofUrl: varchar("proofUrl", { length: 1000 }),
+  customerNotes: text("customerNotes"),
+  // Estado de aprobacion
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).notNull().default("pending"),
+  adminNotes: text("adminNotes"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type PosPaymentRequest = typeof posPaymentRequests.$inferSelect;
+export type InsertPosPaymentRequest = typeof posPaymentRequests.$inferInsert;
+
+export const posSubscriptions = mysqlTable("posSubscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  posCode: mysqlEnum("posCode", [
+    "boutique",
+    "abarrotes",
+    "veterinaria",
+    "verduleria",
+    "tarima",
+  ]).notNull(),
+  planType: mysqlEnum("planType", ["monthly", "yearly"]).notNull(),
+  status: mysqlEnum("status", ["active", "expired", "cancelled"]).notNull().default("active"),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  paymentRequestId: int("paymentRequestId").references(() => posPaymentRequests.id),
+  amountPaid: decimal("amountPaid", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type PosSubscription = typeof posSubscriptions.$inferSelect;
+export type InsertPosSubscription = typeof posSubscriptions.$inferInsert;
