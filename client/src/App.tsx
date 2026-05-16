@@ -46,6 +46,8 @@ import AbarrotesPOS from "@/pages/AbarrotesPOS";
 import VerduleriaPOS from "@/pages/VerduleriaPOS";
 import TarimaPublic from "@/pages/TarimaPublic";
 import MiTarima from "@/pages/MiTarima";
+import AdminPagosPanel from "@/pages/AdminPagosPanel";
+import MisSuscripciones from "@/pages/MisSuscripciones";
 import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
@@ -290,6 +292,12 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/admin-pagos">
+        <ProtectedRoute requiredRole="admin">
+          <AdminPagosPanel />
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/terms">
         <TermsAndConditions />
       </Route>
@@ -309,6 +317,12 @@ function Router() {
       <Route path="/subscription">
         <ProtectedRoute>
           <MySubscription />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/mis-suscripciones">
+        <ProtectedRoute>
+          <MisSuscripciones />
         </ProtectedRoute>
       </Route>
 
