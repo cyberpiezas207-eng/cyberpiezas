@@ -1,223 +1,552 @@
-import { useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { ArrowLeft, Check, CheckCircle2, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
-export default function TermsAndConditions() {
-  const [accepted, setAccepted] = useState(false);
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
+const TERMS_ACCEPTED_KEY = "boutique-pos-terms-accepted";
+const TERMS_VERSION = "1.0";
+const TERMS_DATE = "16 de mayo de 2026";
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
-    setScrolledToBottom(isAtBottom);
-  };
+export default function TermsAndConditions() {
+  const [, setLocation] = useLocation();
+  const auth = useAuth() as any;
+  const isAuthenticated = auth?.isAuthenticated;
+  const [hasReadAll, setHasReadAll] = useState(false);
+  const [checkboxAccepted, setCheckboxAccepted] = useState(false);
+
+  // Cargar Google Fonts (estilo pergamino)
+  useEffect(() => {
+    const linkId = "terms-fonts-link";
+    if (document.getElementById(linkId)) return;
+    const link = document.createElement("link");
+    link.id = linkId;
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  const termsStatusQuery = trpc.users.getTermsStatus.useQuery(undefined, {
+    enabled: Boolean(auth?.user),
+    staleTime: 300_000,
+  });
+  const acceptTermsMutation = trpc.users.acceptTerms.useMutation({
+    onSuccess: () => {
+      termsStatusQuery.refetch();
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(TERMS_ACCEPTED_KEY, "true");
+      }
+      toast.success("Términos aceptados — bienvenido a CyberPiezas");
+      setTimeout(() => setLocation("/cyberpiezas"), 1500);
+    },
+    onError: (err: any) => {
+      toast.error("Error: " + (err?.message ?? "no se pudo guardar"));
+    },
+  });
+
+  // Detector de scroll: si llega al fondo, habilita el botón
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY + window.innerHeight;
+      const totalHeight = document.documentElement.scrollHeight;
+      // 95% del contenido para no exigir scroll exacto al pixel
+      if (scrollPos >= totalHeight * 0.95) {
+        setHasReadAll(true);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const alreadyAccepted = termsStatusQuery.data?.accepted === true;
+  const acceptedAt = termsStatusQuery.data?.acceptedAt;
 
   const handleAccept = () => {
-    if (!accepted) {
-      toast.error("Debes aceptar los términos y condiciones");
+    if (!isAuthenticated) {
+      toast.error("Inicia sesión primero para aceptar los términos");
       return;
     }
-    localStorage.setItem("boutique-pos-terms-accepted", "true");
-    toast.success("Términos y condiciones aceptados");
+    if (!checkboxAccepted) {
+      toast.error("Marca la casilla de aceptación primero");
+      return;
+    }
+    acceptTermsMutation.mutate();
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-4xl font-bold text-primary">Términos y Condiciones</h1>
-          <p className="mt-2 text-muted-foreground">
-            Por favor, lee cuidadosamente estos términos antes de usar Boutique POS
-          </p>
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        fontFamily: "'Crimson Pro', Georgia, serif",
+        backgroundColor: "#f5ead3",
+        backgroundImage: `
+          radial-gradient(circle at 20% 30%, rgba(180, 140, 80, 0.08) 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, rgba(120, 90, 50, 0.06) 0%, transparent 50%),
+          radial-gradient(circle at 50% 50%, rgba(200, 160, 100, 0.04) 0%, transparent 70%)
+        `,
+      }}
+    >
+      {/* Textura de papel sutil */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `
+            repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 2px,
+              rgba(139, 90, 43, 0.03) 2px,
+              rgba(139, 90, 43, 0.03) 4px
+            )
+          `,
+        }}
+      />
+
+      {/* Botón volver flotante */}
+      <button
+        onClick={() => window.history.back()}
+        className="fixed top-4 left-4 z-30 flex items-center gap-2 px-4 py-2 bg-amber-900/90 text-amber-50 rounded-full shadow-lg hover:bg-amber-900 transition-colors text-sm backdrop-blur"
+        style={{ fontFamily: "'Crimson Pro', serif" }}
+      >
+        <ArrowLeft className="w-4 h-4" /> Volver
+      </button>
+
+      {/* Banner de aceptación previa */}
+      {alreadyAccepted && (
+        <div className="fixed top-4 right-4 z-30 flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white rounded-full shadow-lg text-sm">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Aceptado{acceptedAt ? ` el ${new Date(acceptedAt).toLocaleDateString("es-MX")}` : ""}</span>
+        </div>
+      )}
+
+      <div className="relative max-w-3xl mx-auto px-6 py-12 md:py-20">
+        {/* Pergamino con bordes ornamentados */}
+        <div
+          className="relative bg-[#fdf6e3] rounded-sm shadow-2xl px-8 md:px-16 py-12 md:py-20"
+          style={{
+            boxShadow:
+              "0 30px 80px -20px rgba(101, 67, 33, 0.4), 0 0 0 1px rgba(139, 90, 43, 0.2), inset 0 0 60px rgba(180, 140, 80, 0.1)",
+          }}
+        >
+          {/* Borde decorativo externo */}
+          <div className="absolute inset-3 border border-amber-900/30 rounded-sm pointer-events-none" />
+          <div className="absolute inset-5 border border-amber-900/20 rounded-sm pointer-events-none" />
+
+          {/* Esquinas ornamentales */}
+          <div className="absolute top-2 left-2 text-amber-900/40 text-xl select-none">❦</div>
+          <div className="absolute top-2 right-2 text-amber-900/40 text-xl select-none">❦</div>
+          <div className="absolute bottom-2 left-2 text-amber-900/40 text-xl select-none">❦</div>
+          <div className="absolute bottom-2 right-2 text-amber-900/40 text-xl select-none">❦</div>
+
+          {/* CABECERA */}
+          <div className="text-center mb-10 relative">
+            <div className="flex justify-center mb-4">
+              <ScrollText className="w-12 h-12 text-amber-900" strokeWidth={1.2} />
+            </div>
+            <div
+              className="text-xs uppercase tracking-[0.4em] text-amber-800/80 mb-3"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              ✦  CyberPiezas  ✦
+            </div>
+            <h1
+              className="text-3xl md:text-5xl font-bold text-amber-950 leading-tight mb-3"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              Términos y Condiciones
+            </h1>
+            <div className="text-amber-900/70 italic text-sm md:text-base">
+              Acuerdo de Servicio y Suscripción
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-3 text-xs text-amber-800/70">
+              <span className="h-px w-12 bg-amber-900/30" />
+              <span>
+                Versión {TERMS_VERSION}  •  Vigente desde el {TERMS_DATE}
+              </span>
+              <span className="h-px w-12 bg-amber-900/30" />
+            </div>
+          </div>
+
+          {/* PREÁMBULO */}
+          <div className="mb-10 text-amber-950 leading-relaxed">
+            <p className="text-base md:text-lg italic text-center text-amber-900/80">
+              El presente acuerdo se celebra entre <strong>CyberPiezas</strong>, representada
+              por su titular el C. David Antonio Farfán Gómez, con domicilio en el Estado
+              de Morelos, México, en lo sucesivo "el Proveedor"; y el usuario suscriptor
+              de los servicios, en lo sucesivo "el Cliente", quienes manifiestan su
+              voluntad de obligarse conforme a las siguientes cláusulas.
+            </p>
+            <div className="text-center my-6 text-amber-900/40 text-2xl select-none">❦  ✦  ❦</div>
+          </div>
+
+          {/* CLÁUSULAS */}
+          <Clause numeral="I" title="Del Objeto del Contrato">
+            <p>
+              <DropCap>E</DropCap>l presente acuerdo tiene por objeto regular el uso de la
+              plataforma tecnológica <em>CyberPiezas</em>, la cual comprende sistemas de
+              punto de venta (POS), gestión de inventarios, administración de clientes,
+              herramientas de facturación, y servicios complementarios para boutiques,
+              veterinarias, abarrotes, verdulerías y plataformas para artistas (Tarima),
+              ofrecidos bajo la modalidad de <em>Software como Servicio</em> (SaaS).
+            </p>
+          </Clause>
+
+          <Clause numeral="II" title="De las Obligaciones del Proveedor">
+            <p>
+              <DropCap>E</DropCap>l Proveedor se compromete a poner a disposición del
+              Cliente la plataforma con disponibilidad bajo la modalidad de "mejor
+              esfuerzo razonable", sin garantizar el cien por ciento (100%) de
+              continuidad operativa. Brindará soporte técnico a través de los canales
+              oficiales: <strong>correo electrónico</strong> (cyberpiezas207@gmail.com)
+              y <strong>WhatsApp</strong>, con un tiempo de respuesta estimado de
+              <strong> veinticuatro (24) a setenta y dos (72) horas hábiles</strong>
+              según la complejidad y volumen de solicitudes. El Proveedor realizará
+              actualizaciones periódicas al sistema, las cuales podrán implementarse
+              sin previo aviso siempre que no impliquen pérdida material de
+              funcionalidad para el Cliente.
+            </p>
+          </Clause>
+
+          <Clause numeral="III" title="De las Obligaciones del Cliente">
+            <p>
+              <DropCap>E</DropCap>l Cliente se obliga a: <em>(a)</em> efectuar los pagos
+              en tiempo y forma; <em>(b)</em> proporcionar información veraz al momento
+              del registro; <em>(c)</em> custodiar sus credenciales de acceso, siendo el
+              único responsable de toda actividad realizada con ellas;
+              <em> (d)</em> abstenerse de utilizar la plataforma para fines ilícitos,
+              fraudulentos o contrarios a la moral;
+              <em> (e)</em> no copiar, modificar, descompilar, ni redistribuir el
+              software o cualquier parte de él; <em>(f)</em> realizar respaldos
+              periódicos de la información que considere crítica, siendo de su exclusiva
+              responsabilidad la pérdida derivada de no hacerlo.
+            </p>
+          </Clause>
+
+          <Clause numeral="IV" title="Del Pago, Cobro y Garantía de Satisfacción">
+            <p>
+              <DropCap>L</DropCap>os planes de suscripción se cobran de forma mensual o
+              anual según la modalidad elegida. Los precios vigentes son los publicados
+              en el sitio web oficial al momento de la contratación. El Proveedor podrá
+              ofrecer descuentos promocionales en fechas específicas (días 7 y 20 de
+              cada mes) para suscripciones mensuales. Los pagos se realizan mediante
+              transferencia bancaria o plataformas digitales autorizadas, y deberán
+              acreditarse en los datos bancarios proporcionados al momento del checkout.
+            </p>
+            <p className="mt-4">
+              <strong>Garantía de satisfacción de veinticuatro (24) horas:</strong> el
+              Cliente podrá solicitar el reembolso íntegro de su pago únicamente dentro
+              de las primeras veinticuatro (24) horas naturales contadas a partir de la
+              activación del servicio, siempre que la solicitud sea expresa, por escrito,
+              y mediante los canales oficiales del Proveedor. Transcurrido dicho plazo,
+              <strong> los pagos efectuados no son reembolsables</strong> bajo ningún
+              concepto, salvo error grave imputable exclusivamente al Proveedor.
+            </p>
+          </Clause>
+
+          <Clause numeral="V" title="De la Vigencia, Renovación y Cancelación">
+            <p>
+              <DropCap>L</DropCap>a suscripción se renueva automáticamente al término de
+              cada período (mensual o anual), salvo notificación expresa de cancelación
+              por parte del Cliente con al menos siete (7) días naturales de
+              anticipación al vencimiento. La falta de pago al cabo de tres (3) días
+              naturales después del vencimiento dará lugar a la suspensión del servicio,
+              y a los treinta (30) días, a la baja definitiva y eliminación de los
+              datos. <strong>En el caso de suscripciones anuales</strong>, la
+              cancelación anticipada no genera derecho a reembolso del saldo restante;
+              el Cliente podrá continuar usando el servicio hasta el término del
+              período pagado. El Cliente contará con un plazo de
+              <strong> treinta (30) días</strong> posteriores a la cancelación para
+              solicitar la exportación de sus datos.
+            </p>
+          </Clause>
+
+          <Clause numeral="VI" title="De la Propiedad Intelectual">
+            <p>
+              <DropCap>L</DropCap>a totalidad del software, código fuente, diseño,
+              marca, logotipos y materiales de la plataforma <em>CyberPiezas</em> son
+              propiedad exclusiva del Proveedor y se encuentran protegidos por la Ley
+              Federal del Derecho de Autor y la Ley de la Propiedad Industrial. El
+              Cliente recibe únicamente una <em>licencia de uso</em>, no exclusiva,
+              intransferible y revocable, limitada a la vigencia de su suscripción. La
+              información ingresada por el Cliente (productos, ventas, clientes,
+              imágenes) es de su propiedad y podrá exportarla en cualquier momento.
+            </p>
+          </Clause>
+
+          <Clause numeral="VII" title="De la Privacidad y Protección de Datos">
+            <p>
+              <DropCap>E</DropCap>l Proveedor recopila, almacena y trata los datos
+              personales del Cliente conforme a la <em>Ley Federal de Protección de
+              Datos Personales en Posesión de los Particulares</em> (LFPDPPP) vigente
+              en los Estados Unidos Mexicanos. Los datos serán utilizados únicamente
+              para la prestación del servicio, soporte técnico, facturación y
+              comunicaciones operacionales. <strong>El Proveedor no comercializa,
+              cede ni transfiere los datos del Cliente a terceros</strong>, salvo
+              requerimiento de autoridad competente o necesidad operacional para
+              proveedores de infraestructura (servicios de almacenamiento en la nube),
+              quienes se sujetan a obligaciones de confidencialidad equivalentes.
+            </p>
+          </Clause>
+
+          <Clause numeral="VIII" title="De la Limitación de Responsabilidad">
+            <p>
+              <DropCap>E</DropCap>l Proveedor no será responsable por: <em>(a)</em>
+              daños indirectos, consecuenciales, lucro cesante o pérdida de
+              oportunidades comerciales; <em>(b)</em> interrupciones causadas por fallas
+              de la red eléctrica, conectividad a internet, o servicios de terceros;
+              <em> (c)</em> pérdida de datos derivada de la omisión del Cliente en
+              realizar respaldos; <em>(d)</em> usos indebidos del software por parte del
+              Cliente o sus empleados; <em>(e)</em> caso fortuito o fuerza mayor
+              (desastres naturales, conflictos armados, pandemias, actos de autoridad).
+              <strong> La responsabilidad máxima del Proveedor</strong>, bajo cualquier
+              causa, queda limitada al equivalente de los pagos realizados por el
+              Cliente durante los tres (3) meses inmediatos anteriores al evento que
+              origine la reclamación.
+            </p>
+          </Clause>
+
+          <Clause numeral="IX" title="De las Modificaciones al Acuerdo">
+            <p>
+              <DropCap>E</DropCap>l Proveedor se reserva el derecho de modificar los
+              presentes términos y condiciones, así como las características del
+              servicio y los precios. Toda modificación será notificada al Cliente con
+              al menos <strong>quince (15) días naturales</strong> de anticipación, a
+              través del correo electrónico registrado o mediante aviso publicado en la
+              plataforma. La continuación en el uso del servicio tras la entrada en
+              vigor de las modificaciones implica aceptación tácita de las mismas. Si
+              el Cliente no estuviera de acuerdo, podrá cancelar su suscripción sin
+              penalización dentro del período de aviso.
+            </p>
+          </Clause>
+
+          <Clause numeral="X" title="De la Jurisdicción y Ley Aplicable">
+            <p>
+              <DropCap>P</DropCap>ara la interpretación y cumplimiento del presente
+              acuerdo, las partes se someten expresamente a las leyes de los Estados
+              Unidos Mexicanos y a la jurisdicción de los tribunales competentes del
+              <strong> Estado de Morelos, México</strong>, renunciando a cualquier otro
+              fuero que pudiera corresponderles en razón de su domicilio presente o
+              futuro.
+            </p>
+          </Clause>
+
+          <Clause numeral="XI" title="De la Aceptación Electrónica">
+            <p>
+              <DropCap>L</DropCap>a aceptación del presente acuerdo se realiza por medios
+              electrónicos, conforme a lo establecido en el Código de Comercio y la Ley
+              de Firma Electrónica Avanzada de los Estados Unidos Mexicanos. Al marcar
+              la casilla de aceptación y oprimir el botón correspondiente, el Cliente
+              manifiesta su consentimiento expreso e informado, quedando vinculado
+              jurídicamente. El Proveedor conservará registro electrónico de la
+              aceptación (fecha, hora e identificador del usuario) como prueba de la
+              celebración del acuerdo.
+            </p>
+          </Clause>
+
+          {/* CIERRE */}
+          <div className="text-center my-10 text-amber-900/40 text-2xl select-none">
+            ✦  ❦  ✦  ❦  ✦
+          </div>
+
+          {/* SELLO Y FIRMA */}
+          <div className="border-t-2 border-amber-900/20 pt-8 mt-12">
+            <div className="text-center text-amber-950">
+              <p
+                className="italic mb-4 text-amber-900/80"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                "Construyo la herramienta que mi madre hubiera querido tener desde el principio."
+              </p>
+              <div className="my-6 flex items-center justify-center">
+                <div
+                  className="border-4 border-amber-900/40 rounded-full w-32 h-32 flex items-center justify-center text-center transform -rotate-6"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  <div>
+                    <div className="text-xs font-bold text-amber-900/80 uppercase tracking-widest">
+                      CyberPiezas
+                    </div>
+                    <div className="text-[10px] text-amber-900/60 italic mt-1">
+                      Hecho en México
+                    </div>
+                    <div className="text-[10px] text-amber-900/60 mt-1">
+                      2026
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm font-bold text-amber-950" style={{ fontFamily: "'Playfair Display', serif" }}>
+                David Antonio Farfán Gómez
+              </p>
+              <p className="text-xs text-amber-900/70 italic">
+                Titular y Representante Legal
+              </p>
+              <p className="text-xs text-amber-900/60 mt-2">
+                Morelos, México · Contacto: cyberpiezas207@gmail.com
+              </p>
+            </div>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              Acuerdo Legal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Terms Content */}
+        {/* FOOTER DE ACEPTACIÓN */}
+        {!alreadyAccepted && (
+          <div className="sticky bottom-4 mt-8 z-20">
             <div
-              className="max-h-96 overflow-y-auto border rounded-lg p-6 bg-muted/50 space-y-6 text-sm leading-relaxed"
-              onScroll={handleScroll}
+              className="bg-amber-50 border-2 border-amber-900/40 rounded-2xl shadow-2xl p-5 md:p-6"
+              style={{
+                boxShadow: "0 20px 50px -10px rgba(101, 67, 33, 0.5)",
+              }}
             >
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">1. ACEPTACIÓN DE TÉRMINOS</h3>
-                <p>
-                  Al acceder y utilizar Boutique POS, aceptas estar vinculado por estos Términos y Condiciones. Si no estás de acuerdo con alguna parte de estos términos, no debes usar el servicio.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">2. PROPIEDAD INTELECTUAL Y DERECHOS DE AUTOR</h3>
-                <p className="font-semibold text-blue-700">
-                  © 2026 CyberPiezas. Todos los derechos reservados.
-                </p>
-                <p>
-                  Boutique POS es propiedad exclusiva de CyberPiezas. El software, código fuente, diseño, interfaz de usuario y toda su estructura son propiedad intelectual protegida. No puedes copiar, reproducir, modificar o distribuir ninguna parte del software sin autorización explícita por escrito.
-                </p>
-                <p>
-                  Este software será registrado formalmente en el Instituto Nacional del Derecho de Autor (INDAUTOR) de México.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">3. LICENCIA DE USO</h3>
-                <p>
-                  Se te otorga una licencia limitada, no exclusiva, no transferible y revocable para usar Boutique POS únicamente con fines comerciales legales. Esta licencia es personal y está vinculada a tu cuenta de usuario.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">4. RESTRICCIONES DE USO</h3>
-                <p className="font-semibold text-red-700">
-                  Expresamente se prohíbe:
-                </p>
-                <ul className="list-disc list-inside space-y-2 ml-2">
-                  <li><strong>No Revender:</strong> No puedes revender, redistribuir o comercializar el acceso a Boutique POS a terceros sin autorización escrita previa.</li>
-                  <li><strong>No Compartir Cuenta:</strong> Tu cuenta es personal e intransferible. No puedes compartir tu usuario, contraseña o credenciales con otras personas. Eres responsable de toda actividad en tu cuenta.</li>
-                  <li><strong>Solo Uso Comercial Autorizado:</strong> Boutique POS está diseñado exclusivamente para uso comercial legítimo. No puedes usar el sistema para actividades ilícitas, fraudulentas o contrarias a la ley.</li>
-                  <li><strong>No Modificar:</strong> No puedes modificar, descompilar, desensamblar o intentar obtener el código fuente del sistema.</li>
-                  <li><strong>No Acceso No Autorizado:</strong> No puedes intentar acceder a áreas restringidas o a cuentas de otros usuarios.</li>
-                  <li><strong>No Interferencia:</strong> No puedes interferir con el funcionamiento normal del sistema o sobrecargar los servidores.</li>
-                </ul>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">4. RESPONSABILIDAD DEL USUARIO</h3>
-                <p>
-                  Eres responsable de mantener la confidencialidad de tu contraseña y de todas las actividades que ocurran bajo tu cuenta. Debes notificarnos inmediatamente de cualquier uso no autorizado de tu cuenta.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">5. DATOS Y PRIVACIDAD</h3>
-                <p>
-                  Tus datos se almacenan en servidores seguros. Nos comprometemos a proteger tu información de acuerdo con las leyes de protección de datos aplicables. No compartiremos tus datos con terceros sin tu consentimiento, excepto cuando sea requerido por ley.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">6. LIMITACIÓN DE RESPONSABILIDAD</h3>
-                <p>
-                  Boutique POS se proporciona "tal cual". No garantizamos que el servicio sea ininterrumpido, libre de errores o que cumpla con tus requisitos específicos. En ningún caso seremos responsables por daños indirectos, incidentales, especiales o consecuentes derivados del uso o la imposibilidad de usar el servicio.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">7. SUSPENSIÓN DE CUENTA</h3>
-                <p>
-                  Nos reservamos el derecho de suspender o cancelar tu cuenta si:
-                </p>
-                <ul className="list-disc list-inside space-y-2 ml-2">
-                  <li>Violas estos términos y condiciones</li>
-                  <li>Intentas compartir tu cuenta con otros usuarios</li>
-                  <li>Intentas revender el acceso al sistema</li>
-                  <li>Realizas actividades ilícitas o fraudulentas</li>
-                  <li>No pagas tu suscripción en la fecha vencida</li>
-                </ul>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">8. SUSCRIPCIÓN Y PAGOS</h3>
-                <p>
-                  Tu suscripción se renueva automáticamente según el plan seleccionado. Puedes cancelar en cualquier momento. Los pagos se procesan de manera segura a través de transferencia bancaria. No reembolsamos pagos por uso parcial del servicio.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">9. LICENCIAS GRATUITAS O ESPECIALES</h3>
-                <p>
-                  Las licencias gratuitas, promocionales o especiales otorgadas por razones ecológicas, sociales o comerciales quedan sujetas a validación administrativa previa y pueden revocarse si dejan de cumplirse sus condiciones.
-                </p>
-                <ul className="list-disc list-inside space-y-2 ml-2">
-                  <li>Debes suscribirte al canal de YouTube de CyberPiezas.</li>
-                  <li>Debes seguir la página de Facebook de CyberPiezas.</li>
-                  <li>Debes compartir ambos perfiles cuando así se solicite como parte de la promoción o convenio.</li>
-                  <li>El administrador puede solicitar evidencia y verificar manualmente estos requisitos antes de autorizar o renovar la licencia.</li>
-                </ul>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">10. CAMBIOS EN LOS TÉRMINOS</h3>
-                <p>
-                  Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios serán notificados por correo electrónico. El uso continuado del servicio constituye aceptación de los términos modificados.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">11. CONTACTO</h3>
-                <p>
-                  Si tienes preguntas sobre estos términos, contáctanos en:
-                </p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>WhatsApp: +52 735 494 6224</li>
-                  <li>Correo: cyberpiezas207@gmail.com</li>
-                </ul>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">12. LEY APLICABLE</h3>
-                <p>
-                  Estos términos se rigen por las leyes de México. Cualquier disputa será resuelta en los juzgados competentes de Morelos, México.
-                </p>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="font-bold text-base">13. ACEPTACIÓN FINAL</h3>
-                <p className="font-semibold text-emerald-700">
-                  Al hacer clic en "Aceptar", reconoces que has leído, entendido y aceptas estar vinculado por estos Términos y Condiciones.
-                </p>
-              </section>
-            </div>
-
-            {/* Scroll Indicator */}
-            {!scrolledToBottom && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded">
-                <AlertCircle className="h-4 w-4" />
-                Desplázate hacia abajo para ver todos los términos
-              </div>
-            )}
-
-            {/* Acceptance Checkbox */}
-            <div className="space-y-4 pt-4 border-t">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox
-                  checked={accepted}
-                  onCheckedChange={(checked) => setAccepted(checked as boolean)}
-                  className="mt-1"
-                />
-                <span className="text-sm leading-relaxed">
-                  Acepto los Términos y Condiciones de Boutique POS. Entiendo las restricciones de uso, incluyendo que no puedo revender el servicio, no puedo compartir mi cuenta con otros usuarios y que, si recibo una licencia gratuita o especial, debo cumplir los requisitos de YouTube, Facebook y compartición definidos por CyberPiezas.
-                </span>
-              </label>
-
-              <Button
-                onClick={handleAccept}
-                disabled={!accepted || !scrolledToBottom}
-                className="w-full"
-                size="lg"
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Aceptar Términos y Condiciones
-              </Button>
-
-              {!scrolledToBottom && (
-                <p className="text-xs text-muted-foreground text-center">
-                  Debes leer todos los términos antes de aceptar
-                </p>
+              {!hasReadAll ? (
+                <div className="text-center text-amber-900/80 italic">
+                  <ScrollText className="w-6 h-6 mx-auto mb-2 opacity-60" />
+                  Desplázate hasta el final del documento para habilitar la aceptación...
+                </div>
+              ) : (
+                <>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <div className="flex-shrink-0 mt-1">
+                      <div
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCheckboxAccepted(!checkboxAccepted);
+                        }}
+                        className={
+                          "w-6 h-6 rounded border-2 flex items-center justify-center transition-all " +
+                          (checkboxAccepted
+                            ? "bg-amber-800 border-amber-900"
+                            : "bg-amber-50 border-amber-900/50 group-hover:border-amber-900")
+                        }
+                      >
+                        {checkboxAccepted && <Check className="w-4 h-4 text-amber-50" strokeWidth={3} />}
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={checkboxAccepted}
+                      onChange={(e) => setCheckboxAccepted(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <span
+                      className="text-sm md:text-base text-amber-950 leading-relaxed"
+                      style={{ fontFamily: "'Crimson Pro', serif" }}
+                    >
+                      He leído íntegramente los Términos y Condiciones, declaro
+                      comprender su contenido y manifiesto mi voluntad de obligarme
+                      conforme a sus cláusulas. Esta aceptación es voluntaria,
+                      informada y vinculante.
+                    </span>
+                  </label>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-end">
+                    <button
+                      onClick={() => window.history.back()}
+                      className="px-5 py-2.5 rounded-full border-2 border-amber-900/30 text-amber-900 hover:bg-amber-100 transition-colors text-sm font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleAccept}
+                      disabled={!checkboxAccepted || acceptTermsMutation.isPending}
+                      className={
+                        "px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 " +
+                        (checkboxAccepted && !acceptTermsMutation.isPending
+                          ? "bg-amber-900 text-amber-50 hover:bg-amber-950 shadow-lg"
+                          : "bg-amber-200 text-amber-700 cursor-not-allowed")
+                      }
+                    >
+                      {acceptTermsMutation.isPending ? (
+                        <>Guardando...</>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" /> Aceptar y firmar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        {/* Si ya aceptó */}
+        {alreadyAccepted && (
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-700 text-white rounded-full shadow-lg">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-bold">Has aceptado estos términos</span>
+            </div>
+            <p className="mt-3 text-sm text-amber-800/70 italic">
+              {acceptedAt
+                ? `Fecha de aceptación: ${new Date(acceptedAt).toLocaleDateString("es-MX", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}`
+                : ""}
+            </p>
+          </div>
+        )}
       </div>
-    </DashboardLayout>
+    </div>
+  );
+}
+
+// =============================================================================
+// COMPONENTES AUXILIARES (estilo pergamino)
+// =============================================================================
+
+function Clause({
+  numeral,
+  title,
+  children,
+}: {
+  numeral: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-3 mb-4">
+        <span
+          className="text-2xl md:text-3xl font-bold text-amber-900 select-none"
+          style={{ fontFamily: "'Playfair Display', serif" }}
+        >
+          {numeral}.
+        </span>
+        <h2
+          className="text-xl md:text-2xl font-bold text-amber-950 uppercase tracking-wide"
+          style={{
+            fontFamily: "'Playfair Display', serif",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {title}
+        </h2>
+      </div>
+      <div className="h-px bg-gradient-to-r from-amber-900/30 via-amber-900/10 to-transparent mb-4" />
+      <div
+        className="text-amber-950 leading-relaxed text-base md:text-lg text-justify"
+        style={{ fontFamily: "'Crimson Pro', serif" }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function DropCap({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="float-left text-5xl md:text-6xl font-bold text-amber-900 mr-2 leading-none mt-1"
+      style={{
+        fontFamily: "'Playfair Display', serif",
+        textShadow: "1px 1px 0 rgba(180, 140, 80, 0.2)",
+      }}
+    >
+      {children}
+    </span>
   );
 }
