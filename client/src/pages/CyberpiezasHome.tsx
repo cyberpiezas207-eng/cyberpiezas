@@ -3,16 +3,19 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
+import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   ArrowUpRight,
+  Bell,
   Camera,
   Check,
   Cloud,
   Cpu,
   CreditCard,
+  DollarSign,
   Gift,
   GraduationCap,
   HardDrive,
@@ -20,6 +23,7 @@ import {
   Handshake,
   LayoutDashboard,
   LineChart,
+  ListChecks,
   LogIn,
   Mail,
   MessageCircle,
@@ -65,6 +69,7 @@ export function CyberpiezasHome() {
         isAuthenticated={isAuthenticated}
         onDemo={() => setShowDemoModal(true)}
       />
+      {isAdmin && <AdminQuickActions setLocation={setLocation} />}
       <Wizard setLocation={setLocation} />
       <Industries setLocation={setLocation} />
       <Hardware />
@@ -91,8 +96,158 @@ export function CyberpiezasHome() {
   );
 }
 
+function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }) {
+  // Stats de pagos - se actualiza cada 30 segundos
+  const { data: stats } = trpc.pagos.admin.stats.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const pendingCount = stats?.pendingCount ?? 0;
+  const monthRevenue = stats?.monthRevenue ?? "0";
+  const monthApproved = stats?.monthApprovedCount ?? 0;
+
+  return (
+    <section className="py-12 px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              <span className="text-xs font-bold uppercase tracking-wider text-purple-600">
+                Centro de administración
+              </span>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
+              Tu panel de control
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Acciones rápidas para gestionar CyberPiezas
+            </p>
+          </div>
+          {pendingCount > 0 && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-rose-100 border border-rose-200 rounded-full">
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+              <span className="text-xs font-bold text-rose-700">
+                {pendingCount} pendiente{pendingCount !== 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Grid de cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* PAGOS POR APROBAR - prioridad alta */}
+          <button
+            onClick={() => setLocation("/admin-pagos")}
+            className={
+              "group relative p-5 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] " +
+              (pendingCount > 0
+                ? "bg-gradient-to-br from-rose-500 to-pink-600 border-rose-400 shadow-lg shadow-rose-200"
+                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg")
+            }
+          >
+            {pendingCount > 0 && (
+              <span className="absolute -top-2 -right-2 w-7 h-7 bg-yellow-400 text-rose-900 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white">
+                {pendingCount}
+              </span>
+            )}
+            <div
+              className={
+                "w-10 h-10 rounded-xl flex items-center justify-center mb-3 " +
+                (pendingCount > 0 ? "bg-white/20" : "bg-emerald-100")
+              }
+            >
+              <DollarSign
+                className={"w-5 h-5 " + (pendingCount > 0 ? "text-white" : "text-emerald-600")}
+              />
+            </div>
+            <h3
+              className={
+                "font-bold text-base mb-1 " + (pendingCount > 0 ? "text-white" : "text-slate-900")
+              }
+            >
+              Pagos por aprobar
+            </h3>
+            <p
+              className={
+                "text-xs " + (pendingCount > 0 ? "text-white/80" : "text-slate-500")
+              }
+            >
+              {pendingCount > 0
+                ? `Hay ${pendingCount} solicitud${pendingCount !== 1 ? "es" : ""} esperando`
+                : "Sin solicitudes pendientes"}
+            </p>
+            <div
+              className={
+                "mt-3 flex items-center gap-1 text-xs font-bold " +
+                (pendingCount > 0 ? "text-white" : "text-emerald-600")
+              }
+            >
+              Ver panel <ArrowRight className="w-3 h-3" />
+            </div>
+          </button>
+
+          {/* CENTRO ADMIN */}
+          <button
+            onClick={() => setLocation("/admin-cyberpiezas")}
+            className="group p-5 rounded-2xl border-2 bg-white border-slate-200 hover:border-purple-300 hover:shadow-lg text-left transition-all hover:scale-[1.02]"
+          >
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center mb-3">
+              <ShieldCheck className="w-5 h-5 text-purple-600" />
+            </div>
+            <h3 className="font-bold text-base text-slate-900 mb-1">Gestión usuarios</h3>
+            <p className="text-xs text-slate-500">
+              Activa programas y administra accesos
+            </p>
+            <div className="mt-3 flex items-center gap-1 text-xs font-bold text-purple-600">
+              Ir <ArrowRight className="w-3 h-3" />
+            </div>
+          </button>
+
+          {/* INGRESOS DEL MES */}
+          <div className="p-5 rounded-2xl border-2 bg-white border-slate-200">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
+            <h3 className="font-bold text-base text-slate-900 mb-1">Ingresos del mes</h3>
+            <p className="text-2xl font-bold text-emerald-600 mt-2">
+              ${parseFloat(monthRevenue).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {monthApproved} aprobada{monthApproved !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {/* PRECIOS Y PLANES */}
+          <button
+            onClick={() => setLocation("/pricing")}
+            className="group p-5 rounded-2xl border-2 bg-gradient-to-br from-fuchsia-500 to-purple-600 border-fuchsia-400 text-left transition-all hover:scale-[1.02] hover:shadow-lg shadow-purple-200"
+          >
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="font-bold text-base text-white mb-1">Precios y Planes</h3>
+            <p className="text-xs text-white/80">
+              Ver catálogo completo de suscripciones
+            </p>
+            <div className="mt-3 flex items-center gap-1 text-xs font-bold text-white">
+              Ver <ArrowRight className="w-3 h-3" />
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FloatingButtons({ isAdmin, setLocation }: { isAdmin?: boolean; setLocation?: (p: string) => void }) {
   const [showButtons, setShowButtons] = useState(false);
+  const { data: stats } = trpc.pagos.admin.stats.useQuery(undefined, {
+    enabled: !!isAdmin,
+    refetchInterval: 30000,
+  });
+  const pendingCount = stats?.pendingCount ?? 0;
+
   useEffect(() => {
     const handleScroll = () => setShowButtons(window.scrollY > 400);
     window.addEventListener("scroll", handleScroll);
@@ -101,6 +256,18 @@ function FloatingButtons({ isAdmin, setLocation }: { isAdmin?: boolean; setLocat
   if (!showButtons) return null;
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-4">
+      {isAdmin && setLocation && pendingCount > 0 && (
+        <button
+          onClick={() => setLocation("/admin-pagos")}
+          className="relative w-12 h-12 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center transition-all"
+          title={`${pendingCount} pago${pendingCount !== 1 ? "s" : ""} por aprobar`}
+        >
+          <DollarSign className="w-5 h-5 text-white" />
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-yellow-400 text-rose-900 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white">
+            {pendingCount}
+          </span>
+        </button>
+      )}
       {isAdmin && setLocation && (
         <button
           onClick={() => setLocation("/admin-cyberpiezas")}
