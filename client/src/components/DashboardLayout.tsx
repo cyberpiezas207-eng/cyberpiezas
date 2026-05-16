@@ -122,7 +122,6 @@ const menuItems: MenuItem[] = [
   // ── Administración (visible) ───────────────────────────────
   { icon: Bell, label: "Notificaciones", path: "/notifications", section: "administracion", program: "boutique" },
   { icon: ListChecks, label: "Mis Suscripciones", path: "/mis-suscripciones", section: "administracion" },
-  { icon: DollarSign, label: "Pagos por aprobar", path: "/admin-pagos", section: "administracion", roles: ["admin"] },
   { icon: CreditCard, label: "Mi Suscripción", path: "/subscription", section: "administracion", program: "boutique" },
   { icon: Users, label: "Cajeros y Usuarios", path: "/cajeros-usuarios", section: "administracion", program: "boutique" },
   { icon: Settings2, label: "Configuración de tienda", path: "/settings/pos-hardware", section: "administracion", program: "boutique" },
