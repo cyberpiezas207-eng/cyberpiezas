@@ -1028,55 +1028,239 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
 }
 
 function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) => void; isAuthenticated: boolean }) {
-  const plans = [
-    { name: "Gratis", price: "$0", period: "Para siempre", desc: "Perfecto para empezar.", cta: "Empezar gratis", featured: false, features: ["1 sistema POS", "Hasta 50 productos", "Reportes basicos", "Soporte email"] },
-    { name: "Pro", price: "$499", period: "/mes", desc: "Para negocios establecidos.", cta: "Probar 30 dias gratis", featured: true, features: ["Productos ilimitados", "Reportes avanzados", "Multi-sucursal (3)", "Soporte WhatsApp", "Backups automaticos"] },
-    { name: "Premium", price: "$999", period: "/mes", desc: "Para multiples negocios.", cta: "Hablar con ventas", featured: false, features: ["Multiples POS", "Sucursales ilimitadas", "Cajeros ilimitados", "API personalizada", "Soporte 24/7"] },
+  // Catálogo real de sistemas (sincronizado con backend)
+  const systems = [
+    {
+      code: "boutique",
+      name: "Boutique",
+      icon: "👗",
+      price: 300,
+      yearly: 3000,
+      desc: "POS para tiendas de ropa, accesorios y moda.",
+      features: ["Productos ilimitados", "Variantes (talla/color)", "Múltiples sucursales", "Reportes en tiempo real", "Soporte WhatsApp"],
+      gradient: "from-rose-500 to-pink-600",
+      accent: "rose",
+    },
+    {
+      code: "abarrotes",
+      name: "Abarrotes",
+      icon: "🛒",
+      price: 300,
+      yearly: 3000,
+      desc: "POS para tienditas, misceláneas y minisúpers.",
+      features: ["Códigos de barras", "Inventario ilimitado", "Ventas con fiado", "Reportes diarios", "Soporte WhatsApp"],
+      gradient: "from-amber-500 to-orange-600",
+      accent: "amber",
+    },
+    {
+      code: "veterinaria",
+      name: "Veterinaria",
+      icon: "🐾",
+      price: 300,
+      yearly: 3000,
+      desc: "POS para clínicas veterinarias completas.",
+      features: ["Expediente de mascotas", "Citas y vacunación", "Productos + servicios", "Recibos profesionales", "Soporte WhatsApp"],
+      gradient: "from-emerald-500 to-teal-600",
+      accent: "emerald",
+    },
+    {
+      code: "verduleria",
+      name: "Verdulería",
+      icon: "🥕",
+      price: 300,
+      yearly: 3000,
+      desc: "POS para frutas, verduras y mercados.",
+      features: ["Catálogo visual", "Venta por peso", "Stock perecedero", "Ventas rápidas", "Soporte WhatsApp"],
+      gradient: "from-green-500 to-emerald-600",
+      accent: "green",
+    },
+    {
+      code: "tarima",
+      name: "Tarima",
+      icon: "🎤",
+      price: 150,
+      yearly: 1500,
+      desc: "Plataforma para artistas, músicos y bandas.",
+      features: ["Perfil público con tu URL", "Galería de fotos y videos", "Música de Spotify", "Reservaciones online", "Soporte WhatsApp"],
+      gradient: "from-fuchsia-500 to-purple-600",
+      accent: "fuchsia",
+      featured: true,
+    },
   ];
+
+  const [billingType, setBillingType] = useState<"monthly" | "yearly">("monthly");
+
   return (
     <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+        {/* HEADER */}
+        <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-rose-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
             <span className="text-rose-400">08</span>
             <span className="w-6 h-px bg-rose-300" />
-            <span>Sin sorpresas</span>
+            <span>Un precio por sistema</span>
           </div>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0] mb-4 sm:mb-5">
-            Precios transparentes.
+            Solo paga por lo que usas.
           </h2>
-          <p className="text-base sm:text-lg lg:text-xl text-slate-600 font-light px-2">
+          <p className="text-base sm:text-lg lg:text-xl text-slate-600 font-light px-2 mb-2">
+            Una suscripción por cada sistema que necesites.
+          </p>
+          <p className="text-sm sm:text-base text-slate-500 px-2">
             Sin contratos largos. Cancela cuando quieras.
           </p>
         </div>
+
+        {/* TOGGLE Mensual / Anual */}
+        <div className="flex justify-center mb-10">
+          <div className="inline-flex items-center bg-white border border-slate-200 rounded-full p-1 shadow-md">
+            <button
+              onClick={() => setBillingType("monthly")}
+              className={
+                "px-5 py-2 rounded-full text-sm font-semibold transition-all " +
+                (billingType === "monthly"
+                  ? "bg-slate-900 text-white shadow"
+                  : "text-slate-600 hover:text-slate-900")
+              }
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setBillingType("yearly")}
+              className={
+                "px-5 py-2 rounded-full text-sm font-semibold transition-all relative " +
+                (billingType === "yearly"
+                  ? "bg-slate-900 text-white shadow"
+                  : "text-slate-600 hover:text-slate-900")
+              }
+            >
+              Anual
+              <span className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                AHORRA
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* GRID DE 5 SISTEMAS */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {plans.map((plan) => (
-            <div key={plan.name} className={plan.featured ? "bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl shadow-slate-900/20 relative md:scale-105 sm:col-span-2 lg:col-span-1" : "bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-slate-200/80"}>
-              {plan.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-900 text-xs font-bold rounded-full">MAS POPULAR</div>
-              )}
-              <h3 className={"text-lg font-bold mb-1 " + (plan.featured ? "text-white" : "text-slate-900")}>{plan.name}</h3>
-              <p className={"text-sm mb-4 " + (plan.featured ? "text-slate-400" : "text-slate-600")}>{plan.desc}</p>
-              <div className="mb-5">
-                <span className={"text-4xl font-bold tracking-tight " + (plan.featured ? "text-white" : "text-slate-900")}>{plan.price}</span>
-                <span className={"text-sm ml-1 " + (plan.featured ? "text-slate-400" : "text-slate-500")}>{plan.period}</span>
-              </div>
-              <Button
-                onClick={() => isAuthenticated ? setLocation("/sistemas") : (window.location.href = getLoginUrl())}
-                className={plan.featured ? "w-full bg-white hover:bg-slate-100 text-slate-900 rounded-full h-10 font-semibold mb-5 text-sm" : "w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full h-10 font-semibold mb-5 text-sm"}
+          {systems.map((sys) => {
+            const isPremium = sys.featured;
+            const price = billingType === "monthly" ? sys.price : sys.yearly;
+            const period = billingType === "monthly" ? "/mes" : "/año";
+            return (
+              <div
+                key={sys.code}
+                className={
+                  isPremium
+                    ? "bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl shadow-slate-900/30 relative md:scale-[1.02] sm:col-span-2 lg:col-span-1 ring-2 ring-fuchsia-500/30"
+                    : "bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-7 border border-slate-200 hover:border-slate-300 hover:shadow-xl transition-all"
+                }
               >
-                {plan.cta}
-              </Button>
-              <ul className="space-y-2">
-                {plan.features.map((f, i) => (
-                  <li key={i} className={"flex items-start gap-2 text-sm " + (plan.featured ? "text-slate-200" : "text-slate-700")}>
-                    <Check className={"w-4 h-4 flex-shrink-0 mt-0.5 " + (plan.featured ? "text-emerald-400" : "text-emerald-500")} />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                {isPremium && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-fuchsia-400 to-purple-500 text-white text-xs font-bold rounded-full shadow-lg">
+                    NUEVO
+                  </div>
+                )}
+                {/* Icon */}
+                <div
+                  className={
+                    "w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-4 " +
+                    (isPremium
+                      ? "bg-white/10 ring-2 ring-fuchsia-400/40"
+                      : `bg-gradient-to-br ${sys.gradient}/10`)
+                  }
+                >
+                  {sys.icon}
+                </div>
+                {/* Title */}
+                <h3
+                  className={
+                    "text-xl font-bold mb-1 tracking-tight " +
+                    (isPremium ? "text-white" : "text-slate-900")
+                  }
+                >
+                  {sys.name}
+                </h3>
+                <p
+                  className={
+                    "text-sm mb-5 " + (isPremium ? "text-slate-400" : "text-slate-600")
+                  }
+                >
+                  {sys.desc}
+                </p>
+                {/* Price */}
+                <div className="mb-5">
+                  <span
+                    className={
+                      "text-4xl font-bold tracking-tight " +
+                      (isPremium ? "text-white" : "text-slate-900")
+                    }
+                  >
+                    ${price.toLocaleString("es-MX")}
+                  </span>
+                  <span
+                    className={
+                      "text-sm ml-1 " + (isPremium ? "text-slate-400" : "text-slate-500")
+                    }
+                  >
+                    {period}
+                  </span>
+                </div>
+                {/* CTA */}
+                <Button
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      setLocation("/pricing");
+                    } else {
+                      window.location.href = getLoginUrl();
+                    }
+                  }}
+                  className={
+                    isPremium
+                      ? "w-full bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-600 hover:to-purple-700 text-white rounded-full h-10 font-semibold mb-5 text-sm shadow-lg"
+                      : "w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full h-10 font-semibold mb-5 text-sm"
+                  }
+                >
+                  {isAuthenticated ? "Suscribirme" : "Empezar ahora"}
+                </Button>
+                {/* Features */}
+                <ul className="space-y-2">
+                  {sys.features.map((f, i) => (
+                    <li
+                      key={i}
+                      className={
+                        "flex items-start gap-2 text-sm " +
+                        (isPremium ? "text-slate-200" : "text-slate-700")
+                      }
+                    >
+                      <Check
+                        className={
+                          "w-4 h-4 flex-shrink-0 mt-0.5 " +
+                          (isPremium ? "text-fuchsia-400" : "text-emerald-500")
+                        }
+                      />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* CTA inferior */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-slate-600 mb-4">
+            ¿Necesitas varios sistemas? Suscríbete a cada uno por separado.
+          </p>
+          <button
+            onClick={() => setLocation("/pricing")}
+            className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 hover:gap-3 transition-all"
+          >
+            Ver todos los planes con detalle
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </section>
