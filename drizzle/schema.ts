@@ -674,7 +674,7 @@ export const userProgramAccess = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     userId: int("userId").notNull().references(() => users.id),
-    programCode: mysqlEnum("programCode", ["boutique", "abarrotes", "celine", "veterinaria", "verduleria", "tarima", "taqueria"]).notNull(),
+    programCode: mysqlEnum("programCode", ["boutique", "abarrotes", "celine", "veterinaria"]).notNull(),
     status: mysqlEnum("status", ["active", "pending", "inactive", "suspended", "expired"]).default("active").notNull(),
     accessSource: mysqlEnum("accessSource", ["subscription", "manual_license", "trial", "referral", "admin_override"]).default("subscription").notNull(),
     startsAt: timestamp("startsAt").defaultNow().notNull(),
@@ -1323,7 +1323,6 @@ export const posPaymentRequests = mysqlTable("posPaymentRequests", {
     "veterinaria",
     "verduleria",
     "tarima",
-    "taqueria",
   ]).notNull(),
   // Plan: monthly o yearly
   planType: mysqlEnum("planType", ["monthly", "yearly"]).notNull(),
@@ -1356,7 +1355,6 @@ export const posSubscriptions = mysqlTable("posSubscriptions", {
     "veterinaria",
     "verduleria",
     "tarima",
-    "taqueria",
   ]).notNull(),
   planType: mysqlEnum("planType", ["monthly", "yearly"]).notNull(),
   status: mysqlEnum("status", ["active", "expired", "cancelled"]).notNull().default("active"),
@@ -1426,10 +1424,6 @@ export type InsertTaqueriaProduct = typeof taqueriaProducts.$inferInsert;
  *   - "single"   = elegir UNA opcion (radio, ej: tamaño bebida)
  *   - "multiple" = elegir varias (checkbox, ej: salsas)
  * 
- * isRequired:
- *   - true  = obligatorio elegir antes de continuar
- *   - false = opcional
- * 
  * Principio DRY: un grupo se aplica a multiples productos via
  * la tabla puente taqueriaProductModifierGroups.
  */
@@ -1457,10 +1451,6 @@ export type InsertTaqueriaModifierGroup = typeof taqueriaModifierGroups.$inferIn
  * priceDelta:
  *   - 0.00  = no afecta el precio (default)
  *   - 5.00  = suma $5 al precio del producto
- *   - -3.00 = resta $3 (combos con descuento)
- * 
- * isDefault:
- *   - true = aparece pre-seleccionada en el menu del cliente
  */
 export const taqueriaModifierOptions = mysqlTable("taqueriaModifierOptions", {
   id: int("id").autoincrement().primaryKey(),
