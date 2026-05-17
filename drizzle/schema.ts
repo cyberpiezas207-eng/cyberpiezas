@@ -1343,36 +1343,6 @@ export const posPaymentRequests = mysqlTable("posPaymentRequests", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
-export const posPaymentRequests = mysqlTable("posPaymentRequests", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().references(() => users.id),
-  // Que POS quiere comprar
-  posCode: mysqlEnum("posCode", [
-    "boutique",
-    "abarrotes",
-    "veterinaria",
-    "verduleria",
-    "tarima",
-  ]).notNull(),
-  // Plan: monthly o yearly
-  planType: mysqlEnum("planType", ["monthly", "yearly"]).notNull(),
-  // Precios
-  originalAmount: decimal("originalAmount", { precision: 10, scale: 2 }).notNull(),
-  finalAmount: decimal("finalAmount", { precision: 10, scale: 2 }).notNull(),
-  discountApplied: boolean("discountApplied").notNull().default(false),
-  discountPercentage: int("discountPercentage").default(0),
-  // Pago
-  paymentMethod: mysqlEnum("paymentMethod", ["transferencia", "efectivo", "mercadopago"]).notNull(),
-  proofUrl: varchar("proofUrl", { length: 1000 }),
-  customerNotes: text("customerNotes"),
-  // Estado de aprobacion
-  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).notNull().default("pending"),
-  adminNotes: text("adminNotes"),
-  reviewedBy: int("reviewedBy"),
-  reviewedAt: timestamp("reviewedAt"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-});
-
 export type PosPaymentRequest = typeof posPaymentRequests.$inferSelect;
 export type InsertPosPaymentRequest = typeof posPaymentRequests.$inferInsert;
 
@@ -1398,3 +1368,217 @@ export const posSubscriptions = mysqlTable("posSubscriptions", {
 
 export type PosSubscription = typeof posSubscriptions.$inferSelect;
 export type InsertPosSubscription = typeof posSubscriptions.$inferInsert;
+
+
+
+// ============================================================================
+// TAQUERIA POS - Sistema para taquerias con pedidos online y modifiers
+// ============================================================================
+
+/**
+ * Categorias del menu de taqueria.
+ * Ejemplos: Tacos, Quesadillas, Bebidas, Postres.
+ */
+export const taqueriaCategories = mysqlTable("taqueriaCategories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  icon: varchar("icon", { length: 10 }).default("🌮"),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaqueriaCategory = typeof taqueriaCategories.$inferSelect;
+export type InsertTaqueriaCategory = typeof taqueriaCategories.$inferInsert;
+
+/**
+ * Productos del menu de taqueria.
+ * Ejemplos: Taco al pastor, Quesadilla de suadero, Agua de horchata.
+ * prepTimeMinutes ayuda a estimar hora de entrega al cliente.
+ */
+export const taqueriaProducts = mysqlTable("taqueriaProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  categoryId: int("categoryId").notNull().references(() => taqueriaCategories.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  imageUrl: varchar("imageUrl", { length: 500 }),
+  prepTimeMinutes: int("prepTimeMinutes").default(15).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaqueriaProduct = typeof taqueriaProducts.$inferSelect;
+export type InsertTaqueriaProduct = typeof taqueriaProducts.$inferInsert;
+
+/**
+ * Grupos de modifiers reutilizables entre productos.
+ * Ejemplos: "Salsas", "Vegetales", "Extras", "Tamaño".
+ * 
+ * selectionType:
+ *   - "single"   = elegir UNA opcion (radio, ej: tamaño bebida)
+ *   - "multiple" = elegir varias (checkbox, ej: salsas)
+ */
+export const taqueriaModifierGroups = mysqlTable("taqueriaModifierGroups", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  icon: varchar("icon", { length: 10 }),
+  selectionType: mysqlEnum("selectionType", ["single", "multiple"]).default("multiple").notNull(),
+  isRequired: boolean("isRequired").default(false).notNull(),
+  minSelections: int("minSelections").default(0).notNull(),
+  maxSelections: int("maxSelections").default(99).notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaqueriaModifierGroup = typeof taqueriaModifierGroups.$inferSelect;
+export type InsertTaqueriaModifierGroup = typeof taqueriaModifierGroups.$inferInsert;
+
+/**
+ * Opciones individuales dentro de un grupo de modifiers.
+ * Ejemplos: "Verde", "Roja", "Habanero +$5", "Doble tortilla +$2".
+ * priceDelta: 0.00 = sin cambio, 5.00 = +$5, -3.00 = descuento.
+ */
+export const taqueriaModifierOptions = mysqlTable("taqueriaModifierOptions", {
+  id: int("id").autoincrement().primaryKey(),
+  groupId: int("groupId").notNull().references(() => taqueriaModifierGroups.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  priceDelta: decimal("priceDelta", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  isDefault: boolean("isDefault").default(false).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TaqueriaModifierOption = typeof taqueriaModifierOptions.$inferSelect;
+export type InsertTaqueriaModifierOption = typeof taqueriaModifierOptions.$inferInsert;
+
+/**
+ * Tabla puente N a N entre productos y grupos de modifiers (DRY).
+ * Un grupo "Salsas" se reutiliza en multiples productos sin duplicar opciones.
+ */
+export const taqueriaProductModifierGroups = mysqlTable(
+  "taqueriaProductModifierGroups",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    productId: int("productId").notNull().references(() => taqueriaProducts.id),
+    modifierGroupId: int("modifierGroupId").notNull().references(() => taqueriaModifierGroups.id),
+    displayOrder: int("displayOrder").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    uniqueProductGroup: unique("taqueria_product_modifier_group_unique").on(
+      table.productId,
+      table.modifierGroupId
+    ),
+  })
+);
+
+export type TaqueriaProductModifierGroup = typeof taqueriaProductModifierGroups.$inferSelect;
+export type InsertTaqueriaProductModifierGroup = typeof taqueriaProductModifierGroups.$inferInsert;
+
+/**
+ * Ordenes del cliente (pedidos completos).
+ * orderType: para_llevar / comer_aqui / recoger_barra
+ * verificationCode: codigo unico de 4 chars para confirmar via WhatsApp
+ * status: pending (esperando WA) / confirmed (WA recibido) / in_kitchen / ready / delivered / cancelled
+ */
+export const taqueriaOrders = mysqlTable("taqueriaOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  customerId: int("customerId").references(() => customers.id),
+  
+  customerName: varchar("customerName", { length: 200 }).notNull(),
+  customerWhatsapp: varchar("customerWhatsapp", { length: 30 }).notNull(),
+  
+  verificationCode: varchar("verificationCode", { length: 8 }).notNull(),
+  
+  orderType: mysqlEnum("orderType", ["para_llevar", "comer_aqui", "recoger_barra"]).notNull().default("para_llevar"),
+  deliveryAddress: text("deliveryAddress"),
+  tableNumber: varchar("tableNumber", { length: 20 }),
+  
+  status: mysqlEnum("status", ["pending", "confirmed", "in_kitchen", "ready", "delivered", "cancelled"]).notNull().default("pending"),
+  
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  
+  paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "transferencia", "tarjeta", "mercadopago"]).default("efectivo").notNull(),
+  
+  estimatedReadyAt: timestamp("estimatedReadyAt"),
+  confirmedAt: timestamp("confirmedAt"),
+  readyAt: timestamp("readyAt"),
+  deliveredAt: timestamp("deliveredAt"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaqueriaOrder = typeof taqueriaOrders.$inferSelect;
+export type InsertTaqueriaOrder = typeof taqueriaOrders.$inferInsert;
+
+/**
+ * Items individuales de cada orden con snapshot de modifiers.
+ * modifiersSnapshot guarda los modifiers elegidos en JSON para historial intacto.
+ */
+export const taqueriaOrderItems = mysqlTable("taqueriaOrderItems", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull().references(() => taqueriaOrders.id),
+  productId: int("productId").references(() => taqueriaProducts.id),
+  
+  productName: varchar("productName", { length: 200 }).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  modifiersTotal: decimal("modifiersTotal", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  
+  modifiersSnapshot: json("modifiersSnapshot"),
+  
+  itemNotes: text("itemNotes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TaqueriaOrderItem = typeof taqueriaOrderItems.$inferSelect;
+export type InsertTaqueriaOrderItem = typeof taqueriaOrderItems.$inferInsert;
+
+/**
+ * Configuracion de la taqueria (nombre, telefono WA del taquero, slug publico).
+ * slug es el path publico: cyberpiezas.com/taqueria/[slug]
+ */
+export const taqueriaSettings = mysqlTable("taqueriaSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id).unique(),
+  
+  taqueriaName: varchar("taqueriaName", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  
+  ownerWhatsapp: varchar("ownerWhatsapp", { length: 30 }).notNull(),
+  
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  coverImageUrl: varchar("coverImageUrl", { length: 500 }),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#D85A30"),
+  
+  defaultPrepTimeMinutes: int("defaultPrepTimeMinutes").default(15).notNull(),
+  acceptsLargeOrders: boolean("acceptsLargeOrders").default(false).notNull(),
+  largeOrderThreshold: int("largeOrderThreshold").default(50).notNull(),
+  
+  isOpen: boolean("isOpen").default(true).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaqueriaSettings = typeof taqueriaSettings.$inferSelect;
+export type InsertTaqueriaSettings = typeof taqueriaSettings.$inferInsert;
