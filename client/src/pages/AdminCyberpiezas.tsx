@@ -35,19 +35,19 @@ type TabKey = "suscriptores" | "operaciones";
 // Codigos de programa soportados en el panel (sin papeleria, aun no implementado)
 type ProgramCode = "boutique" | "abarrotes" | "veterinaria" | "verduleria" | "tarima" | "taqueria";
 
-// Cada programa declara si es manageable directo (enum userProgramAccess)
-// o si su gestion vive en otra pagina (pagos, setup dedicado)
+// Cada programa declara:
+// - setupHref: ruta a donde lleva el boton cuando esta inactivo (Setup) y cuando esta activo en los no-manageable
+// - manageable: si true, el boton Desactivar llama directo a programAccess.upsert (los 3 codigos del enum)
+//               si false, el boton Desactivar navega a setupHref (los 3 que vienen de pagos)
 type ProgramSpec = {
   code: ProgramCode;
   name: string;
   icon: string;
   gradient: string;
   ring: string;
-  // manageable: true  -> tiene boton Activar/Desactivar (usa programAccess.upsert)
-  // manageable: false -> solo lectura, redirige a "manageHref" para gestionar
+  setupHref: string;
+  setupLabel: string;
   manageable: boolean;
-  manageHref?: string;
-  manageLabel?: string;
 };
 
 const PROGRAMS: ProgramSpec[] = [
@@ -57,6 +57,8 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "👗",
     gradient: "from-purple-500 to-pink-500",
     ring: "ring-purple-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup boutique",
     manageable: true,
   },
   {
@@ -65,6 +67,8 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "🛒",
     gradient: "from-orange-500 to-red-500",
     ring: "ring-orange-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup abarrotes",
     manageable: true,
   },
   {
@@ -73,6 +77,8 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "🐾",
     gradient: "from-emerald-500 to-cyan-500",
     ring: "ring-emerald-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup veterinaria",
     manageable: true,
   },
   {
@@ -81,9 +87,9 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "🥕",
     gradient: "from-lime-500 to-green-600",
     ring: "ring-lime-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup verduleria",
     manageable: false,
-    manageHref: "/admin-pagos",
-    manageLabel: "Gestionar en pagos",
   },
   {
     code: "tarima",
@@ -91,9 +97,9 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "🎤",
     gradient: "from-fuchsia-500 to-indigo-500",
     ring: "ring-fuchsia-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup tarima",
     manageable: false,
-    manageHref: "/admin-pagos",
-    manageLabel: "Gestionar en pagos",
   },
   {
     code: "taqueria",
@@ -101,9 +107,9 @@ const PROGRAMS: ProgramSpec[] = [
     icon: "🌮",
     gradient: "from-amber-500 to-rose-500",
     ring: "ring-amber-500/30",
+    setupHref: "/admin-taqueria-setup",
+    setupLabel: "Setup taqueria",
     manageable: false,
-    manageHref: "/admin-taqueria-setup",
-    manageLabel: "Setup taqueria",
   },
 ];
 
@@ -182,18 +188,17 @@ export default function AdminCyberpiezas() {
     );
   });
 
-  const toggleProgramAccess = (userId: number, userName: string, programCode: ProgramCode, currentlyActive: boolean) => {
+  // Desactivar directo (solo para programas manageable, que estan en el enum userProgramAccess)
+  const deactivateProgram = (userId: number, userName: string, programCode: ProgramCode) => {
     const programName = PROGRAMS.find(p => p.code === programCode)?.name ?? programCode;
-    const action = currentlyActive ? "Desactivando" : "Activando";
-
     const key = userId + "-" + programCode;
     setProcessingKey(key);
-    toast.info(action + " " + programName + " para " + userName + "...");
+    toast.info("Desactivando " + programName + " para " + userName + "...");
 
     upsertAccess.mutate({
       userId,
       programCode,
-      status: currentlyActive ? "inactive" : "active",
+      status: "inactive",
     } as any);
   };
 
@@ -310,6 +315,18 @@ export default function AdminCyberpiezas() {
                     // Observabilidad silenciosa: de donde vino el acceso (enum o pago manual)
                     const source = access?.source ?? (program.manageable ? "enum" : "payment");
 
+                    // Handler unificado:
+                    // - Activo + manageable -> desactiva via upsert (los 3 codigos del enum)
+                    // - Activo + no manageable -> navega a setupHref para gestionar el pago
+                    // - Inactivo (cualquiera) -> navega a setupHref para configurar/activar
+                    const handleClick = () => {
+                      if (isActive && program.manageable) {
+                        deactivateProgram(u.id, u.name || "usuario", program.code);
+                      } else {
+                        setLocation(program.setupHref);
+                      }
+                    };
+
                     return (
                       <div
                         key={program.code}
@@ -328,36 +345,27 @@ export default function AdminCyberpiezas() {
                           <span className={"text-sm font-bold " + (isActive ? "text-emerald-200" : "text-slate-300")}>
                             {program.name}
                           </span>
-                          {!program.manageable && (
-                            <span className="ml-auto text-[10px] text-slate-400 uppercase tracking-wider font-bold">
-                              Pago
-                            </span>
-                          )}
                         </div>
 
-                        {program.manageable ? (
+                        {isActive ? (
                           <Button
                             size="sm"
-                            variant={isActive ? "outline" : "default"}
-                            onClick={() => toggleProgramAccess(u.id, u.name || "usuario", program.code, isActive)}
+                            variant="outline"
+                            onClick={handleClick}
                             disabled={isProcessing}
-                            className={
-                              isActive
-                                ? "w-full h-7 text-xs border-red-500/50 text-red-200 hover:bg-red-500/30 font-semibold"
-                                : "w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md"
-                            }
+                            className="w-full h-7 text-xs border-red-500/50 text-red-200 hover:bg-red-500/30 font-semibold"
                           >
-                            {isProcessing ? "..." : isActive ? "Desactivar" : "Activar"}
+                            {isProcessing ? "..." : "Desactivar"}
                           </Button>
                         ) : (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setLocation(program.manageHref ?? "/admin-pagos")}
+                            onClick={handleClick}
                             className="w-full h-7 text-xs border-slate-600 text-slate-200 hover:bg-slate-700 font-semibold gap-1"
                           >
                             <ExternalLink className="w-3 h-3" />
-                            {program.manageLabel ?? "Gestionar"}
+                            <span className="truncate">{program.setupLabel}</span>
                           </Button>
                         )}
                       </div>
@@ -567,7 +575,7 @@ export default function AdminCyberpiezas() {
                     Suscriptores ({filteredUsers.length})
                   </CardTitle>
                   <CardDescription className="text-slate-300">
-                    Activa o desactiva el acceso de cada usuario. Los programas marcados con "Pago" se gestionan desde su pagina dedicada.
+                    Cada programa muestra "Desactivar" si esta activo, o "Setup" para configurar o activar.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
