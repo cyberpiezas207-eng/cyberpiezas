@@ -837,4 +837,112 @@ export const taqueriaRouter = router({
         return { success: true };
       }),
   }),
+
+  // ===========================================================================
+  // ADMIN - Endpoints solo para admin (cyberpiezas207@gmail.com)
+  // ===========================================================================
+  admin: router({
+    // Otorgar acceso gratuito a taqueria (para testing o regalos)
+    grantFreeAccess: protectedProcedure
+      .input(
+        z.object({
+          userId: z.number().int().positive(),
+          months: z.number().int().min(1).max(24).default(12),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        // Solo admin
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Solo admin puede otorgar acceso gratis",
+          });
+        }
+
+        const db = getDbOrThrow();
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setMonth(periodEnd.getMonth() + input.months);
+
+        // Generar referencia unica
+        const transferReference = "ADMIN-GRANT-" + Date.now();
+
+        // Insertar como suscripcion aprobada
+        const result = await db.insert(transferPaymentRequests).values({
+          userId: input.userId,
+          planCode: "premium",
+          planName: "Taqueria - Acceso de Cortesia",
+          billingType: "annual",
+          amount: "0",
+          currency: "MXN",
+          payerName: "Admin Grant",
+          transferReference: transferReference,
+          notes: JSON.stringify({
+            posCode: "taqueria",
+            grantedFree: true,
+            reason: input.reason || "Acceso de testing",
+            months: input.months,
+          }),
+          status: "approved",
+          reviewedByUserId: ctx.user.id,
+          reviewedAt: now,
+          activatedAt: now,
+          periodStart: now,
+          periodEnd: periodEnd,
+        });
+
+        return {
+          success: true,
+          id: result[0].insertId,
+          periodEnd: periodEnd.toISOString(),
+          message: "Acceso a taqueria activado por " + input.months + " meses",
+        };
+      }),
+
+    // Activar acceso a TI MISMO (admin) - shortcut para testing
+    grantMyselfAccess: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Solo admin puede usar este endpoint",
+        });
+      }
+
+      const db = getDbOrThrow();
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+
+      const transferReference = "SELF-TEST-" + Date.now();
+
+      const result = await db.insert(transferPaymentRequests).values({
+        userId: ctx.user.id,
+        planCode: "premium",
+        planName: "Taqueria - Acceso Admin",
+        billingType: "annual",
+        amount: "0",
+        currency: "MXN",
+        payerName: "Admin Self-Grant",
+        transferReference: transferReference,
+        notes: JSON.stringify({
+          posCode: "taqueria",
+          grantedFree: true,
+          reason: "Admin self-access for testing",
+        }),
+        status: "approved",
+        reviewedByUserId: ctx.user.id,
+        reviewedAt: now,
+        activatedAt: now,
+        periodStart: now,
+        periodEnd: periodEnd,
+      });
+
+      return {
+        success: true,
+        id: result[0].insertId,
+        message: "Acceso admin a taqueria activado por 1 ano",
+      };
+    }),
+  }),
 });
