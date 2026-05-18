@@ -1,3 +1,22 @@
+// =============================================================================
+// taqueria.ts - Router del POS de Taqueria
+// =============================================================================
+// CREAR archivo: server/routers/taqueria.ts
+// =============================================================================
+// Endpoints:
+//   - categorias: list, create, update, delete, reorder
+//   - productos: list, listByCategory, get, create, update, delete, reorder
+//                assignModifier, removeModifier, getModifiers
+//   - modifierGroups: list, get, create, update, delete
+//   - modifierOptions: listByGroup, create, update, delete
+//
+// Reglas:
+//   - Solo usuarios con suscripcion activa a "taqueria" pueden usar
+//   - Foto OBLIGATORIA en productos al crear
+//   - Soft delete (isActive=false) en lugar de borrar
+//   - displayOrder para ordenar items
+// =============================================================================
+
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDbOrThrow } from "../db";
@@ -16,7 +35,7 @@ import { TRPCError } from "@trpc/server";
 // HELPER: Verificar acceso a taqueria (suscripcion premium activa)
 // =============================================================================
 async function requireTaqueriaAccess(userId: number) {
-  const db = getDbOrThrow();
+  const db = await getDbOrThrow();
   const now = new Date();
 
   // Buscar suscripcion activa para taqueria
@@ -107,7 +126,7 @@ export const taqueriaRouter = router({
   categorias: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       await requireTaqueriaAccess(ctx.user.id);
-      const db = getDbOrThrow();
+      const db = await getDbOrThrow();
       return db
         .select()
         .from(taqueriaCategories)
@@ -124,7 +143,7 @@ export const taqueriaRouter = router({
       .input(categoryInputSchema)
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
         const result = await db.insert(taqueriaCategories).values({
           userId: ctx.user.id,
           name: input.name,
@@ -138,7 +157,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive(), ...categoryInputSchema.shape }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership
         const existing = await db
@@ -170,7 +189,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership
         const existing = await db
@@ -203,7 +222,7 @@ export const taqueriaRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Actualizar orden
         for (let i = 0; i < input.orderedIds.length; i++) {
@@ -228,7 +247,7 @@ export const taqueriaRouter = router({
   productos: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       await requireTaqueriaAccess(ctx.user.id);
-      const db = getDbOrThrow();
+      const db = await getDbOrThrow();
       return db
         .select()
         .from(taqueriaProducts)
@@ -245,7 +264,7 @@ export const taqueriaRouter = router({
       .input(z.object({ categoryId: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
         return db
           .select()
           .from(taqueriaProducts)
@@ -263,7 +282,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
         const products = await db
           .select()
           .from(taqueriaProducts)
@@ -283,7 +302,7 @@ export const taqueriaRouter = router({
       .input(productInputSchema)
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar que la categoria existe y es del usuario
         const categories = await db
@@ -317,7 +336,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive(), ...productInputSchema.shape }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -352,7 +371,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -384,7 +403,7 @@ export const taqueriaRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         for (let i = 0; i < input.orderedIds.length; i++) {
           await db
@@ -405,7 +424,7 @@ export const taqueriaRouter = router({
       .input(z.object({ productId: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership del producto
         const products = await db
@@ -463,7 +482,7 @@ export const taqueriaRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership de ambos
         const products = await db
@@ -521,7 +540,7 @@ export const taqueriaRouter = router({
       .input(z.object({ linkId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership via producto
         const links = await db
@@ -559,7 +578,7 @@ export const taqueriaRouter = router({
   modifierGroups: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       await requireTaqueriaAccess(ctx.user.id);
-      const db = getDbOrThrow();
+      const db = await getDbOrThrow();
       return db
         .select()
         .from(taqueriaModifierGroups)
@@ -571,7 +590,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
         const groups = await db
           .select()
           .from(taqueriaModifierGroups)
@@ -603,7 +622,7 @@ export const taqueriaRouter = router({
       .input(modifierGroupInputSchema)
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const result = await db.insert(taqueriaModifierGroups).values({
           userId: ctx.user.id,
@@ -623,7 +642,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive(), ...modifierGroupInputSchema.shape }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -658,7 +677,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -700,7 +719,7 @@ export const taqueriaRouter = router({
       .input(z.object({ groupId: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership del grupo
         const groups = await db
@@ -732,7 +751,7 @@ export const taqueriaRouter = router({
       .input(modifierOptionInputSchema)
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         // Verificar ownership del grupo
         const groups = await db
@@ -763,7 +782,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive(), ...modifierOptionInputSchema.shape }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -804,7 +823,7 @@ export const taqueriaRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         await requireTaqueriaAccess(ctx.user.id);
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
 
         const existing = await db
           .select()
@@ -860,7 +879,7 @@ export const taqueriaRouter = router({
           });
         }
 
-        const db = getDbOrThrow();
+        const db = await getDbOrThrow();
         const now = new Date();
         const periodEnd = new Date(now);
         periodEnd.setMonth(periodEnd.getMonth() + input.months);
@@ -909,7 +928,7 @@ export const taqueriaRouter = router({
         });
       }
 
-      const db = getDbOrThrow();
+      const db = await getDbOrThrow();
       const now = new Date();
       const periodEnd = new Date(now);
       periodEnd.setFullYear(periodEnd.getFullYear() + 1);
