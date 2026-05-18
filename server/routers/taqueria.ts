@@ -1,22 +1,3 @@
-// =============================================================================
-// taqueria.ts - Router del POS de Taqueria
-// =============================================================================
-// CREAR archivo: server/routers/taqueria.ts
-// =============================================================================
-// Endpoints:
-//   - categorias: list, create, update, delete, reorder
-//   - productos: list, listByCategory, get, create, update, delete, reorder
-//                assignModifier, removeModifier, getModifiers
-//   - modifierGroups: list, get, create, update, delete
-//   - modifierOptions: listByGroup, create, update, delete
-//
-// Reglas:
-//   - Solo usuarios con suscripcion activa a "taqueria" pueden usar
-//   - Foto OBLIGATORIA en productos al crear
-//   - Soft delete (isActive=false) en lugar de borrar
-//   - displayOrder para ordenar items
-// =============================================================================
-
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDbOrThrow } from "../db";
