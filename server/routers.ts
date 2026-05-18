@@ -14,6 +14,7 @@ import { veterinariaRouter } from "./routers/veterinaria";
 import { verduleriaRouter } from "./routers/verduleria";
 import { tarimaRouter } from "./routers/tarima";
 import { pagosRouter } from "./routers/pagos";
+import { taqueriaRouter } from "./routers/taqueria";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -182,6 +183,7 @@ export const appRouter = router({
   verduleria: verduleriaRouter,
   tarima: tarimaRouter,
   pagos: pagosRouter,
+  taqueria: taqueriaRouter,
   auth: router({
     login: publicProcedure
       .input(
