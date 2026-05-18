@@ -23,7 +23,7 @@ import {
   CreditCard,
   Phone,
   Send,
-  TrendingUp,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -31,12 +31,80 @@ import DashboardLayout from "@/components/DashboardLayout";
 import OperationsView from "./OperationsView";
 
 type TabKey = "suscriptores" | "operaciones";
-type ProgramCode = "boutique" | "abarrotes" | "veterinaria";
 
-const PROGRAMS: { code: ProgramCode; name: string; icon: string; gradient: string; ring: string }[] = [
-  { code: "boutique", name: "Boutique", icon: "👗", gradient: "from-purple-500 to-pink-500", ring: "ring-purple-500/30" },
-  { code: "abarrotes", name: "Abarrotes", icon: "🛒", gradient: "from-orange-500 to-red-500", ring: "ring-orange-500/30" },
-  { code: "veterinaria", name: "Veterinaria", icon: "🐾", gradient: "from-emerald-500 to-cyan-500", ring: "ring-emerald-500/30" },
+// Codigos de programa soportados en el panel (sin papeleria, aun no implementado)
+type ProgramCode = "boutique" | "abarrotes" | "veterinaria" | "verduleria" | "tarima" | "taqueria";
+
+// Cada programa declara si es manageable directo (enum userProgramAccess)
+// o si su gestion vive en otra pagina (pagos, setup dedicado)
+type ProgramSpec = {
+  code: ProgramCode;
+  name: string;
+  icon: string;
+  gradient: string;
+  ring: string;
+  // manageable: true  -> tiene boton Activar/Desactivar (usa programAccess.upsert)
+  // manageable: false -> solo lectura, redirige a "manageHref" para gestionar
+  manageable: boolean;
+  manageHref?: string;
+  manageLabel?: string;
+};
+
+const PROGRAMS: ProgramSpec[] = [
+  {
+    code: "boutique",
+    name: "Boutique",
+    icon: "👗",
+    gradient: "from-purple-500 to-pink-500",
+    ring: "ring-purple-500/30",
+    manageable: true,
+  },
+  {
+    code: "abarrotes",
+    name: "Abarrotes",
+    icon: "🛒",
+    gradient: "from-orange-500 to-red-500",
+    ring: "ring-orange-500/30",
+    manageable: true,
+  },
+  {
+    code: "veterinaria",
+    name: "Veterinaria",
+    icon: "🐾",
+    gradient: "from-emerald-500 to-cyan-500",
+    ring: "ring-emerald-500/30",
+    manageable: true,
+  },
+  {
+    code: "verduleria",
+    name: "Verduleria",
+    icon: "🥕",
+    gradient: "from-lime-500 to-green-600",
+    ring: "ring-lime-500/30",
+    manageable: false,
+    manageHref: "/admin-pagos",
+    manageLabel: "Gestionar en pagos",
+  },
+  {
+    code: "tarima",
+    name: "Tarima",
+    icon: "🎤",
+    gradient: "from-fuchsia-500 to-indigo-500",
+    ring: "ring-fuchsia-500/30",
+    manageable: false,
+    manageHref: "/admin-pagos",
+    manageLabel: "Gestionar en pagos",
+  },
+  {
+    code: "taqueria",
+    name: "Taqueria",
+    icon: "🌮",
+    gradient: "from-amber-500 to-rose-500",
+    ring: "ring-amber-500/30",
+    manageable: false,
+    manageHref: "/admin-taqueria-setup",
+    manageLabel: "Setup taqueria",
+  },
 ];
 
 const avatarColors = [
@@ -126,7 +194,7 @@ export default function AdminCyberpiezas() {
       userId,
       programCode,
       status: currentlyActive ? "inactive" : "active",
-    });
+    } as any);
   };
 
   const handleSendEmail = (userEmail: string, userName: string) => {
@@ -160,8 +228,6 @@ export default function AdminCyberpiezas() {
     }).length;
     return { ...p, activeCount };
   });
-
-  const totalActive = programStats.reduce((sum, p) => sum + p.activeCount, 0);
 
   const SubscriberCard = ({ row }: { row: any }) => {
     const u = row.user ?? row;
@@ -235,16 +301,21 @@ export default function AdminCyberpiezas() {
 
               <div className="space-y-2 pt-3 border-t border-slate-700">
                 <p className="text-xs text-slate-300 uppercase font-bold tracking-wider">Accesos a programas</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {PROGRAMS.map(program => {
                     const access = accesses[program.code];
                     const isActive = access?.status === "active";
                     const key = u.id + "-" + program.code;
                     const isProcessing = processingKey === key;
+                    // Observabilidad silenciosa: de donde vino el acceso (enum o pago manual)
+                    const source = access?.source ?? (program.manageable ? "enum" : "payment");
 
                     return (
                       <div
                         key={program.code}
+                        data-program={program.code}
+                        data-source={source}
+                        data-active={isActive ? "1" : "0"}
                         className={
                           "rounded-lg border p-2.5 transition-all " +
                           (isActive
@@ -257,20 +328,38 @@ export default function AdminCyberpiezas() {
                           <span className={"text-sm font-bold " + (isActive ? "text-emerald-200" : "text-slate-300")}>
                             {program.name}
                           </span>
+                          {!program.manageable && (
+                            <span className="ml-auto text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+                              Pago
+                            </span>
+                          )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant={isActive ? "outline" : "default"}
-                          onClick={() => toggleProgramAccess(u.id, u.name || "usuario", program.code, isActive)}
-                          disabled={isProcessing}
-                          className={
-                            isActive
-                              ? "w-full h-7 text-xs border-red-500/50 text-red-200 hover:bg-red-500/30 font-semibold"
-                              : "w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md"
-                          }
-                        >
-                          {isProcessing ? "..." : isActive ? "Desactivar" : "Activar"}
-                        </Button>
+
+                        {program.manageable ? (
+                          <Button
+                            size="sm"
+                            variant={isActive ? "outline" : "default"}
+                            onClick={() => toggleProgramAccess(u.id, u.name || "usuario", program.code, isActive)}
+                            disabled={isProcessing}
+                            className={
+                              isActive
+                                ? "w-full h-7 text-xs border-red-500/50 text-red-200 hover:bg-red-500/30 font-semibold"
+                                : "w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md"
+                            }
+                          >
+                            {isProcessing ? "..." : isActive ? "Desactivar" : "Activar"}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setLocation(program.manageHref ?? "/admin-pagos")}
+                            className="w-full h-7 text-xs border-slate-600 text-slate-200 hover:bg-slate-700 font-semibold gap-1"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            {program.manageLabel ?? "Gestionar"}
+                          </Button>
+                        )}
                       </div>
                     );
                   })}
@@ -313,7 +402,7 @@ export default function AdminCyberpiezas() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header con botón volver */}
+        {/* Header con boton volver */}
         <div className="mb-6">
           <Button
             variant="ghost"
@@ -371,15 +460,15 @@ export default function AdminCyberpiezas() {
 
         {activeTab === "suscriptores" && (
           <div className="space-y-6">
-            {/* Stats GRANDES en fila arriba */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Stats GRANDES en grid responsive (Total + 6 POS = 7 cards) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 shadow-xl">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-slate-300 mb-2">
                     <Users className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Total registros</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Total</span>
                   </div>
-                  <p className="text-4xl font-bold text-white">{allUsers.length}</p>
+                  <p className="text-3xl font-bold text-white">{allUsers.length}</p>
                   <p className="text-xs text-slate-400 mt-1">suscriptores</p>
                 </CardContent>
               </Card>
@@ -389,9 +478,9 @@ export default function AdminCyberpiezas() {
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-2 text-white/90 mb-2">
                       <span className="text-lg">{p.icon}</span>
-                      <span className="text-xs font-bold uppercase tracking-wider">{p.name}</span>
+                      <span className="text-xs font-bold uppercase tracking-wider truncate">{p.name}</span>
                     </div>
-                    <p className="text-4xl font-bold text-white">{p.activeCount}</p>
+                    <p className="text-3xl font-bold text-white">{p.activeCount}</p>
                     <p className="text-xs text-white/80 mt-1">activos</p>
                   </CardContent>
                 </Card>
@@ -456,7 +545,7 @@ export default function AdminCyberpiezas() {
               </div>
             )}
 
-            {/* Lista de suscriptores ANCHA */}
+            {/* Lista de suscriptores */}
             {usersQuery.isLoading ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <RefreshCw className="w-10 h-10 animate-spin mb-4 opacity-40" />
@@ -478,7 +567,7 @@ export default function AdminCyberpiezas() {
                     Suscriptores ({filteredUsers.length})
                   </CardTitle>
                   <CardDescription className="text-slate-300">
-                    Activa o desactiva el acceso de cada usuario a cada programa de manera independiente.
+                    Activa o desactiva el acceso de cada usuario. Los programas marcados con "Pago" se gestionan desde su pagina dedicada.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
