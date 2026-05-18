@@ -1,0 +1,22 @@
+# =============================================================================
+# nixpacks.toml - Configuracion explicita para Railway
+# =============================================================================
+# Override del comportamiento auto-detect de Nixpacks.
+# Evita que Railway ejecute drizzle-kit push automaticamente.
+# Las migraciones de DB se hacen MANUALMENTE cuando sea necesario.
+# =============================================================================
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm-9_x"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile=false"]
+
+[phases.build]
+cmds = ["pnpm run build"]
+
+# IMPORTANTE: NO hay fase "pre-deploy" o "release"
+# Esto evita que Railway corra "drizzle-kit push" o "db:push" automaticamente.
+
+[start]
+cmd = "pnpm run start"
