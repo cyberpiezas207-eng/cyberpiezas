@@ -25,6 +25,8 @@ const POS_PRICES: Record<string, { monthly: number; yearly: number; name: string
   veterinaria: { monthly: 300, yearly: 3000, name: "Veterinaria", icon: "🐾" },
   verduleria: { monthly: 300, yearly: 3000, name: "Verduleria", icon: "🥕" },
   tarima: { monthly: 150, yearly: 1500, name: "Tarima", icon: "🎤" },
+  taqueria: { monthly: 300, yearly: 3000, name: "Taqueria", icon: "🌮" },
+  papeleria: { monthly: 300, yearly: 3000, name: "Papeleria", icon: "📓" },
 };
 
 const DISCOUNT_DAYS = [7, 20];
@@ -161,7 +163,7 @@ export const pagosRouter = router({
     create: protectedProcedure
       .input(
         z.object({
-          posCode: z.enum(["boutique", "abarrotes", "veterinaria", "verduleria", "tarima"]),
+          posCode: z.enum(["boutique", "abarrotes", "veterinaria", "verduleria", "tarima", "taqueria", "papeleria"]),
           planType: z.enum(["monthly", "yearly"]),
           paymentMethod: z.enum(["transferencia", "efectivo", "mercadopago"]),
           proofUrl: z.string().max(1000).optional(),
@@ -325,19 +327,55 @@ export const pagosRouter = router({
         if (req.status !== "pending") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Ya procesada" });
         }
-        const startDate = new Date();
-        const endDate = new Date(startDate);
-        if (req.billingType === "monthly") {
-          endDate.setMonth(endDate.getMonth() + 1);
-        } else {
-          endDate.setFullYear(endDate.getFullYear() + 1);
-        }
-        // Merge adminNotes en el notes JSON
+
+        // SUBSCRIPTION CORE V1: extraer posCode del notes JSON ANTES de hacer
+        // cualquier update, ya que ese campo vive dentro del JSON (no es columna).
         const existingData = parseNotesData(req.notes);
+        const posCode = existingData.posCode;
+        if (!posCode) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Pago sin posCode en notes - no se puede activar",
+          });
+        }
+
+        // Crear o renovar la suscripcion via Subscription Core V1.
+        // Aqui se aplica la regla 9: si la sub previa esta vigente, la nueva
+        // vigencia SE SUMA desde currentPeriodEnd, no desde hoy. Esto arregla
+        // el bug donde los clientes perdian dias al renovar antes de vencer.
+        const planType: "monthly" | "annual" =
+          req.billingType === "monthly" ? "monthly" : "annual";
+
+        const { subscription, wasRenewal } = await db.createOrRenewSubscription({
+          userId: req.userId,
+          posCode,
+          planType,
+          paymentRequestId: req.id,
+          sourceType: "payment",
+          grantedByUserId: ctx.user.id,
+          metadata: {
+            discountAtCreation: {
+              applied: existingData.discountApplied ?? false,
+              percentage: existingData.discountPercentage ?? 0,
+            },
+            originalPaymentMethod: existingData.paymentMethod ?? "transferencia",
+            approvedByAdminId: ctx.user.id,
+            approvedAtIso: new Date().toISOString(),
+          },
+        });
+
+        const startDate = subscription.currentPeriodStart;
+        const endDate = subscription.currentPeriodEnd;
+
+        // Merge adminNotes en el notes JSON de la solicitud de pago
         const newNotesPayload = JSON.stringify({
           ...existingData,
           adminNotes: input.adminNotes ?? "",
         });
+
+        // Marcar la solicitud de pago como aprobada (bitacora inmutable).
+        // Los periodStart/periodEnd reflejan la vigencia REAL de la sub:
+        // si fue renovacion temprana, startDate sigue siendo el de la sub previa.
         await conn
           .update(transferPaymentRequests)
           .set({
@@ -351,20 +389,21 @@ export const pagosRouter = router({
           })
           .where(eq(transferPaymentRequests.id, input.requestId));
 
-        const data = parseNotesData(req.notes);
-        const posName = data.posCode ? (POS_PRICES[data.posCode]?.name ?? data.posCode) : "Sistema";
+        const posName = POS_PRICES[posCode]?.name ?? posCode;
         try {
           await createNotification({
             userId: req.userId,
             type: "subscription_change",
-            title: "Suscripcion activada!",
-            message: "Tu acceso a " + posName + " esta activo hasta " + endDate.toLocaleDateString("es-MX"),
+            title: wasRenewal ? "Suscripcion renovada!" : "Suscripcion activada!",
+            message: wasRenewal
+              ? "Tu suscripcion a " + posName + " se renovo hasta " + endDate.toLocaleDateString("es-MX")
+              : "Tu acceso a " + posName + " esta activo hasta " + endDate.toLocaleDateString("es-MX"),
             relatedId: req.id,
           });
         } catch (e) {
           console.error("Notif fail:", e);
         }
-        return { success: true };
+        return { success: true, wasRenewal };
       }),
 
     reject: protectedProcedure
@@ -451,67 +490,66 @@ export const pagosRouter = router({
   // =========================================================================
   subscriptions: router({
     listMine: protectedProcedure.query(async ({ ctx }) => {
-      const conn = await getDbOrThrow();
-      const rows = await conn
-        .select()
-        .from(transferPaymentRequests)
-        .where(
-          and(
-            eq(transferPaymentRequests.userId, ctx.user.id),
-            eq(transferPaymentRequests.status, "approved"),
-          ),
-        )
-        .orderBy(desc(transferPaymentRequests.createdAt));
-      // Enriquecer y mapear como suscripciones
-      return rows.map((req) => {
-        const data = parseNotesData(req.notes);
-        const now = new Date();
-        const endDate = req.periodEnd ? new Date(req.periodEnd) : now;
-        const isActive = endDate > now;
+      // SUBSCRIPTION CORE V1: lee de la tabla subscriptions (source of truth).
+      // Ya no proxy a transferPaymentRequests.
+      const subs = await db.listSubscriptionsByUser(ctx.user.id);
+      const now = new Date();
+      return subs.map((sub) => {
+        const isVigente = sub.status === "active" && new Date(sub.currentPeriodEnd) > now;
         return {
-          id: req.id,
-          userId: req.userId,
-          posCode: data.posCode ?? "boutique",
-          planType: req.billingType === "monthly" ? "monthly" : "yearly",
-          status: isActive ? "active" : "expired",
-          startDate: req.periodStart,
-          endDate: req.periodEnd,
-          amountPaid: req.amount,
-          createdAt: req.createdAt,
+          id: sub.id,
+          userId: sub.userId,
+          posCode: sub.posCode,
+          planType: sub.planType,
+          status: sub.status === "cancelled"
+            ? "cancelled"
+            : isVigente
+            ? "active"
+            : "expired",
+          startDate: sub.currentPeriodStart,
+          endDate: sub.currentPeriodEnd,
+          sourceType: sub.sourceType,
+          createdAt: sub.createdAt,
         };
       });
     }),
 
     hasAccess: protectedProcedure
-      .input(z.object({ posCode: z.enum(["boutique", "abarrotes", "veterinaria", "verduleria", "tarima"]) }))
+      .input(
+        z.object({
+          posCode: z.enum([
+            "boutique",
+            "abarrotes",
+            "veterinaria",
+            "verduleria",
+            "tarima",
+            "taqueria",
+            "papeleria",
+          ]),
+        }),
+      )
       .query(async ({ ctx, input }) => {
-        const conn = await getDbOrThrow();
-        const now = new Date();
-        const rows = await conn
-          .select()
-          .from(transferPaymentRequests)
-          .where(
-            and(
-              eq(transferPaymentRequests.userId, ctx.user.id),
-              eq(transferPaymentRequests.status, "approved"),
-              gte(transferPaymentRequests.periodEnd, now),
-            ),
-          );
-        for (const req of rows) {
-          const data = parseNotesData(req.notes);
-          if (data.posCode === input.posCode) {
-            return {
-              hasAccess: true,
-              subscription: {
-                id: req.id,
-                posCode: input.posCode,
-                planType: req.billingType,
-                endDate: req.periodEnd,
-              },
-            };
-          }
-        }
-        return { hasAccess: false, subscription: null };
+        // SUBSCRIPTION CORE V1: usa el helper hibrido con 3 niveles de fallback.
+        //   1. subscriptions (fuente de verdad nueva)
+        //   2. userProgramAccess (legacy enum: boutique/abarrotes/veterinaria)
+        //   3. transferPaymentRequests aprobado con periodEnd vigente
+        // El campo "source" indica de donde vino el acceso (debugging/audit).
+        const state = await db.getSubscriptionState({
+          userId: ctx.user.id,
+          posCode: input.posCode,
+        });
+        return {
+          hasAccess: state.hasAccess,
+          source: state.source,
+          subscription: state.detail
+            ? {
+                posCode: state.detail.posCode,
+                endDate: state.detail.expiresAt ?? null,
+                planType: state.detail.planType ?? null,
+                sourceType: state.detail.sourceType ?? null,
+              }
+            : null,
+        };
       }),
   }),
 });
