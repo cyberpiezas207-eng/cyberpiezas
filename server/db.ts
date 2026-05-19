@@ -65,6 +65,12 @@ import {
   customers,
   type Customer,
   type InsertCustomer,
+  // Subscription Core V1
+  subscriptions,
+  type Subscription,
+  type InsertSubscription,
+  transferPaymentRequests,
+  type TransferPaymentRequest,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
@@ -2871,5 +2877,377 @@ export async function deleteVetCashier(
         eq(veterinariaCashiers.ownerUserId, ownerUserId),
       ),
     );
+  return { success: true };
+}
+
+
+// ============================================================================
+// SUBSCRIPTION CORE V1 - Helpers para gestion de suscripciones
+//
+// Estos helpers son la API principal para interactuar con la tabla subscriptions.
+// Implementan:
+//   - Idempotencia en 2 capas (status check + lastPaymentRequestId match)
+//   - Vigencias acumulativas (regla 9 de ChatGPT: extender desde currentPeriodEnd
+//     si la sub previa sigue vigente, NO desde now)
+//   - Aritmetica de meses calendario con setMonth/setFullYear (regla 3 ChatGPT)
+//   - hasAccess hibrido con 3 niveles de fallback para no romper usuarios legacy
+//
+// La tabla subscriptions se creo manualmente con SQL antes que estos helpers.
+// Los indices secundarios viven en MySQL y se usan automaticamente en queries.
+// ============================================================================
+
+/**
+ * Calcula la nueva fecha de vencimiento usando aritmetica de meses calendario.
+ * NO suma 30 o 365 dias, suma 1 mes o 1 ano completo del calendario.
+ *
+ * Ejemplos:
+ *   addPeriod(2026-01-31, "monthly") = 2026-02-28 (no 2026-03-02)
+ *   addPeriod(2026-05-19, "annual")  = 2027-05-19
+ *
+ * Esto cumple la expectativa del cliente: si pago el dia X, vence el dia X
+ * del mes siguiente.
+ */
+function addPeriod(baseDate: Date, planType: "monthly" | "annual"): Date {
+  const result = new Date(baseDate);
+  if (planType === "monthly") {
+    result.setMonth(result.getMonth() + 1);
+  } else {
+    result.setFullYear(result.getFullYear() + 1);
+  }
+  return result;
+}
+
+/**
+ * Crea una nueva suscripcion o renueva una existente para el par (userId, posCode).
+ *
+ * Reglas de negocio:
+ * - Si existe sub vigente (status='active' y currentPeriodEnd > now):
+ *     baseDate = currentPeriodEnd (EXTENDER vigencia, no reiniciar)
+ * - Si existe sub vencida o cancelled, o no existe sub:
+ *     baseDate = now (empezar desde hoy)
+ * - newPeriodEnd = baseDate + 1 mes o 1 ano segun planType
+ *
+ * Idempotencia capa 2:
+ * - Si la sub existente ya tiene lastPaymentRequestId === input.paymentRequestId,
+ *   se considera ya procesado y retorna la sub existente sin cambios.
+ *
+ * Metadata se mergea con la existente (no se sobrescribe), preservando audit trail.
+ *
+ * @returns { subscription, wasRenewal } donde wasRenewal=true si extendio
+ *          vigencia previa, false si fue creacion o reinicio desde now
+ */
+export async function createOrRenewSubscription(params: {
+  userId: number;
+  posCode: string;
+  planType: "monthly" | "annual";
+  paymentRequestId?: number | null;
+  sourceType?: "payment" | "courtesy" | "migration" | "admin_grant";
+  grantedByUserId?: number | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<{ subscription: Subscription; wasRenewal: boolean }> {
+  const conn = await getDbOrThrow();
+
+  const sourceType = params.sourceType ?? "payment";
+  const paymentRequestId = params.paymentRequestId ?? null;
+  const grantedByUserId = params.grantedByUserId ?? null;
+  const inputMetadata = params.metadata ?? null;
+
+  // Buscar sub existente para el par (userId, posCode) - es UNIQUE en la BD
+  const existing = await conn
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, params.userId),
+        eq(subscriptions.posCode, params.posCode),
+      ),
+    )
+    .limit(1);
+
+  const sub = existing[0];
+  const now = new Date();
+
+  // Idempotencia capa 2: mismo paymentRequestId ya procesado, no-op
+  if (
+    sub &&
+    paymentRequestId !== null &&
+    sub.lastPaymentRequestId === paymentRequestId
+  ) {
+    return { subscription: sub, wasRenewal: false };
+  }
+
+  // Determinar baseDate segun regla 9 (extender) o regla 10 (reiniciar)
+  const hasVigente =
+    !!sub &&
+    sub.status === "active" &&
+    new Date(sub.currentPeriodEnd) > now;
+
+  const baseDate = hasVigente ? new Date(sub!.currentPeriodEnd) : now;
+  const newPeriodEnd = addPeriod(baseDate, params.planType);
+
+  // Merge metadata: preservar info anterior (audit trail) + agregar nuevo
+  let mergedMetadata: Record<string, unknown> | null = null;
+  if (sub?.metadata || inputMetadata) {
+    const prev = (sub?.metadata as Record<string, unknown> | null) ?? {};
+    const incoming = inputMetadata ?? {};
+    mergedMetadata = { ...prev, ...incoming };
+  }
+
+  if (sub) {
+    // UPDATE: renovar/reactivar la sub existente
+    await conn
+      .update(subscriptions)
+      .set({
+        status: "active",
+        planType: params.planType,
+        currentPeriodStart: hasVigente ? sub.currentPeriodStart : now,
+        currentPeriodEnd: newPeriodEnd,
+        sourceType,
+        lastPaymentRequestId: paymentRequestId,
+        grantedByUserId,
+        metadata: mergedMetadata,
+        cancelledAt: null,
+      })
+      .where(eq(subscriptions.id, sub.id));
+
+    const updatedRows = await conn
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, sub.id))
+      .limit(1);
+
+    return { subscription: updatedRows[0], wasRenewal: hasVigente };
+  }
+
+  // INSERT: crear nueva sub
+  const insertPayload: InsertSubscription = {
+    userId: params.userId,
+    posCode: params.posCode,
+    planType: params.planType,
+    status: "active",
+    sourceType,
+    currentPeriodStart: now,
+    currentPeriodEnd: newPeriodEnd,
+    lastPaymentRequestId: paymentRequestId,
+    grantedByUserId,
+    metadata: mergedMetadata,
+  };
+
+  const insertResult = await conn
+    .insert(subscriptions)
+    .values(insertPayload)
+    .$returningId();
+
+  const newId = insertResult[0]?.id;
+  if (!newId) {
+    throw new Error("No se pudo crear la suscripcion");
+  }
+
+  const createdRows = await conn
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.id, newId))
+    .limit(1);
+
+  return { subscription: createdRows[0], wasRenewal: false };
+}
+
+/**
+ * Determina si un usuario tiene acceso activo a un POS, con fallback hibrido.
+ *
+ * Niveles de busqueda en orden:
+ *   NIVEL 1 - subscriptions (fuente de verdad nueva)
+ *     Busca sub active con currentPeriodEnd > now
+ *
+ *   NIVEL 2 - userProgramAccess (legacy enum: boutique, abarrotes, veterinaria)
+ *     Solo aplica para los 3 POS del enum legacy. Status='active'.
+ *
+ *   NIVEL 3 - transferPaymentRequests aprobados con periodEnd vigente
+ *     El posCode vive dentro de notes JSON, hay que parsear.
+ *
+ * @returns { hasAccess, source, detail } - source indica de donde vino el acceso,
+ *          util para debugging y observabilidad.
+ */
+export async function getSubscriptionState(params: {
+  userId: number;
+  posCode: string;
+}): Promise<{
+  hasAccess: boolean;
+  source: "subscription" | "legacy_program_access" | "legacy_payment" | "none";
+  detail: {
+    posCode: string;
+    expiresAt?: Date | null;
+    planType?: string;
+    sourceType?: string;
+  } | null;
+}> {
+  const conn = await getDbOrThrow();
+  const now = new Date();
+
+  // NIVEL 1: subscriptions (fuente de verdad)
+  const subRows = await conn
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, params.userId),
+        eq(subscriptions.posCode, params.posCode),
+        eq(subscriptions.status, "active"),
+        gte(subscriptions.currentPeriodEnd, now),
+      ),
+    )
+    .limit(1);
+
+  if (subRows.length > 0) {
+    const sub = subRows[0];
+    return {
+      hasAccess: true,
+      source: "subscription",
+      detail: {
+        posCode: sub.posCode,
+        expiresAt: sub.currentPeriodEnd,
+        planType: sub.planType,
+        sourceType: sub.sourceType,
+      },
+    };
+  }
+
+  // NIVEL 2: userProgramAccess (solo para los 3 POS del enum legacy)
+  const legacyEnumPOS = ["boutique", "abarrotes", "veterinaria"];
+  if (legacyEnumPOS.includes(params.posCode)) {
+    const upaRows = await conn
+      .select()
+      .from(userProgramAccess)
+      .where(
+        and(
+          eq(userProgramAccess.userId, params.userId),
+          eq(
+            userProgramAccess.programCode,
+            params.posCode as "boutique" | "abarrotes" | "veterinaria",
+          ),
+          eq(userProgramAccess.status, "active"),
+        ),
+      )
+      .limit(1);
+
+    if (upaRows.length > 0) {
+      return {
+        hasAccess: true,
+        source: "legacy_program_access",
+        detail: { posCode: params.posCode },
+      };
+    }
+  }
+
+  // NIVEL 3: transferPaymentRequests aprobados con periodEnd vigente
+  // El posCode vive dentro de notes JSON (text column), hay que parsear
+  const payRows = await conn
+    .select()
+    .from(transferPaymentRequests)
+    .where(
+      and(
+        eq(transferPaymentRequests.userId, params.userId),
+        eq(transferPaymentRequests.status, "approved"),
+        gte(transferPaymentRequests.periodEnd, now),
+      ),
+    );
+
+  for (const pay of payRows) {
+    try {
+      const data = pay.notes
+        ? (JSON.parse(pay.notes) as { posCode?: string })
+        : {};
+      if (data.posCode === params.posCode) {
+        return {
+          hasAccess: true,
+          source: "legacy_payment",
+          detail: {
+            posCode: params.posCode,
+            expiresAt: pay.periodEnd,
+          },
+        };
+      }
+    } catch {
+      // JSON corrupto: ignorar este registro y seguir buscando
+    }
+  }
+
+  // Nada encontrado en los 3 niveles
+  return { hasAccess: false, source: "none", detail: null };
+}
+
+/**
+ * Lista todas las suscripciones de un usuario (activas, expiradas, canceladas).
+ * Util para el panel "Mis Suscripciones" y AdminCyberpiezas.
+ *
+ * Ordenadas por currentPeriodEnd descendente (las vigentes primero).
+ *
+ * NO incluye fallback legacy: solo lee de la tabla subscriptions.
+ * Para verificar acceso real con fallback, usar getSubscriptionState().
+ */
+export async function listSubscriptionsByUser(
+  userId: number,
+): Promise<Subscription[]> {
+  const conn = await getDbOrThrow();
+  const rows = await conn
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .orderBy(desc(subscriptions.currentPeriodEnd));
+  return rows;
+}
+
+/**
+ * Cancela manualmente una suscripcion. NO realiza reembolso automatico.
+ *
+ * Cambios al row:
+ *   - status = 'cancelled'
+ *   - cancelledAt = now
+ *   - metadata.cancelReason = razon dada
+ *   - metadata.cancelledByUserId = quien la cancelo (admin)
+ *
+ * Los pagos historicos en transferPaymentRequests quedan intactos como bitacora.
+ */
+export async function revokeSubscription(params: {
+  userId: number;
+  posCode: string;
+  reason: string;
+  revokedByUserId?: number | null;
+}): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+
+  const existing = await conn
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, params.userId),
+        eq(subscriptions.posCode, params.posCode),
+      ),
+    )
+    .limit(1);
+
+  const sub = existing[0];
+  if (!sub) {
+    return { success: false };
+  }
+
+  const prev = (sub.metadata as Record<string, unknown> | null) ?? {};
+  const newMetadata = {
+    ...prev,
+    cancelReason: params.reason,
+    cancelledByUserId: params.revokedByUserId ?? null,
+    cancelledAtIso: new Date().toISOString(),
+  };
+
+  await conn
+    .update(subscriptions)
+    .set({
+      status: "cancelled",
+      cancelledAt: new Date(),
+      metadata: newMetadata,
+    })
+    .where(eq(subscriptions.id, sub.id));
+
   return { success: true };
 }
