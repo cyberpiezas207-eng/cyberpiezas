@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -70,6 +71,20 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function MiTarima() {
   const utils = trpc.useUtils();
+
+  // ==========================================================================
+  // GUARD DE ACCESO (Subscription Core V1)
+  // Hooks de proteccion: van ARRIBA de los demas hooks (regla de React).
+  // Los early returns que usan estos valores van DESPUES de TODOS los hooks.
+  //
+  // Nota: el nombre "navigateTo" en vez de "setLocation" es intencional para
+  // evitar colision con un setLocation existente en otro componente helper
+  // del mismo archivo.
+  // ==========================================================================
+  const [, navigateTo] = useLocation();
+  const { data: access, isLoading: accessLoading } =
+    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "tarima" });
+
   const [activeTab, setActiveTab] = useState<"perfil" | "bookings" | "multimedia">("perfil");
 
   const profileQuery = trpc.tarima.profile.getMine.useQuery();
@@ -79,6 +94,95 @@ export default function MiTarima() {
   const profile = profileQuery.data;
   const stats = statsQuery.data;
 
+  // ==========================================================================
+  // EARLY RETURNS DEL GUARD DE ACCESO
+  // Van aqui, despues de TODOS los hooks, antes del render principal.
+  // ==========================================================================
+
+  // Mientras carga el estado de acceso: loading amigable con tema tarima
+  if (accessLoading) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+          <div className="w-12 h-12 rounded-full border-4 border-fuchsia-500/20 border-t-fuchsia-500 animate-spin mb-4" />
+          <p className="text-slate-500 text-sm font-medium">Verificando tu acceso...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Sin acceso activo: pantalla amigable con CTAs a planes
+  if (access && !access.hasAccess) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Header con gradiente fucsia/purple tipico de Tarima */}
+            <div className="bg-gradient-to-br from-fuchsia-600 via-purple-600 to-indigo-700 px-8 pt-12 pb-14 text-center relative overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-pink-400/30 rounded-full blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl" />
+              <div className="relative">
+                <div className="text-7xl mb-3">🎤</div>
+                <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Mi Tarima</h1>
+                <p className="text-fuchsia-100 text-sm font-medium">Plataforma para artistas</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-8 py-8 space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Necesitas una suscripcion activa
+                </h2>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Para usar tu panel de artista necesitas estar suscrito a Tarima.
+                  Tu perfil publico, tus bookings y tu galeria viven aqui.
+                </p>
+              </div>
+
+              {/* Highlights del plan */}
+              <div className="bg-fuchsia-50 border border-fuchsia-100 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm text-fuchsia-900">
+                  <span className="text-base">✓</span>
+                  <span>Perfil publico personalizado</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-fuchsia-900">
+                  <span className="text-base">✓</span>
+                  <span>Bookings y agenda de eventos</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-fuchsia-900">
+                  <span className="text-base">✓</span>
+                  <span>Galeria multimedia y links</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-fuchsia-900">
+                  <span className="text-base">✓</span>
+                  <span>$150/mes o $1,500/ano</span>
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="space-y-2 pt-2">
+                <button
+                  onClick={() => navigateTo("/pricing?posCode=tarima")}
+                  className="w-full h-12 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 text-white font-bold shadow-lg shadow-fuchsia-500/30 active:scale-[0.98] transition-all"
+                >
+                  Ver planes
+                </button>
+                <button
+                  onClick={() => navigateTo("/sistemas")}
+                  className="w-full h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-all"
+                >
+                  Volver a mi panel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Acceso confirmado: renderiza el panel del artista normal
   return (
     <DashboardLayout>
       <div className="space-y-6">
