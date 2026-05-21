@@ -473,3 +473,4 @@ export default function AbarrotesPOS() {
   // Acceso confirmado: renderiza el POS normal (componente original intacto)
   return <AbarrotesPOSContent />;
 }
+
