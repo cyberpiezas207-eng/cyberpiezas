@@ -223,16 +223,54 @@ export async function runStartupMigrations(): Promise<void> {
       INDEX \`idx_posstaffperm_permission\` (\`permission\`),
       FOREIGN KEY (\`staffId\`) REFERENCES \`posStaff\`(\`id\`) ON DELETE CASCADE
     )`,
+    // ========================================================================
+    // POS SCOPE V1 - Separacion estricta de datos por POS
+    // Cada tabla core obtiene posCode NOT NULL DEFAULT 'legacy'.
+    // Datos existentes se marcan como 'legacy' (no se mezclan con POS nuevos).
+    // Abarrotes router SOLO consultara posCode='abarrotes'.
+    // ========================================================================
+    // products - agregar posCode + backfill + NOT NULL + index
+    "ALTER TABLE `products` ADD COLUMN `posCode` varchar(40) NULL",
+    "UPDATE `products` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
+    "ALTER TABLE `products` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
+    "CREATE INDEX `idx_products_poscode` ON `products` (`posCode`)",
+    // sales - mismo patron con index compuesto userId+posCode+createdAt
+    "ALTER TABLE `sales` ADD COLUMN `posCode` varchar(40) NULL",
+    "UPDATE `sales` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
+    "ALTER TABLE `sales` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
+    "CREATE INDEX `idx_sales_user_poscode_created` ON `sales` (`userId`, `posCode`, `createdAt`)",
+    // categories - mismo patron con index userId+posCode
+    "ALTER TABLE `categories` ADD COLUMN `posCode` varchar(40) NULL",
+    "UPDATE `categories` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
+    "ALTER TABLE `categories` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
+    "CREATE INDEX `idx_categories_user_poscode` ON `categories` (`userId`, `posCode`)",
+    // inventoryMovements - mismo patron con index posCode+createdAt
+    "ALTER TABLE `inventoryMovements` ADD COLUMN `posCode` varchar(40) NULL",
+    "UPDATE `inventoryMovements` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
+    "ALTER TABLE `inventoryMovements` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
+    "CREATE INDEX `idx_invmov_poscode_created` ON `inventoryMovements` (`posCode`, `createdAt`)",
+    // saleReturns - mismo patron con index userId+posCode
+    "ALTER TABLE `saleReturns` ADD COLUMN `posCode` varchar(40) NULL",
+    "UPDATE `saleReturns` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
+    "ALTER TABLE `saleReturns` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
+    "CREATE INDEX `idx_salereturns_user_poscode` ON `saleReturns` (`userId`, `posCode`)",
   ];
   for (const migration of migrations) {
     try {
       await db.execute(sql.raw(migration));
       console.log(`[Startup Migrations] OK: ${migration.slice(0, 60)}...`);
     } catch (err: unknown) {
-      // Si la columna ya existe, MySQL lanza error 1060 — ignorar
+      // Errores idempotentes esperados:
+      // 1060 = columna ya existe (ALTER ADD COLUMN repetido)
+      // 1061 = key/index ya existe (CREATE INDEX repetido)
+      // 1091 = no se puede dropear un index inexistente
       const mysqlErr = err as { errno?: number };
       if (mysqlErr?.errno === 1060) {
         console.log(`[Startup Migrations] Column already exists, skipping.`);
+      } else if (mysqlErr?.errno === 1061) {
+        console.log(`[Startup Migrations] Index already exists, skipping.`);
+      } else if (mysqlErr?.errno === 1091) {
+        console.log(`[Startup Migrations] Index does not exist, skipping.`);
       } else {
         console.error(`[Startup Migrations] Error (non-fatal):`, err);
       }
