@@ -1443,3 +1443,45 @@ export const subscriptions = mysqlTable("subscriptions", {
 
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;
+export const posStaff = mysqlTable("posStaff", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerUserId: int("ownerUserId").notNull(),
+  staffUserId: int("staffUserId").notNull(),
+  posCode: mysqlEnum("posCode", [
+    "boutique",
+    "abarrotes",
+    "veterinaria",
+    "verduleria",
+    "tarima",
+    "taqueria",
+    "papeleria",
+  ]).notNull(),
+  branchId: int("branchId"),
+  rolePreset: mysqlEnum("rolePreset", ["manager", "cashier", "custom"])
+    .notNull()
+    .default("cashier"),
+  status: mysqlEnum("status", ["active", "disabled", "invited"])
+    .notNull()
+    .default("active"),
+  createdByUserId: int("createdByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PosStaff = typeof posStaff.$inferSelect;
+export type InsertPosStaff = typeof posStaff.$inferInsert;
+
+// Permisos granulares por staff.
+// Presencia de row con allowed=1 = permiso concedido.
+// Ausencia = denegado.
+export const posStaffPermissions = mysqlTable("posStaffPermissions", {
+  id: int("id").autoincrement().primaryKey(),
+  staffId: int("staffId").notNull(),
+  permission: varchar("permission", { length: 60 }).notNull(),
+  allowed: int("allowed").notNull().default(1),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PosStaffPermission = typeof posStaffPermissions.$inferSelect;
+export type InsertPosStaffPermission = typeof posStaffPermissions.$inferInsert;
