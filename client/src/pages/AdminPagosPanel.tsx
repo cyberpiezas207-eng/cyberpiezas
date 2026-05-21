@@ -23,6 +23,8 @@ import {
   Copy,
   MessageCircle,
   Flame,
+  PlusCircle,
+  Calendar,
 } from "lucide-react";
 
 // Catalogo de POS (debe incluir TODOS los codes posibles que llegan en transferPaymentRequests)
@@ -500,8 +502,11 @@ function RequestDetailModal({
   const method = METHOD_INFO[request.paymentMethod] || { label: request.paymentMethod, icon: "💰" };
 
   const approveMutation = trpc.pagos.admin.approve.useMutation({
-    onSuccess: () => {
-      toast.success("✅ Suscripcion activada");
+    onSuccess: (data) => {
+      // Toast diferenciado segun wasRenewal (viene del backend desde V1).
+      // Lectura defensiva: si por alguna razon no llega, default a "activada".
+      const isRenewal = data && (data as any).wasRenewal === true;
+      toast.success(isRenewal ? "🔁 Suscripcion renovada" : "✅ Suscripcion activada");
       setActionLoading(null);
       onAction();
     },
@@ -738,6 +743,11 @@ function RequestDetailModal({
           {/* ACCIONES (solo si pending) */}
           {request.status === "pending" && (
             <>
+              {/* PREVIEW V1.5: Lo que pasara al aprobar */}
+              <div className="border-t border-slate-100 -mx-6 px-6 pt-5">
+                <ApprovalPreviewCard requestId={request.id} />
+              </div>
+
               <div className="border-t border-slate-100 -mx-6 px-6 pt-5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
                   📝 Notas (opcional para aprobar / OBLIGATORIO para rechazar)
@@ -832,6 +842,149 @@ function RequestDetailModal({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================================
+// APPROVAL PREVIEW CARD (V1.5)
+// Muestra que pasara al aprobar una solicitud pendiente.
+// Consume pagos.admin.previewApproval (read-only, no muta nada).
+// Lectura defensiva: si la query falla, muestra aviso discreto y no bloquea.
+// ============================================================================
+function ApprovalPreviewCard({ requestId }: { requestId: number }) {
+  const previewQuery = trpc.pagos.admin.previewApproval.useQuery(
+    { requestId },
+    {
+      retry: false,
+      staleTime: 30 * 1000,
+    },
+  );
+
+  // Loading skeleton compacto
+  if (previewQuery.isLoading) {
+    return (
+      <div className="bg-slate-50 rounded-2xl p-4 animate-pulse">
+        <div className="h-3 w-32 bg-slate-200 rounded mb-2" />
+        <div className="h-4 w-48 bg-slate-200 rounded" />
+      </div>
+    );
+  }
+
+  // Error: aviso discreto, no bloquea aprobacion
+  if (previewQuery.isError || !previewQuery.data) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-900">
+          No se pudo calcular el preview. Aun puedes revisar manualmente y aprobar.
+        </p>
+      </div>
+    );
+  }
+
+  const preview = previewQuery.data;
+
+  // Tema visual segun scenario
+  let scenarioConfig: {
+    label: string;
+    Icon: any;
+    headerClass: string;
+    badgeClass: string;
+  };
+
+  if (preview.scenario === "renewal") {
+    scenarioConfig = {
+      label: "Renovar suscripcion",
+      Icon: RefreshCw,
+      headerClass: "from-blue-500 to-indigo-600",
+      badgeClass: "bg-blue-100 text-blue-700",
+    };
+  } else if (preview.scenario === "reactivation") {
+    scenarioConfig = {
+      label: "Reactivar suscripcion",
+      Icon: ShieldCheck,
+      headerClass: "from-amber-500 to-orange-600",
+      badgeClass: "bg-amber-100 text-amber-700",
+    };
+  } else {
+    scenarioConfig = {
+      label: "Crear suscripcion nueva",
+      Icon: PlusCircle,
+      headerClass: "from-emerald-500 to-green-600",
+      badgeClass: "bg-emerald-100 text-emerald-700",
+    };
+  }
+
+  const { Icon } = scenarioConfig;
+
+  // Formatear fecha futura (lectura defensiva)
+  let futureFmt: string | null = null;
+  try {
+    const futureDate =
+      preview.futurePeriodEnd instanceof Date
+        ? preview.futurePeriodEnd
+        : new Date(preview.futurePeriodEnd as any);
+    if (!isNaN(futureDate.getTime())) {
+      futureFmt = futureDate.toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+    }
+  } catch {
+    futureFmt = null;
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      {/* Header con gradiente segun scenario */}
+      <div
+        className={
+          "px-4 py-3 bg-gradient-to-r flex items-center gap-3 " + scenarioConfig.headerClass
+        }
+      >
+        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+          <Icon className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">
+            Al aprobar
+          </p>
+          <h4 className="text-sm font-bold text-white truncate">
+            {scenarioConfig.label}
+          </h4>
+        </div>
+        <span
+          className={
+            "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full " +
+            scenarioConfig.badgeClass
+          }
+        >
+          {preview.scenario}
+        </span>
+      </div>
+
+      {/* Body con detalle */}
+      <div className="px-4 py-3 space-y-2">
+        {preview.message && (
+          <p className="text-sm text-slate-700 leading-relaxed">
+            {preview.message}
+          </p>
+        )}
+        {futureFmt && (
+          <div className="bg-slate-50 rounded-xl px-3 py-2 flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                Vigencia hasta
+              </p>
+              <p className="text-sm font-bold text-slate-900">{futureFmt}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
