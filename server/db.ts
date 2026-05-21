@@ -3371,3 +3371,75 @@ export async function revokeSubscription(params: {
 
   return { success: true };
 }
+
+
+/**
+ * Calcula el preview de lo que pasaria al aprobar/activar una suscripcion
+ * para el par (userId, posCode) con un planType dado. NO modifica nada.
+ *
+ * Comparte la misma logica que createOrRenewSubscription pero en modo read-only.
+ * Usado por pagos.admin.previewApproval para mostrar al admin que sucedera
+ * antes de hacer click en aprobar.
+ *
+ * Escenarios:
+ *   - new: no existe subscription previa para (userId, posCode)
+ *   - renewal: existe sub activa con currentPeriodEnd > now (se extiende)
+ *   - reactivation: existe sub pero vencida/cancelada (empieza desde now)
+ *
+ * @returns scenario, fecha actual (si existe), fecha futura tras aprobar
+ */
+export async function previewSubscriptionRenewal(params: {
+  userId: number;
+  posCode: string;
+  planType: "monthly" | "annual";
+}): Promise<{
+  scenario: "new" | "renewal" | "reactivation";
+  currentPeriodEnd: Date | null;
+  futurePeriodEnd: Date;
+}> {
+  const conn = await getDbOrThrow();
+
+  // Buscar sub existente para el par (userId, posCode) - es UNIQUE en la BD
+  const existing = await conn
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, params.userId),
+        eq(subscriptions.posCode, params.posCode),
+      ),
+    )
+    .limit(1);
+
+  const sub = existing[0];
+  const now = new Date();
+
+  // Caso new: nunca ha existido sub para este par
+  if (!sub) {
+    return {
+      scenario: "new",
+      currentPeriodEnd: null,
+      futurePeriodEnd: addPeriod(now, params.planType),
+    };
+  }
+
+  // Caso renewal: sub vigente (status active y periodEnd > now)
+  // Extiende desde currentPeriodEnd (regla 9 de Subscription Core V1)
+  const isVigente =
+    sub.status === "active" && new Date(sub.currentPeriodEnd) > now;
+
+  if (isVigente) {
+    return {
+      scenario: "renewal",
+      currentPeriodEnd: new Date(sub.currentPeriodEnd),
+      futurePeriodEnd: addPeriod(new Date(sub.currentPeriodEnd), params.planType),
+    };
+  }
+
+  // Caso reactivation: sub vencida o cancelada, empezar desde now
+  return {
+    scenario: "reactivation",
+    currentPeriodEnd: new Date(sub.currentPeriodEnd),
+    futurePeriodEnd: addPeriod(now, params.planType),
+  };
+}
