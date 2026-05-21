@@ -23,6 +23,7 @@ import AdminTabsBar, {
   type AdminTabKey,
 } from "@/components/admin/AdminTabsBar";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
+import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -49,6 +50,12 @@ export default function AdminCyberpiezas() {
       setProcessingKey(null);
     },
   });
+
+  // Query para mostrar count de pagos pendientes como badge en la tab
+  const pendingPaymentsQuery = trpc.pagos.admin.listAll.useQuery({
+    status: "pending",
+  });
+  const pendingCount = (pendingPaymentsQuery.data ?? []).length;
 
   // Desactivar directo: solo para programas manageable (los del enum legacy
   // userProgramAccess). Para no-manageable, SubscriberCard navega a setupHref.
@@ -164,8 +171,12 @@ export default function AdminCyberpiezas() {
           </div>
         </div>
 
-        {/* Barra de tabs (extraida en Commit 2) */}
-        <AdminTabsBar activeTab={activeTab} onChange={setActiveTab} />
+        {/* Barra de tabs (extraida en Commit 2, extendida en Commit 3) */}
+        <AdminTabsBar
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          pendingPaymentsCount={pendingCount}
+        />
 
         {/* Tab content: Suscriptores (componente extraido en Commit 2) */}
         {activeTab === "suscriptores" && (
@@ -177,6 +188,9 @@ export default function AdminCyberpiezas() {
             onSendEmail={handleSendEmail}
           />
         )}
+
+        {/* Tab content: Pagos pendientes (Commit 3 V2 Admin Hub) */}
+        {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
         {/* Tab content: Operaciones */}
         {activeTab === "operaciones" && <OperationsView showHeader={false} />}
