@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import {
   ShoppingCart,
   Plus,
@@ -450,71 +451,22 @@ export default function AbarrotesPOS() {
   }
 
   // Sin acceso activo: pantalla amigable con CTAs a planes
+  // V1.6 refactor: usa componente compartido AccessDeniedScreen
   if (access && !access.hasAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
-          {/* Header con gradiente naranja/rojo tipico de Abarrotes */}
-          <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-red-500 px-8 pt-12 pb-14 text-center relative overflow-hidden">
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-orange-300/30 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-amber-400/20 rounded-full blur-3xl" />
-            <div className="relative">
-              <div className="text-7xl mb-3">🛒</div>
-              <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Abarrotes</h1>
-              <p className="text-orange-50 text-sm font-medium">Punto de venta para tienda</p>
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="px-8 py-8 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-xl font-bold text-slate-900">
-                Necesitas una suscripcion activa
-              </h2>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Para usar Abarrotes necesitas estar suscrito.
-                Cobra ventas, controla inventario y revisa tus ingresos diarios.
-              </p>
-            </div>
-
-            {/* Highlights del plan */}
-            <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-sm text-orange-900">
-                <span className="text-base">✓</span>
-                <span>Codigos de barras y bascula</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-orange-900">
-                <span className="text-base">✓</span>
-                <span>Inventario ilimitado</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-orange-900">
-                <span className="text-base">✓</span>
-                <span>Ventas con fiado y reportes diarios</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-orange-900">
-                <span className="text-base">✓</span>
-                <span>$300/mes o $3,000/ano</span>
-              </div>
-            </div>
-
-            {/* CTAs */}
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => navigateTo("/pricing?posCode=abarrotes")}
-                className="w-full h-12 rounded-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-all"
-              >
-                Ver planes
-              </button>
-              <button
-                onClick={() => navigateTo("/sistemas")}
-                className="w-full h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-all"
-              >
-                Volver a mi panel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AccessDeniedScreen
+        posCode="abarrotes"
+        description="Para usar Abarrotes necesitas estar suscrito. Cobra ventas, controla inventario y revisa tus ingresos diarios."
+        benefits={[
+          "Codigos de barras y bascula",
+          "Inventario ilimitado",
+          "Ventas con fiado y reportes diarios",
+          "$300/mes o $3,000/ano",
+        ]}
+        onViewPlans={() => navigateTo("/pricing?posCode=abarrotes")}
+        onBack={() => navigateTo("/sistemas")}
+        mode="standalone"
+      />
     );
   }
 
