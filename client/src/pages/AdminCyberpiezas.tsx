@@ -24,6 +24,11 @@ import {
   Phone,
   Send,
   ExternalLink,
+  AlertCircle,
+  Gift,
+  Shield,
+  RotateCcw,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -33,7 +38,7 @@ import OperationsView from "./OperationsView";
 type TabKey = "suscriptores" | "operaciones";
 
 // Codigos de programa soportados en el panel (sin papeleria, aun no implementado)
-type ProgramCode = "boutique" | "abarrotes" | "veterinaria" | "verduleria" | "tarima" | "taqueria";
+type ProgramCode = "boutique" | "abarrotes" | "veterinaria" | "verduleria" | "tarima" | "taqueria" | "papeleria";
 
 // Cada programa declara:
 // - setupHref: ruta a donde lleva el boton cuando esta inactivo (Setup) y cuando esta activo en los no-manageable
@@ -111,12 +116,85 @@ const PROGRAMS: ProgramSpec[] = [
     setupLabel: "Setup taqueria",
     manageable: false,
   },
+  {
+    code: "papeleria",
+    name: "Papeleria",
+    icon: "📓",
+    gradient: "from-sky-500 to-blue-600",
+    ring: "ring-sky-500/30",
+    setupHref: "/admin-pagos",
+    setupLabel: "Setup papeleria",
+    manageable: false,
+  },
 ];
 
 const avatarColors = [
   "bg-purple-500", "bg-pink-500", "bg-blue-500", "bg-emerald-500",
   "bg-amber-500", "bg-cyan-500", "bg-rose-500", "bg-indigo-500",
 ];
+
+// ============================================================================
+// HELPERS V1.5 para mostrar datos nuevos del backend (endDate, sourceType, etc)
+// Lectura defensiva: si los campos no vienen, retorna null y la UI no se rompe.
+// ============================================================================
+
+// Texto relativo del vencimiento
+function getRelativeExpiration(endDate: Date | string | null | undefined): {
+  text: string;
+  urgency: "expired" | "today" | "soon" | "normal" | "far";
+} | null {
+  if (!endDate) return null;
+  const d = endDate instanceof Date ? endDate : new Date(endDate);
+  if (isNaN(d.getTime())) return null;
+
+  const diffMs = d.getTime() - Date.now();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (days < 0) {
+    const absDays = Math.abs(days);
+    if (absDays === 1) return { text: "Venció ayer", urgency: "expired" };
+    return { text: `Venció hace ${absDays} días`, urgency: "expired" };
+  }
+  if (days === 0) return { text: "Vence hoy", urgency: "today" };
+  if (days === 1) return { text: "Vence mañana", urgency: "soon" };
+  if (days <= 7) return { text: `Vence en ${days} días`, urgency: "soon" };
+  if (days <= 30) return { text: `Vence en ${days} días`, urgency: "normal" };
+
+  const months = Math.floor(days / 30);
+  if (months === 1) return { text: "Vigente por 1 mes más", urgency: "far" };
+  return { text: `Vigente por ${months} meses más`, urgency: "far" };
+}
+
+// Badge visual segun el sourceType (solo para casos no-payment)
+function getSourceBadge(sourceType: string | null | undefined): {
+  text: string;
+  icon: any;
+  className: string;
+} | null {
+  if (!sourceType || sourceType === "payment") return null;
+  if (sourceType === "courtesy") {
+    return {
+      text: "Cortesía",
+      icon: Gift,
+      className: "bg-purple-500/20 text-purple-200 border-purple-500/40",
+    };
+  }
+  if (sourceType === "admin_grant") {
+    return {
+      text: "Manual",
+      icon: Shield,
+      className: "bg-orange-500/20 text-orange-200 border-orange-500/40",
+    };
+  }
+  if (sourceType === "migration") {
+    return {
+      text: "Migrado",
+      icon: RotateCcw,
+      className: "bg-slate-500/20 text-slate-200 border-slate-500/40",
+    };
+  }
+  return null;
+}
 
 function getAvatarColor(name: string) {
   let hash = 0;
@@ -309,16 +387,45 @@ export default function AdminCyberpiezas() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {PROGRAMS.map(program => {
                     const access = accesses[program.code];
-                    const isActive = access?.status === "active";
+
+                    // LECTURA DEFENSIVA:
+                    // Si el backend devuelve el shape nuevo (V1.5+), usamos access.active
+                    // y access.status. Si solo viene el shape viejo legacy
+                    // (status="active"), seguimos funcionando igual.
+                    const isActive = access?.active === true || access?.status === "active";
+                    const status = (access?.status as string) ?? (isActive ? "active" : "none");
+                    const isExpired = status === "expired";
+                    const isCancelled = status === "cancelled";
+
                     const key = u.id + "-" + program.code;
                     const isProcessing = processingKey === key;
-                    // Observabilidad silenciosa: de donde vino el acceso (enum o pago manual)
+
+                    // Observabilidad: source viene del helper hibrido o cae al heuristico viejo
                     const source = access?.source ?? (program.manageable ? "enum" : "payment");
+
+                    // Datos V1.5 (lectura defensiva: pueden no existir)
+                    const expiration = getRelativeExpiration(access?.endDate);
+                    const sourceBadge = getSourceBadge(access?.sourceType);
+                    const planType = access?.planType as string | undefined;
+
+                    // Estilo del card segun status
+                    let cardClass = "bg-slate-900/60 border-slate-700/80"; // none / default
+                    let titleClass = "text-slate-300";
+                    if (isActive) {
+                      cardClass = "bg-emerald-500/15 border-emerald-500/50 shadow-md";
+                      titleClass = "text-emerald-200";
+                    } else if (isExpired) {
+                      cardClass = "bg-amber-500/10 border-amber-500/40";
+                      titleClass = "text-amber-200";
+                    } else if (isCancelled) {
+                      cardClass = "bg-slate-700/30 border-slate-600/60";
+                      titleClass = "text-slate-400";
+                    }
 
                     // Handler unificado:
                     // - Activo + manageable -> desactiva via upsert (los 3 codigos del enum)
-                    // - Activo + no manageable -> navega a setupHref para gestionar el pago
-                    // - Inactivo (cualquiera) -> navega a setupHref para configurar/activar
+                    // - Activo + no manageable -> navega a setupHref
+                    // - Inactivo -> navega a setupHref para configurar
                     const handleClick = () => {
                       if (isActive && program.manageable) {
                         deactivateProgram(u.id, u.name || "usuario", program.code);
@@ -333,20 +440,70 @@ export default function AdminCyberpiezas() {
                         data-program={program.code}
                         data-source={source}
                         data-active={isActive ? "1" : "0"}
-                        className={
-                          "rounded-lg border p-2.5 transition-all " +
-                          (isActive
-                            ? "bg-emerald-500/15 border-emerald-500/50 shadow-md"
-                            : "bg-slate-900/60 border-slate-700/80")
-                        }
+                        data-status={status}
+                        className={"rounded-lg border p-2.5 transition-all " + cardClass}
                       >
-                        <div className="flex items-center gap-2 mb-2">
+                        {/* Header: icono + nombre + badge sourceType si aplica */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span className="text-lg">{program.icon}</span>
-                          <span className={"text-sm font-bold " + (isActive ? "text-emerald-200" : "text-slate-300")}>
+                          <span className={"text-sm font-bold " + titleClass}>
                             {program.name}
                           </span>
+                          {sourceBadge && (
+                            <span
+                              className={
+                                "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border flex items-center gap-1 " +
+                                sourceBadge.className
+                              }
+                            >
+                              <sourceBadge.icon className="w-2.5 h-2.5" />
+                              {sourceBadge.text}
+                            </span>
+                          )}
                         </div>
 
+                        {/* Detalle V1.5: vencimiento relativo + plan, solo si hay datos */}
+                        {(expiration || planType) && (
+                          <div className="mb-2 space-y-0.5">
+                            {planType && (
+                              <div className="text-[10px] text-slate-400 uppercase tracking-wider">
+                                {planType === "monthly" ? "Plan mensual" : "Plan anual"}
+                              </div>
+                            )}
+                            {expiration && (
+                              <div
+                                className={
+                                  "text-[11px] font-medium flex items-center gap-1 " +
+                                  (expiration.urgency === "expired"
+                                    ? "text-amber-300"
+                                    : expiration.urgency === "today" || expiration.urgency === "soon"
+                                    ? "text-yellow-200"
+                                    : "text-slate-300")
+                                }
+                              >
+                                {expiration.urgency === "expired" && (
+                                  <AlertCircle className="w-3 h-3" />
+                                )}
+                                {expiration.text}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Etiqueta de estado solo cuando NO esta activo */}
+                        {!isActive && isExpired && (
+                          <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                            <XCircle className="w-3 h-3" />
+                            Vencida
+                          </div>
+                        )}
+                        {!isActive && isCancelled && (
+                          <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Cancelada
+                          </div>
+                        )}
+
+                        {/* Boton de accion (mismo comportamiento de siempre) */}
                         {isActive ? (
                           <Button
                             size="sm"
