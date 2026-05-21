@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useLocation } from "wouter";
 import { useState } from "react";
 import {
   AlertCircle,
@@ -129,7 +130,7 @@ function pctChange(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export default function Dashboard() {
+function DashboardContent() {
   const { user } = useAuth();
   const [noMovementDays, setNoMovementDays] = useState(30);
 
@@ -703,4 +704,104 @@ export default function Dashboard() {
       </div>
     </DashboardLayout>
   );
+}
+
+
+// ============================================================================
+// SUBSCRIPTION CORE V1 - Guard de acceso para Boutique
+// Patron wrapper: el componente original (DashboardContent) queda intacto
+// con todos sus hooks existentes incluyendo useAuth. Este wrapper hace la
+// validacion ANTES de cualquier render del POS.
+//
+// IMPORTANTE: Dashboard.tsx ya usaba useAuth para feature flags por rol,
+// pero eso NO era proteccion real de suscripcion. Ahora hasAccess es la
+// puerta principal y useAuth sigue funcionando dentro del Content.
+// ============================================================================
+
+export default function Dashboard() {
+  const [, navigateTo] = useLocation();
+  const { data: access, isLoading: accessLoading } =
+    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "boutique" });
+
+  // Mientras carga el estado de acceso: loading amigable
+  if (accessLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-slate-50">
+        <div className="w-12 h-12 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin mb-4" />
+        <p className="text-slate-500 text-sm font-medium">Verificando tu acceso...</p>
+      </div>
+    );
+  }
+
+  // Sin acceso activo: pantalla amigable con CTAs a planes
+  if (access && !access.hasAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+          {/* Header con gradiente purple/pink tipico de Boutique */}
+          <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 px-8 pt-12 pb-14 text-center relative overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-pink-300/30 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-400/20 rounded-full blur-3xl" />
+            <div className="relative">
+              <div className="text-7xl mb-3">👗</div>
+              <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">Boutique</h1>
+              <p className="text-pink-50 text-sm font-medium">Punto de venta para moda</p>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="px-8 py-8 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                Necesitas una suscripcion activa
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Para usar Boutique necesitas estar suscrito.
+                Olvidate de la libreta: inventario por talla y color, reportes diarios.
+              </p>
+            </div>
+
+            {/* Highlights del plan */}
+            <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-purple-900">
+                <span className="text-base">✓</span>
+                <span>Variantes por talla y color</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-purple-900">
+                <span className="text-base">✓</span>
+                <span>Multiples sucursales</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-purple-900">
+                <span className="text-base">✓</span>
+                <span>Reportes en tiempo real</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-purple-900">
+                <span className="text-base">✓</span>
+                <span>$300/mes o $3,000/ano</span>
+              </div>
+            </div>
+
+            {/* CTAs */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => navigateTo("/pricing?posCode=boutique")}
+                className="w-full h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold shadow-lg shadow-purple-500/30 active:scale-[0.98] transition-all"
+              >
+                Ver planes
+              </button>
+              <button
+                onClick={() => navigateTo("/sistemas")}
+                className="w-full h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-all"
+              >
+                Volver a mi panel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Acceso confirmado: renderiza el Dashboard normal (componente original intacto)
+  return <DashboardContent />;
 }
