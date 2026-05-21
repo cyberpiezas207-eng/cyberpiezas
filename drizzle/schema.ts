@@ -84,6 +84,7 @@ export const categories = mysqlTable("categories", {
   userId: int("userId").notNull().references(() => users.id),
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
+  posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({
@@ -105,6 +106,7 @@ export const products = mysqlTable("products", {
   description: text("description"),
   sku: varchar("sku", { length: 100 }).notNull().unique(),
   isActive: boolean("isActive").default(true).notNull(),
+  posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -173,6 +175,7 @@ export const sales = mysqlTable("sales", {
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   paymentMethod: mysqlEnum("paymentMethod", ["cash", "card", "transfer"]).default("cash").notNull(),
   notes: text("notes"),
+  posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -209,6 +212,7 @@ export const inventoryMovements = mysqlTable("inventoryMovements", {
   quantity: int("quantity").notNull(), // Positive for additions, negative for removals
   reason: text("reason"),
   userId: int("userId").notNull(), // User who made the movement
+  posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -727,6 +731,7 @@ export const saleReturns = mysqlTable("saleReturns", {
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   reason: text("reason").notNull(),
   notes: text("notes"),
+  posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
