@@ -16,6 +16,7 @@ import { tarimaRouter } from "./routers/tarima";
 import { pagosRouter } from "./routers/pagos";
 import { taqueriaRouter } from "./routers/taqueria";
 import { staffRouter } from "./routers/staff";
+import { abarrotesRouter } from "./routers/abarrotes";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -186,6 +187,7 @@ export const appRouter = router({
   pagos: pagosRouter,
   taqueria: taqueriaRouter,
   staff: staffRouter,
+  abarrotes: abarrotesRouter,
   auth: router({
     login: publicProcedure
       .input(
