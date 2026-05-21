@@ -33,6 +33,7 @@ import {
   X as XIcon,
   Loader2,
 } from "lucide-react";
+import { SourceBadge } from "@/components/SubscriptionBadges";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -168,36 +169,6 @@ function getRelativeExpiration(endDate: Date | string | null | undefined): {
 }
 
 // Badge visual del sourceType (solo para non-payment)
-function getSourceBadge(sourceType: string | null | undefined): {
-  text: string;
-  icon: any;
-  className: string;
-} | null {
-  if (!sourceType || sourceType === "payment") return null;
-  if (sourceType === "courtesy") {
-    return {
-      text: "Cortesía",
-      icon: Gift,
-      className: "bg-purple-500/20 text-purple-200 border-purple-500/40",
-    };
-  }
-  if (sourceType === "admin_grant") {
-    return {
-      text: "Manual",
-      icon: Shield,
-      className: "bg-orange-500/20 text-orange-200 border-orange-500/40",
-    };
-  }
-  if (sourceType === "migration") {
-    return {
-      text: "Migrado",
-      icon: RotateCcw,
-      className: "bg-slate-500/20 text-slate-200 border-slate-500/40",
-    };
-  }
-  return null;
-}
-
 function getAvatarColor(name: string) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -406,7 +377,6 @@ export default function AdminCyberpiezas() {
 
                     // Datos V1.5 (defensivos)
                     const expiration = getRelativeExpiration(access?.endDate);
-                    const sourceBadge = getSourceBadge(access?.sourceType);
                     const planType = access?.planType as string | undefined;
 
                     // Estilo segun status
@@ -446,17 +416,7 @@ export default function AdminCyberpiezas() {
                           <span className={"text-sm font-bold " + titleClass}>
                             {program.name}
                           </span>
-                          {sourceBadge && (
-                            <span
-                              className={
-                                "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border flex items-center gap-1 " +
-                                sourceBadge.className
-                              }
-                            >
-                              <sourceBadge.icon className="w-2.5 h-2.5" />
-                              {sourceBadge.text}
-                            </span>
-                          )}
+                          <SourceBadge sourceType={access?.sourceType} size="xs" />
                         </div>
 
                         {/* Detalle V1.5: vencimiento + plan */}
