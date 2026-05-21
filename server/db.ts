@@ -2642,35 +2642,155 @@ export async function getAllUsersWithProgramAccess() {
 
   if (allUsers.length === 0) return [];
 
-  // Traer TODOS los accesos a TODOS los programas
-  const allAccess = await db
+  // ==========================================================================
+  // FUENTE 1: userProgramAccess (legacy)
+  // Tabla con enum cerrado: boutique, abarrotes, veterinaria, celine.
+  // Se sigue leyendo para no romper usuarios que todavia tienen acceso solo
+  // por esta via (fallback nivel 2 del hibrido hasAccess).
+  // ==========================================================================
+  const allLegacyAccess = await db
     .select()
     .from(userProgramAccess);
 
-  // Agrupar accesos por userId y por programCode
-  const accessByUserAndProgram = new Map<number, Record<string, typeof allAccess[number]>>();
-  for (const a of allAccess) {
-    if (!accessByUserAndProgram.has(a.userId)) {
-      accessByUserAndProgram.set(a.userId, {});
+  const legacyByUserAndCode = new Map<number, Record<string, typeof allLegacyAccess[number]>>();
+  for (const a of allLegacyAccess) {
+    if (!legacyByUserAndCode.has(a.userId)) {
+      legacyByUserAndCode.set(a.userId, {});
     }
-    accessByUserAndProgram.get(a.userId)![a.programCode] = a;
+    legacyByUserAndCode.get(a.userId)![a.programCode] = a;
   }
 
+  // ==========================================================================
+  // FUENTE 2: subscriptions (Subscription Core V1)
+  // Tabla nueva con posCode VARCHAR libre. Soporta los 7 POS actuales y
+  // futuros sin tocar enums. Aqui es la fuente principal de vigencia.
+  // ==========================================================================
+  const allSubs = await db
+    .select()
+    .from(subscriptions);
+
+  const subsByUserAndPos = new Map<number, Record<string, typeof allSubs[number]>>();
+  for (const s of allSubs) {
+    if (!subsByUserAndPos.has(s.userId)) {
+      subsByUserAndPos.set(s.userId, {});
+    }
+    subsByUserAndPos.get(s.userId)![s.posCode] = s;
+  }
+
+  // ==========================================================================
+  // POS soportados en el panel admin.
+  // - Los 3 del enum legacy + celine (historico) siguen para no romper UI vieja.
+  // - Los 4 nuevos (verduleria, tarima, taqueria, papeleria) ahora visibles
+  //   gracias a la lectura de subscriptions.
+  // ==========================================================================
+  const ALL_POS = [
+    "boutique",
+    "abarrotes",
+    "veterinaria",
+    "celine",
+    "verduleria",
+    "tarima",
+    "taqueria",
+    "papeleria",
+  ] as const;
+
+  // ==========================================================================
+  // Helper de merge: decide el "acceso efectivo" para un par (user, posCode).
+  // Aplica las 4 reglas de prioridad acordadas con ChatGPT:
+  //   1. Sub activa vigente: gana, source="subscription"
+  //   2. Sin sub vigente pero legacy activo: source="legacy_program_access"
+  //   3. Sub vencida/cancelada y NO hay legacy activo: refleja la sub historica
+  //   4. Nada: shape vacio
+  // ==========================================================================
+  function mergeAccess(legacy: any, sub: any, now: Date) {
+    // Caso 1: sub activa vigente gana sobre todo
+    if (sub && sub.status === "active" && new Date(sub.currentPeriodEnd) > now) {
+      return {
+        active: true,
+        source: "subscription" as const,
+        status: "active" as const,
+        endDate: sub.currentPeriodEnd as Date,
+        planType: sub.planType as "monthly" | "annual" | null,
+        sourceType: sub.sourceType as
+          | "payment"
+          | "courtesy"
+          | "admin_grant"
+          | "migration"
+          | null,
+        subscriptionId: sub.id as number,
+      };
+    }
+
+    // Caso 2: sin sub vigente, pero legacy esta activo
+    if (legacy && legacy.status === "active") {
+      return {
+        active: true,
+        source: "legacy_program_access" as const,
+        status: "active" as const,
+        endDate: null,
+        planType: null,
+        sourceType: null,
+        subscriptionId: null,
+      };
+    }
+
+    // Caso 3: sub vencida o cancelada, sin legacy activo
+    if (sub) {
+      const subStatus =
+        sub.status === "cancelled" ? ("cancelled" as const) : ("expired" as const);
+      return {
+        active: false,
+        source: "subscription" as const,
+        status: subStatus,
+        endDate: sub.currentPeriodEnd as Date,
+        planType: sub.planType as "monthly" | "annual" | null,
+        sourceType: sub.sourceType as
+          | "payment"
+          | "courtesy"
+          | "admin_grant"
+          | "migration"
+          | null,
+        subscriptionId: sub.id as number,
+      };
+    }
+
+    // Caso 4: nada de nada
+    return {
+      active: false,
+      source: "none" as const,
+      status: "none" as const,
+      endDate: null,
+      planType: null,
+      sourceType: null,
+      subscriptionId: null,
+    };
+  }
+
+  // ==========================================================================
+  // Construir el resultado por usuario
+  // ==========================================================================
+  const now = new Date();
+
   return allUsers.map((u) => {
-    const userAccesses = accessByUserAndProgram.get(u.id) ?? {};
-    // Mantener compatibilidad: programAccess apunta a boutique (legacy)
-    const boutiqueAccess = userAccesses["boutique"] ?? null;
+    const userLegacy = legacyByUserAndCode.get(u.id) ?? {};
+    const userSubs = subsByUserAndPos.get(u.id) ?? {};
+
+    // Construir el mapa de accesos por POS con el shape nuevo (aditivo)
+    const programAccesses: Record<string, ReturnType<typeof mergeAccess>> = {};
+    for (const code of ALL_POS) {
+      programAccesses[code] = mergeAccess(userLegacy[code], userSubs[code], now);
+    }
+
+    // Mantener compatibilidad legacy:
+    // programAccess (singular) apunta al row crudo de userProgramAccess para boutique.
+    // Algunos consumidores viejos podrian seguir leyendolo.
+    const boutiqueLegacy = userLegacy["boutique"] ?? null;
+
     return {
       user: u,
-      programAccess: boutiqueAccess,
-      // Nuevo: objeto con TODOS los accesos por programa
-      programAccesses: {
-        boutique: userAccesses["boutique"] ?? null,
-        abarrotes: userAccesses["abarrotes"] ?? null,
-        veterinaria: userAccesses["veterinaria"] ?? null,
-        celine: userAccesses["celine"] ?? null,
-      },
-      status: boutiqueAccess?.status ?? "pending",
+      programAccess: boutiqueLegacy,
+      programAccesses,
+      status: boutiqueLegacy?.status ?? "pending",
     };
   });
 }
