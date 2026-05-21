@@ -358,7 +358,18 @@ export default function AdminCyberpiezas() {
               </div>
 
               <div className="space-y-2 pt-3 border-t border-slate-700">
-                <p className="text-xs text-slate-300 uppercase font-bold tracking-wider">Accesos a programas</p>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-xs text-slate-300 uppercase font-bold tracking-wider">
+                    Accesos a programas
+                  </p>
+                  <button
+                    onClick={() => setGrantModalUser(u)}
+                    className="text-[11px] font-bold text-purple-200 hover:text-white bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/40 rounded-full px-2.5 py-1 flex items-center gap-1 transition-all"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Activar gratis
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {PROGRAMS.map(program => {
                     const access = accesses[program.code];
