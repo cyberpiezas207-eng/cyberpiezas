@@ -3,37 +3,32 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   ShieldCheck,
-  Users,
-  CheckCircle2,
-  Search,
   Mail,
   RefreshCw,
   ArrowLeft,
   Copy,
-  Briefcase,
   Send,
   X as XIcon,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import OperationsView from "./OperationsView";
 import { PROGRAMS, type ProgramCode } from "@/lib/adminPosCatalog";
-import SubscriberCard from "@/components/admin/SubscriberCard";
 import GrantSubscriptionModal from "@/components/admin/GrantSubscriptionModal";
-
-type TabKey = "suscriptores" | "operaciones";
+import AdminTabsBar, {
+  type AdminTabKey,
+} from "@/components/admin/AdminTabsBar";
+import AdminUsersTab from "@/components/admin/AdminUsersTab";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<TabKey>("suscriptores");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<AdminTabKey>("suscriptores");
   const [welcomeEmail, setWelcomeEmail] = useState<{
     to: string;
     subject: string;
@@ -43,7 +38,6 @@ export default function AdminCyberpiezas() {
   // Modal "Activar gratis": guarda el usuario seleccionado o null si cerrado
   const [grantModalUser, setGrantModalUser] = useState<any | null>(null);
 
-  const usersQuery = trpc.personalOperations.listSubscribers.useQuery();
   const upsertAccess = trpc.programAccess.upsert.useMutation({
     onSuccess: () => {
       utils.personalOperations.listSubscribers.invalidate();
@@ -54,17 +48,6 @@ export default function AdminCyberpiezas() {
       toast.error(err.message || "Error al actualizar el acceso");
       setProcessingKey(null);
     },
-  });
-
-  const allUsers: any[] = (usersQuery.data as any[]) ?? [];
-  const filteredUsers = allUsers.filter((row: any) => {
-    const u = row.user ?? row;
-    const q = searchQuery.toLowerCase();
-    return (
-      (u.name ?? "").toLowerCase().includes(q) ||
-      (u.email ?? "").toLowerCase().includes(q) ||
-      (u.businessName ?? "").toLowerCase().includes(q)
-    );
   });
 
   // Desactivar directo: solo para programas manageable (los del enum legacy
@@ -120,14 +103,6 @@ export default function AdminCyberpiezas() {
     window.location.href = "mailto:" + to + "?subject=" + subject + "&body=" + body;
   };
 
-  const programStats = PROGRAMS.map((p) => {
-    const activeCount = allUsers.filter((row: any) => {
-      const access = row.programAccesses?.[p.code];
-      return access?.status === "active";
-    }).length;
-    return { ...p, activeCount };
-  });
-
   if (user?.role !== "admin") {
     return (
       <DashboardLayout>
@@ -178,138 +153,29 @@ export default function AdminCyberpiezas() {
               </p>
             </div>
             <Button
-              onClick={() => usersQuery.refetch()}
-              disabled={usersQuery.isFetching}
+              onClick={() =>
+                utils.personalOperations.listSubscribers.invalidate()
+              }
               className="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200"
             >
-              <RefreshCw
-                className={
-                  "w-4 h-4 mr-2 " + (usersQuery.isFetching ? "animate-spin" : "")
-                }
-              />
+              <RefreshCw className="w-4 h-4 mr-2" />
               Refrescar
             </Button>
           </div>
         </div>
 
-        {/* Tabs principales (UI inline por ahora; Commit 2 extrae AdminTabsBar) */}
-        <div className="flex gap-1 border-b border-slate-700">
-          <button
-            onClick={() => setActiveTab("suscriptores")}
-            className={
-              "px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative " +
-              (activeTab === "suscriptores"
-                ? "text-purple-300"
-                : "text-slate-400 hover:text-slate-200")
-            }
-          >
-            <Users className="w-4 h-4" />
-            Suscriptores
-            {activeTab === "suscriptores" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400 rounded-t" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("operaciones")}
-            className={
-              "px-4 py-3 font-semibold flex items-center gap-2 transition-colors relative " +
-              (activeTab === "operaciones"
-                ? "text-purple-300"
-                : "text-slate-400 hover:text-slate-200")
-            }
-          >
-            <Briefcase className="w-4 h-4" />
-            Operaciones
-            {activeTab === "operaciones" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400 rounded-t" />
-            )}
-          </button>
-        </div>
+        {/* Barra de tabs (extraida en Commit 2) */}
+        <AdminTabsBar activeTab={activeTab} onChange={setActiveTab} />
 
-        {/* Tab content: Suscriptores */}
+        {/* Tab content: Suscriptores (componente extraido en Commit 2) */}
         {activeTab === "suscriptores" && (
-          <div className="space-y-6">
-            {/* Stats por programa */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
-              {programStats.map((p) => (
-                <Card key={p.code} className="bg-slate-800/60 border-slate-700 shadow-md">
-                  <CardContent className="pt-4 pb-4 text-center">
-                    <div className="text-2xl mb-1">{p.icon}</div>
-                    <div className="text-xs font-bold text-slate-300 truncate">
-                      {p.name}
-                    </div>
-                    <div className="text-lg font-bold text-emerald-300">
-                      {p.activeCount}
-                    </div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">
-                      activos
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Search bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por nombre, email o negocio..."
-                className="pl-10 bg-slate-800/60 border-slate-700 text-white placeholder:text-slate-500"
-              />
-            </div>
-
-            {/* Lista de suscriptores */}
-            {usersQuery.isLoading ? (
-              <Card className="bg-slate-800/60 border-slate-700">
-                <CardContent className="pt-12 pb-12 text-center text-slate-400">
-                  <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />
-                  Cargando suscriptores...
-                </CardContent>
-              </Card>
-            ) : filteredUsers.length === 0 ? (
-              <Card className="bg-slate-800/60 border-slate-700">
-                <CardContent className="pt-12 pb-12 text-center text-slate-400">
-                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p className="font-semibold">No hay suscriptores</p>
-                  <p className="text-xs mt-1 text-slate-500">
-                    {searchQuery
-                      ? "No se encontraron resultados para tu busqueda."
-                      : "Aun no hay usuarios registrados."}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="bg-slate-900/40 border-slate-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base text-white flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-300" />
-                    Suscriptores
-                    <Badge className="bg-purple-500/20 text-purple-200 border-purple-500/40 ml-1">
-                      {filteredUsers.length}
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Cada card muestra los accesos y estado actual del usuario.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {filteredUsers.map((row: any, i: number) => (
-                    <SubscriberCard
-                      key={(row.user ?? row).id ?? i}
-                      row={row}
-                      processingKey={processingKey}
-                      onDeactivate={deactivateProgram}
-                      onNavigate={setLocation}
-                      onActivateGratis={setGrantModalUser}
-                      onSendEmail={handleSendEmail}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <AdminUsersTab
+            processingKey={processingKey}
+            onDeactivate={deactivateProgram}
+            onNavigate={setLocation}
+            onActivateGratis={setGrantModalUser}
+            onSendEmail={handleSendEmail}
+          />
         )}
 
         {/* Tab content: Operaciones */}
@@ -389,7 +255,7 @@ export default function AdminCyberpiezas() {
         </div>
       )}
 
-      {/* Modal "Activar gratis": componente extraido (V1.5 + V2 Admin Hub) */}
+      {/* Modal "Activar gratis": componente extraido */}
       {grantModalUser && (
         <GrantSubscriptionModal
           user={grantModalUser}
