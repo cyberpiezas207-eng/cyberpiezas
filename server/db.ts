@@ -82,6 +82,63 @@ import {
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
 
+// ============================================================================
+// POS SCOPE V1 - Tipos y helpers para separacion estricta de datos por POS
+// ----------------------------------------------------------------------------
+// Cada funcion canonica de DB que toca tablas con posCode (products, sales,
+// categories, inventoryMovements, saleReturns) acepta un PosScopeOptions
+// opcional. Si no se pasa, el scope es "legacy" (default explicito).
+//
+// REGLA: posCode undefined NO significa "sin filtro". Significa "legacy".
+// Nunca construir WHERE dinamico que omita el filtro de posCode.
+// ============================================================================
+
+export type PosCode =
+  | "legacy"
+  | "abarrotes"
+  | "boutique"
+  | "veterinaria"
+  | "verduleria"
+  | "tarima"
+  | "taqueria"
+  | "papeleria";
+
+export type PosScopeOptions = {
+  posCode?: PosCode;
+};
+
+const VALID_POS_CODES: ReadonlySet<PosCode> = new Set([
+  "legacy",
+  "abarrotes",
+  "boutique",
+  "veterinaria",
+  "verduleria",
+  "tarima",
+  "taqueria",
+  "papeleria",
+]);
+
+/**
+ * Resuelve el scope efectivo de una operacion DB.
+ * Si options.posCode no viene, devuelve "legacy" como default explicito.
+ */
+export function resolvePosScope(options?: PosScopeOptions): PosCode {
+  return options?.posCode ?? "legacy";
+}
+
+/**
+ * Valida que un posCode sea uno del enum permitido.
+ * Lanza TRPCError BAD_REQUEST si no.
+ */
+export function assertValidPosCode(code: string): asserts code is PosCode {
+  if (!VALID_POS_CODES.has(code as PosCode)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `POS code invalido: ${code}`,
+    });
+  }
+}
+
 let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
@@ -727,19 +784,27 @@ async function enrichProductWithAssets(product: typeof products.$inferSelect) {
   };
 }
 
-export async function createProduct(data: {
-  name: string;
-  categoryId: number;
-  brand: string;
-  basePrice: string;
-  sku: string;
-  description?: string;
-  branchIds?: number[];
-}) {
+export async function createProduct(
+  data: {
+    name: string;
+    categoryId: number;
+    brand: string;
+    basePrice: string;
+    sku: string;
+    description?: string;
+    branchIds?: number[];
+  },
+  options?: PosScopeOptions,
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const scope = resolvePosScope(options);
   const { branchIds = [], ...productData } = data;
-  const result = await db.insert(products).values(productData).$returningId();
+  // POS Scope V1: insertar siempre con posCode explicito (legacy por default).
+  const result = await db
+    .insert(products)
+    .values({ ...productData, posCode: scope })
+    .$returningId();
   const productId = result[0]?.id;
 
   if (!productId) {
@@ -747,12 +812,20 @@ export async function createProduct(data: {
   }
 
   await syncProductBranchAssignments(productId, branchIds);
+  if (scope !== "legacy") {
+    console.log(`[POS_SCOPE_PRODUCT_CREATE] productId=${productId} posCode=${scope}`);
+  }
   return { id: productId };
 }
 
-export async function getProductById(id: number, userId: number) {
+export async function getProductById(
+  id: number,
+  userId: number,
+  options?: PosScopeOptions,
+) {
   const db = await getDb();
   if (!db) return null;
+  const scope = resolvePosScope(options);
 
   const result = await db
     .selectDistinct({
@@ -770,15 +843,26 @@ export async function getProductById(id: number, userId: number) {
     .from(products)
     .innerJoin(productBranchAssignments, eq(productBranchAssignments.productId, products.id))
     .innerJoin(branches, eq(productBranchAssignments.branchId, branches.id))
-    .where(and(eq(products.id, id), eq(branches.userId, userId), eq(products.isActive, true)))
+    .where(
+      and(
+        eq(products.id, id),
+        eq(branches.userId, userId),
+        eq(products.isActive, true),
+        eq(products.posCode, scope),
+      ),
+    )
     .limit(1);
 
   if (result.length === 0) return null;
   return await enrichProductWithAssets(result[0]);
 }
-export async function getAllProducts(userId: number) {
+export async function getAllProducts(
+  userId: number,
+  options?: PosScopeOptions,
+) {
   const db = await getDb();
   if (!db) return [];
+  const scope = resolvePosScope(options);
 
   const productList = await db
     .selectDistinct({
@@ -796,7 +880,14 @@ export async function getAllProducts(userId: number) {
     .from(products)
     .innerJoin(productBranchAssignments, eq(productBranchAssignments.productId, products.id))
     .innerJoin(branches, eq(productBranchAssignments.branchId, branches.id))
-    .where(and(eq(products.isActive, true), eq(branches.userId, userId), eq(branches.isActive, true)))
+    .where(
+      and(
+        eq(products.isActive, true),
+        eq(branches.userId, userId),
+        eq(branches.isActive, true),
+        eq(products.posCode, scope),
+      ),
+    )
     .orderBy(desc(products.createdAt));
 
   return await Promise.all(productList.map((product) => enrichProductWithAssets(product)));
@@ -828,9 +919,14 @@ export async function countProductsByUserId(userId: number) {
   return Number(result[0]?.count ?? 0);
 }
 
-export async function searchProducts(userId: number, query: string) {
+export async function searchProducts(
+  userId: number,
+  query: string,
+  options?: PosScopeOptions,
+) {
   const db = await getDb();
   if (!db) return [];
+  const scope = resolvePosScope(options);
   const productList = await db
     .selectDistinct({
       id: products.id,
@@ -852,8 +948,9 @@ export async function searchProducts(userId: number, query: string) {
         eq(products.isActive, true),
         eq(branches.userId, userId),
         eq(branches.isActive, true),
-        like(products.name, `%${query}%`)
-      )
+        eq(products.posCode, scope),
+        like(products.name, `%${query}%`),
+      ),
     )
     .orderBy(asc(products.name));
 
@@ -870,12 +967,16 @@ export async function updateProduct(
     basePrice: string;
     description: string;
     branchIds: number[];
-  }>
+  }>,
+  options?: PosScopeOptions,
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const scope = resolvePosScope(options);
 
-  const existing = await getProductById(id, userId);
+  // POS Scope V1: getProductById ya filtra por scope, asi que si existe
+  // sabemos que el producto pertenece a este POS.
+  const existing = await getProductById(id, userId, { posCode: scope });
   if (!existing) {
     throw new Error("Producto no encontrado para este suscriptor");
   }
@@ -883,7 +984,11 @@ export async function updateProduct(
   const { branchIds, ...productData } = data;
 
   if (Object.keys(productData).length > 0) {
-    await db.update(products).set(productData).where(eq(products.id, id));
+    // Update doble-bloqueo: WHERE id Y posCode (defense in depth).
+    await db
+      .update(products)
+      .set(productData)
+      .where(and(eq(products.id, id), eq(products.posCode, scope)));
   }
 
   if (branchIds) {
@@ -891,19 +996,25 @@ export async function updateProduct(
   }
 }
 
-export async function deleteProduct(id: number, userId: number) {
+export async function deleteProduct(
+  id: number,
+  userId: number,
+  options?: PosScopeOptions,
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const scope = resolvePosScope(options);
 
-  const existing = await getProductById(id, userId);
+  const existing = await getProductById(id, userId, { posCode: scope });
   if (!existing) {
     throw new Error("Producto no encontrado para este suscriptor");
   }
 
+  // Defense in depth: doble-filtro por posCode en el UPDATE.
   await db
     .update(products)
     .set({ isActive: false })
-    .where(eq(products.id, id));
+    .where(and(eq(products.id, id), eq(products.posCode, scope)));
 }
 
 export async function getProductImagesByProductId(productId: number) {
