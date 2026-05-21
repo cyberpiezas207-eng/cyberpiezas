@@ -434,7 +434,6 @@ export const pagosRouter = router({
           });
         }
 
-        // Extraer posCode del notes JSON (igual que admin.approve)
         const existingData = parseNotesData(req.notes);
         const posCode = existingData.posCode;
         if (!posCode) {
@@ -447,14 +446,12 @@ export const pagosRouter = router({
         const planType: "monthly" | "annual" =
           req.billingType === "monthly" ? "monthly" : "annual";
 
-        // Llamar al helper read-only que usa la misma logica que approve
         const preview = await db.previewSubscriptionRenewal({
           userId: req.userId,
           posCode,
           planType,
         });
 
-        // Construir mensaje humano para mostrar en la UI
         const dateFmt = preview.futurePeriodEnd.toLocaleDateString("es-MX", {
           day: "2-digit",
           month: "long",
@@ -557,6 +554,98 @@ export const pagosRouter = router({
         monthRequestsCount: monthRequests.length,
       };
     }),
+
+    // ========================================================================
+    // grantSubscription: Activa o renueva una suscripcion sin pago previo.
+    // Usado para cortesias, accesos manuales, demos, clientes de confianza.
+    //
+    // NO crea registro en transferPaymentRequests (no hay pago real).
+    // NO toca userProgramAccess (respeta el enum legacy intacto).
+    // Reutiliza createOrRenewSubscription (la misma logica que approve).
+    //
+    // Auditoria: grantedByUserId y metadata.adminReason quedan grabados.
+    // ========================================================================
+    grantSubscription: protectedProcedure
+      .input(
+        z.object({
+          userId: z.number().int().positive(),
+          posCode: z.enum([
+            "boutique",
+            "abarrotes",
+            "veterinaria",
+            "verduleria",
+            "tarima",
+            "taqueria",
+            "papeleria",
+          ]),
+          planType: z.enum(["monthly", "annual"]),
+          sourceType: z.enum(["courtesy", "admin_grant"]),
+          reason: z.string().min(3).max(500),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await requireAdmin(ctx.user.id);
+
+        // Verificar que el usuario destino existe
+        const conn = await getDbOrThrow();
+        const [targetUser] = await conn
+          .select()
+          .from(users)
+          .where(eq(users.id, input.userId))
+          .limit(1);
+
+        if (!targetUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Usuario no encontrado",
+          });
+        }
+
+        // Crear o renovar usando el mismo helper que approve.
+        // paymentRequestId es null porque no hay pago asociado.
+        const { subscription, wasRenewal } = await db.createOrRenewSubscription({
+          userId: input.userId,
+          posCode: input.posCode,
+          planType: input.planType,
+          paymentRequestId: null,
+          sourceType: input.sourceType,
+          grantedByUserId: ctx.user.id,
+          metadata: {
+            adminReason: input.reason,
+            grantedAt: new Date().toISOString(),
+            grantedByUserId: ctx.user.id,
+          },
+        });
+
+        // Notificar al usuario (no bloqueante)
+        const posLabel = POS_PRICES[input.posCode]?.name ?? input.posCode;
+        const endDateFmt = subscription.currentPeriodEnd.toLocaleDateString(
+          "es-MX",
+          { day: "2-digit", month: "long", year: "numeric" },
+        );
+
+        try {
+          await createNotification({
+            userId: input.userId,
+            type: "subscription_change",
+            title:
+              input.sourceType === "courtesy"
+                ? "¡Acceso de cortesía activado!"
+                : "¡Acceso activado por el administrador!",
+            message:
+              "Tu acceso a " +
+              posLabel +
+              " esta activo hasta " +
+              endDateFmt +
+              (wasRenewal ? " (renovacion)" : ""),
+            relatedId: subscription.id,
+          });
+        } catch (e) {
+          console.error("Notif fail in grantSubscription:", e);
+        }
+
+        return { success: true, subscription, wasRenewal };
+      }),
   }),
 
   // =========================================================================
