@@ -71,6 +71,13 @@ import {
   type InsertSubscription,
   transferPaymentRequests,
   type TransferPaymentRequest,
+  // POS Staff V1 - Sistema unificado de cajeros/empleados por POS
+  posStaff,
+  type PosStaff,
+  type InsertPosStaff,
+  posStaffPermissions,
+  type PosStaffPermission,
+  type InsertPosStaffPermission,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
@@ -180,6 +187,41 @@ export async function runStartupMigrations(): Promise<void> {
       INDEX \`idx_vetcashiers_owner\` (\`ownerUserId\`),
       UNIQUE KEY \`uq_vetcashiers_email_owner\` (\`email\`, \`ownerUserId\`),
       FOREIGN KEY (\`ownerUserId\`) REFERENCES \`users\`(\`id\`)
+    )`,
+    // POS Staff V1 - Tabla principal de cajeros/empleados por POS
+    // Aislado por (ownerUserId, posCode, branchId). Reutiliza users existente.
+    `CREATE TABLE IF NOT EXISTS \`posStaff\` (
+      \`id\` int AUTO_INCREMENT PRIMARY KEY,
+      \`ownerUserId\` int NOT NULL,
+      \`staffUserId\` int NOT NULL,
+      \`posCode\` enum('boutique','abarrotes','veterinaria','verduleria','tarima','taqueria','papeleria') NOT NULL,
+      \`branchId\` int NULL,
+      \`rolePreset\` enum('manager','cashier','custom') NOT NULL DEFAULT 'cashier',
+      \`status\` enum('active','disabled','invited') NOT NULL DEFAULT 'active',
+      \`createdByUserId\` int NOT NULL,
+      \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      \`updatedAt\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+      INDEX \`idx_posstaff_owner_pos\` (\`ownerUserId\`, \`posCode\`),
+      INDEX \`idx_posstaff_staffuser\` (\`staffUserId\`),
+      INDEX \`idx_posstaff_status\` (\`status\`),
+      UNIQUE KEY \`uq_posstaff_owner_user_pos_branch\` (\`ownerUserId\`, \`staffUserId\`, \`posCode\`, \`branchId\`),
+      FOREIGN KEY (\`ownerUserId\`) REFERENCES \`users\`(\`id\`),
+      FOREIGN KEY (\`staffUserId\`) REFERENCES \`users\`(\`id\`),
+      FOREIGN KEY (\`createdByUserId\`) REFERENCES \`users\`(\`id\`),
+      FOREIGN KEY (\`branchId\`) REFERENCES \`branches\`(\`id\`)
+    )`,
+    // POS Staff V1 - Permisos granulares por staff member
+    // Presencia de row con allowed=1 = concedido. Ausencia = denegado.
+    `CREATE TABLE IF NOT EXISTS \`posStaffPermissions\` (
+      \`id\` int AUTO_INCREMENT PRIMARY KEY,
+      \`staffId\` int NOT NULL,
+      \`permission\` varchar(60) NOT NULL,
+      \`allowed\` tinyint(1) NOT NULL DEFAULT 1,
+      \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      \`updatedAt\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+      UNIQUE KEY \`uq_posstaffperm_staff_permission\` (\`staffId\`, \`permission\`),
+      INDEX \`idx_posstaffperm_permission\` (\`permission\`),
+      FOREIGN KEY (\`staffId\`) REFERENCES \`posStaff\`(\`id\`) ON DELETE CASCADE
     )`,
   ];
   for (const migration of migrations) {
@@ -3442,4 +3484,395 @@ export async function previewSubscriptionRenewal(params: {
     currentPeriodEnd: new Date(sub.currentPeriodEnd),
     futurePeriodEnd: addPeriod(now, params.planType),
   };
+}
+
+// ============================================================================
+// POS STAFF V1 - Catalogo de permisos y roles preset
+// ----------------------------------------------------------------------------
+// 17 permisos granulares. Presencia de row en posStaffPermissions
+// con allowed=1 = permiso concedido. Ausencia = denegado.
+//
+// IMPORTANTE: este catalogo es la fuente de verdad. El frontend lo lee
+// via endpoint en Commit 2. Si agregas un permiso, hazlo SOLO aqui.
+// ============================================================================
+
+export const POS_PERMISSIONS = {
+  // Ventas
+  "sales.create": "Crear ventas",
+  "sales.cancel": "Cancelar ventas",
+  "sales.refund": "Hacer devoluciones",
+  "sales.view_history": "Ver historial de ventas",
+
+  // Productos
+  "products.view": "Ver productos",
+  "products.create": "Crear productos",
+  "products.edit": "Editar productos",
+  "products.delete": "Eliminar productos",
+
+  // Inventario
+  "inventory.view": "Ver inventario",
+  "inventory.adjust": "Ajustar inventario",
+
+  // Reportes
+  "reports.view": "Ver reportes basicos",
+  "reports.profit": "Ver ganancias y costos",
+  "reports.export": "Exportar reportes",
+
+  // Configuracion
+  "settings.edit": "Editar configuracion del POS",
+  "staff.manage": "Gestionar cajeros y permisos",
+
+  // Descuentos
+  "discounts.apply": "Aplicar descuentos limitados",
+  "discounts.unlimited": "Aplicar descuentos sin limite",
+} as const;
+
+export type PosPermission = keyof typeof POS_PERMISSIONS;
+
+// Presets de rol: definen que permisos vienen activos por default.
+// Owner NO se modela aqui - el owner tiene acceso total siempre.
+export const POS_ROLE_PRESETS: Record<"manager" | "cashier", PosPermission[]> = {
+  manager: [
+    "sales.create",
+    "sales.cancel",
+    "sales.refund",
+    "sales.view_history",
+    "products.view",
+    "products.create",
+    "products.edit",
+    "inventory.view",
+    "inventory.adjust",
+    "reports.view",
+    "reports.export",
+    "discounts.apply",
+    // NO incluidos por default (owner debe activar explicitamente):
+    // - products.delete
+    // - reports.profit
+    // - settings.edit
+    // - staff.manage
+    // - discounts.unlimited
+  ],
+  cashier: [
+    "sales.create",
+    "sales.view_history",
+    "products.view",
+    "inventory.view",
+    "discounts.apply",
+    // NO incluidos:
+    // - sales.cancel, sales.refund
+    // - products.create/edit/delete
+    // - inventory.adjust
+    // - reports.* (todos)
+    // - settings.edit, staff.manage
+    // - discounts.unlimited
+  ],
+};
+
+// ============================================================================
+// POS STAFF V1 - Helpers DB (puros, sin trpc, sin sesion)
+// ============================================================================
+
+/**
+ * Crea un staff member nuevo y le asigna los permisos del preset (o custom).
+ * Si rolePreset='custom', no asigna permisos por defecto - el caller debe
+ * llamar setPosStaffPermissions despues.
+ *
+ * Devuelve el row del staff creado con sus permisos.
+ *
+ * Errores:
+ * - BAD_REQUEST si staffUserId no existe en users
+ * - FK violation si ownerUserId/createdByUserId/branchId no existen
+ * - UNIQUE violation si ya existe (ownerUserId, staffUserId, posCode, branchId)
+ */
+export async function createPosStaff(data: {
+  ownerUserId: number;
+  staffUserId: number;
+  posCode: PosStaff["posCode"];
+  branchId?: number | null;
+  rolePreset: "manager" | "cashier" | "custom";
+  createdByUserId: number;
+  customPermissions?: PosPermission[];
+}): Promise<{ staff: PosStaff; permissions: PosStaffPermission[] }> {
+  const conn = await getDbOrThrow();
+
+  // Validar que el staffUser existe (la FK lo hara, pero error mas claro aqui)
+  const userRows = await conn
+    .select()
+    .from(users)
+    .where(eq(users.id, data.staffUserId))
+    .limit(1);
+  if (!userRows[0]) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Usuario destino no existe en el sistema",
+    });
+  }
+
+  // Insertar el staff
+  const insertRes = await conn.insert(posStaff).values({
+    ownerUserId: data.ownerUserId,
+    staffUserId: data.staffUserId,
+    posCode: data.posCode,
+    branchId: data.branchId ?? null,
+    rolePreset: data.rolePreset,
+    status: "active",
+    createdByUserId: data.createdByUserId,
+  });
+  const staffId = (insertRes as any).insertId as number;
+
+  // Determinar permisos: preset o custom
+  const permsToInsert: PosPermission[] =
+    data.rolePreset === "custom"
+      ? data.customPermissions ?? []
+      : POS_ROLE_PRESETS[data.rolePreset];
+
+  if (permsToInsert.length > 0) {
+    await conn.insert(posStaffPermissions).values(
+      permsToInsert.map((perm) => ({
+        staffId,
+        permission: perm,
+        allowed: 1,
+      })),
+    );
+  }
+
+  // Fetch back para devolver con timestamps
+  const createdStaffRows = await conn
+    .select()
+    .from(posStaff)
+    .where(eq(posStaff.id, staffId))
+    .limit(1);
+
+  const createdPerms = await conn
+    .select()
+    .from(posStaffPermissions)
+    .where(eq(posStaffPermissions.staffId, staffId));
+
+  return { staff: createdStaffRows[0], permissions: createdPerms };
+}
+
+/**
+ * Lista todos los staff de un owner. Opcionalmente filtra por posCode.
+ * Tenant isolation: solo devuelve staff del ownerUserId.
+ */
+export async function listPosStaffByOwner(
+  ownerUserId: number,
+  posCode?: PosStaff["posCode"],
+): Promise<PosStaff[]> {
+  const conn = await getDb();
+  if (!conn) return [];
+
+  const where = posCode
+    ? and(eq(posStaff.ownerUserId, ownerUserId), eq(posStaff.posCode, posCode))
+    : eq(posStaff.ownerUserId, ownerUserId);
+
+  return await conn
+    .select()
+    .from(posStaff)
+    .where(where)
+    .orderBy(asc(posStaff.posCode), desc(posStaff.createdAt));
+}
+
+/**
+ * Devuelve un staff member por ID, validando tenant isolation.
+ * Si el ownerUserId no matchea, devuelve null (404 en endpoint).
+ */
+export async function getPosStaffById(
+  staffId: number,
+  ownerUserId: number,
+): Promise<PosStaff | null> {
+  const conn = await getDb();
+  if (!conn) return null;
+  const rows = await conn
+    .select()
+    .from(posStaff)
+    .where(
+      and(
+        eq(posStaff.id, staffId),
+        eq(posStaff.ownerUserId, ownerUserId),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Devuelve permisos efectivos de un staff (solo allowed=1).
+ */
+export async function getPosStaffPermissions(
+  staffId: number,
+): Promise<PosPermission[]> {
+  const conn = await getDb();
+  if (!conn) return [];
+  const rows = await conn
+    .select()
+    .from(posStaffPermissions)
+    .where(
+      and(
+        eq(posStaffPermissions.staffId, staffId),
+        eq(posStaffPermissions.allowed, 1),
+      ),
+    );
+  return rows.map((r) => r.permission as PosPermission);
+}
+
+/**
+ * Reemplaza el conjunto completo de permisos de un staff.
+ * Idempotente: borra los actuales y reescribe.
+ *
+ * Tambien actualiza posStaff.rolePreset:
+ * - Si el set matchea manager preset, rolePreset = "manager"
+ * - Si matchea cashier preset, rolePreset = "cashier"
+ * - Si no, rolePreset = "custom"
+ */
+export async function setPosStaffPermissions(
+  staffId: number,
+  permissions: PosPermission[],
+): Promise<void> {
+  const conn = await getDbOrThrow();
+
+  // Borrar todos los permisos actuales
+  await conn
+    .delete(posStaffPermissions)
+    .where(eq(posStaffPermissions.staffId, staffId));
+
+  // Insertar los nuevos (si hay)
+  if (permissions.length > 0) {
+    await conn.insert(posStaffPermissions).values(
+      permissions.map((perm) => ({
+        staffId,
+        permission: perm,
+        allowed: 1,
+      })),
+    );
+  }
+
+  // Detectar si el nuevo set matchea algun preset
+  const sortedNew = [...permissions].sort();
+  const sortedManager = [...POS_ROLE_PRESETS.manager].sort();
+  const sortedCashier = [...POS_ROLE_PRESETS.cashier].sort();
+
+  const matchesManager =
+    JSON.stringify(sortedNew) === JSON.stringify(sortedManager);
+  const matchesCashier =
+    JSON.stringify(sortedNew) === JSON.stringify(sortedCashier);
+
+  const newPreset: "manager" | "cashier" | "custom" = matchesManager
+    ? "manager"
+    : matchesCashier
+    ? "cashier"
+    : "custom";
+
+  await conn
+    .update(posStaff)
+    .set({ rolePreset: newPreset })
+    .where(eq(posStaff.id, staffId));
+}
+
+/**
+ * Cambia status de un staff (active / disabled / invited).
+ * Tenant isolation: solo el ownerUserId puede cambiar status de su staff.
+ */
+export async function setPosStaffStatus(
+  staffId: number,
+  ownerUserId: number,
+  status: "active" | "disabled" | "invited",
+): Promise<PosStaff | null> {
+  const conn = await getDbOrThrow();
+  await conn
+    .update(posStaff)
+    .set({ status })
+    .where(
+      and(
+        eq(posStaff.id, staffId),
+        eq(posStaff.ownerUserId, ownerUserId),
+      ),
+    );
+  return getPosStaffById(staffId, ownerUserId);
+}
+
+/**
+ * Elimina un staff member. Por CASCADE, sus permisos se borran solos.
+ */
+export async function deletePosStaff(
+  staffId: number,
+  ownerUserId: number,
+): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+  await conn
+    .delete(posStaff)
+    .where(
+      and(
+        eq(posStaff.id, staffId),
+        eq(posStaff.ownerUserId, ownerUserId),
+      ),
+    );
+  return { success: true };
+}
+
+/**
+ * CORE: Verifica si un usuario tiene un permiso especifico en un POS.
+ *
+ * Logica de decision (orden):
+ * 1. Si userId tiene role="admin" global -> true (admin de plataforma).
+ * 2. Buscar posStaff donde (staffUserId=userId, posCode=posCode, status=active).
+ *    Si no existe -> false (no es staff).
+ * 3. Buscar el permission en posStaffPermissions con allowed=1.
+ *    Si existe -> true. Si no -> false.
+ *
+ * IMPORTANTE: este helper NO valida que el userId sea el ownerUserId del POS.
+ * Para owners, el caller debe checkear primero si user.role==='admin' o si es
+ * el owner del recurso (segun la logica del endpoint).
+ *
+ * Esta es la funcion que el middleware requirePosPermission (Commit 2) usa.
+ */
+export async function userHasPosPermission(args: {
+  userId: number;
+  posCode: PosStaff["posCode"];
+  permission: PosPermission;
+}): Promise<boolean> {
+  const conn = await getDb();
+  if (!conn) return false;
+
+  // Check 1: admin global de plataforma
+  const userRows = await conn
+    .select({ id: users.id, role: users.role })
+    .from(users)
+    .where(eq(users.id, args.userId))
+    .limit(1);
+
+  const user = userRows[0];
+  if (!user) return false;
+  if (user.role === "admin") return true;
+
+  // Check 2: buscar staff record activo
+  const staffRows = await conn
+    .select()
+    .from(posStaff)
+    .where(
+      and(
+        eq(posStaff.staffUserId, args.userId),
+        eq(posStaff.posCode, args.posCode),
+        eq(posStaff.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  const staff = staffRows[0];
+  if (!staff) return false;
+
+  // Check 3: verificar el permiso
+  const permRows = await conn
+    .select()
+    .from(posStaffPermissions)
+    .where(
+      and(
+        eq(posStaffPermissions.staffId, staff.id),
+        eq(posStaffPermissions.permission, args.permission),
+        eq(posStaffPermissions.allowed, 1),
+      ),
+    )
+    .limit(1);
+
+  return !!permRows[0];
 }
