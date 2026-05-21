@@ -406,6 +406,80 @@ export const pagosRouter = router({
         return { success: true, wasRenewal };
       }),
 
+    // ========================================================================
+    // previewApproval: NO MUTA NADA. Solo calcula lo que pasaria al aprobar.
+    // Permite a la UI admin mostrar "Crear nueva / Renovar hasta X / Reactivar"
+    // ANTES de hacer click en aprobar.
+    // ========================================================================
+    previewApproval: protectedProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        await requireAdmin(ctx.user.id);
+
+        const conn = await getDbOrThrow();
+        const [req] = await conn
+          .select()
+          .from(transferPaymentRequests)
+          .where(eq(transferPaymentRequests.id, input.requestId))
+          .limit(1);
+
+        if (!req) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Solicitud no encontrada" });
+        }
+
+        if (req.status !== "pending") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Solo se puede preview de solicitudes pendientes",
+          });
+        }
+
+        // Extraer posCode del notes JSON (igual que admin.approve)
+        const existingData = parseNotesData(req.notes);
+        const posCode = existingData.posCode;
+        if (!posCode) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Pago sin posCode en notes - no se puede calcular preview",
+          });
+        }
+
+        const planType: "monthly" | "annual" =
+          req.billingType === "monthly" ? "monthly" : "annual";
+
+        // Llamar al helper read-only que usa la misma logica que approve
+        const preview = await db.previewSubscriptionRenewal({
+          userId: req.userId,
+          posCode,
+          planType,
+        });
+
+        // Construir mensaje humano para mostrar en la UI
+        const dateFmt = preview.futurePeriodEnd.toLocaleDateString("es-MX", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        });
+
+        let message: string;
+        if (preview.scenario === "new") {
+          message = "Se creara una suscripcion nueva hasta el " + dateFmt;
+        } else if (preview.scenario === "renewal") {
+          message = "Se renovara desde la vigencia actual hasta el " + dateFmt;
+        } else {
+          message = "Se reactivara desde hoy hasta el " + dateFmt;
+        }
+
+        return {
+          scenario: preview.scenario,
+          currentPeriodEnd: preview.currentPeriodEnd,
+          futurePeriodEnd: preview.futurePeriodEnd,
+          posCode,
+          planType,
+          message,
+        };
+      }),
+
     reject: protectedProcedure
       .input(
         z.object({
