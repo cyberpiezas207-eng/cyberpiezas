@@ -646,6 +646,49 @@ export const pagosRouter = router({
 
         return { success: true, subscription, wasRenewal };
       }),
+
+    // ========================================================================
+    // expireOverdueSubscriptions: barre las subs que ya vencieron y marca
+    // su status como "expired". NO toca subs activas vigentes, NO toca
+    // canceladas, NO modifica fechas (solo el campo status).
+    //
+    // Por ahora se invoca manualmente desde admin. A futuro se puede
+    // automatizar con un cron de Railway llamando este mismo endpoint.
+    //
+    // Idempotente: si lo corres 2 veces, la segunda devuelve 0 cambios.
+    // NO afecta hasAccess (que ya filtra por currentPeriodEnd > now).
+    // Solo limpia el estado visual/operativo de la BD.
+    // ========================================================================
+    expireOverdueSubscriptions: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        await requireAdmin(ctx.user.id);
+
+        const conn = await getDbOrThrow();
+        const now = new Date();
+
+        // Buscar subs activas con periodEnd ya vencido
+        const overdue = await conn
+          .select()
+          .from(subscriptions)
+          .where(
+            and(
+              eq(subscriptions.status, "active"),
+              lte(subscriptions.currentPeriodEnd, now),
+            ),
+          );
+
+        // Marcar cada una como expired (sin tocar fechas)
+        let expiredCount = 0;
+        for (const sub of overdue) {
+          await conn
+            .update(subscriptions)
+            .set({ status: "expired" })
+            .where(eq(subscriptions.id, sub.id));
+          expiredCount++;
+        }
+
+        return { success: true, expiredCount };
+      }),
   }),
 
   // =========================================================================
