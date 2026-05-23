@@ -311,6 +311,25 @@ export async function runStartupMigrations(): Promise<void> {
     "UPDATE `saleReturns` SET `posCode` = 'legacy' WHERE `posCode` IS NULL",
     "ALTER TABLE `saleReturns` MODIFY `posCode` varchar(40) NOT NULL DEFAULT 'legacy'",
     "CREATE INDEX `idx_salereturns_user_poscode` ON `saleReturns` (`userId`, `posCode`)",
+    // ========================================================================
+    // COMMIT 3b-1: Sales Lifecycle Columns
+    // ------------------------------------------------------------------------
+    // Permite rastrear el ciclo de vida de una venta:
+    //   active    -> venta normal (default)
+    //   cancelled -> venta cancelada (cancelledAt, cancelledByUserId)
+    //   refunded  -> venta devuelta (refundedAt, refundedByUserId, refundReason)
+    // createdByUserId trackea quien creo la venta (staff o owner).
+    // Datos legacy: status='active' por default, otros campos NULL.
+    // ========================================================================
+    "ALTER TABLE `sales` ADD COLUMN `status` enum('active','cancelled','refunded') NOT NULL DEFAULT 'active'",
+    "ALTER TABLE `sales` ADD COLUMN `createdByUserId` int NULL DEFAULT NULL",
+    "ALTER TABLE `sales` ADD COLUMN `cancelledAt` timestamp NULL DEFAULT NULL",
+    "ALTER TABLE `sales` ADD COLUMN `cancelledByUserId` int NULL DEFAULT NULL",
+    "ALTER TABLE `sales` ADD COLUMN `refundedAt` timestamp NULL DEFAULT NULL",
+    "ALTER TABLE `sales` ADD COLUMN `refundedByUserId` int NULL DEFAULT NULL",
+    "ALTER TABLE `sales` ADD COLUMN `refundReason` text NULL DEFAULT NULL",
+    "CREATE INDEX `idx_sales_status` ON `sales` (`status`)",
+    "CREATE INDEX `idx_sales_poscode_status` ON `sales` (`posCode`, `status`)",
   ];
   for (const migration of migrations) {
     try {
