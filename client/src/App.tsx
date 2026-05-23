@@ -252,25 +252,25 @@ function Router() {
       </Route>
 
       <Route path="/veterinaria-pos/:tab?">
-        <ProtectedRoute requiredProgram="veterinaria">
+        <ProtectedRoute>
           <VeterinariaPOS />
         </ProtectedRoute>
       </Route>
 
       <Route path="/vet-cajeros">
-        <ProtectedRoute requiredProgram="veterinaria">
+        <ProtectedRoute>
           <VeterinariaCajeros />
         </ProtectedRoute>
       </Route>
 
       <Route path="/vet-configuracion">
-        <ProtectedRoute requiredProgram="veterinaria">
+        <ProtectedRoute>
           <VeterinariaConfiguracion />
         </ProtectedRoute>
       </Route>
 
       <Route path="/vet-suscripcion">
-        <ProtectedRoute requiredProgram="veterinaria">
+        <ProtectedRoute>
           <VeterinariaSubscription />
         </ProtectedRoute>
       </Route>
