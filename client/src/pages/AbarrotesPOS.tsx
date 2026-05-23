@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import AccessDeniedScreen from "@/components/AccessDeniedScreen";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import {
   ShoppingCart,
   Plus,
@@ -23,6 +24,7 @@ import {
   Clock,
   AlertTriangle,
   Package,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,14 +37,25 @@ interface CartItem {
   category: string;
 }
 
-function AbarrotesPOSContent() {
+export default function AbarrotesPOS() {
+  // ========================================================================
+  // HOOKS - todos agrupados arriba para respetar Rules of Hooks de React
+  // ========================================================================
+  const [, navigate] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [amountPaid, setAmountPaid] = useState("");
 
-  const { data: products, isLoading } = trpc.products.list.useQuery(undefined, { enabled: true });
+  // SUBSCRIPTION CORE V1: validar acceso via fuente canonica (subscriptions)
+  // con fallback a userProgramAccess legacy.
+  const { data: access, isLoading: isLoadingAccess } =
+    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "abarrotes" });
+
+  const { data: products, isLoading } = trpc.products.list.useQuery(undefined, {
+    enabled: true,
+  });
   const createSale = trpc.sales.create.useMutation({
     onSuccess: () => {
       toast.success("Venta registrada correctamente");
@@ -54,6 +67,49 @@ function AbarrotesPOSContent() {
       toast.error("Error al registrar la venta: " + error.message);
     },
   });
+
+  // ========================================================================
+  // GUARD DE ACCESO (despues de todos los hooks)
+  // ------------------------------------------------------------------------
+  // Opcion A: solo el bloqueo va con sidebar (DashboardLayout). El POS
+  // funcional sigue renderizandose standalone como siempre. Esto cambia
+  // SOLO la pantalla de bloqueo, sin tocar el diseno del POS activo.
+  //
+  // Patron consistente con Verduleria para clientes sin suscripcion.
+  // ========================================================================
+  if (isLoadingAccess) {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            <p className="text-sm text-slate-400">Validando tu suscripcion...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (access && !access.hasAccess) {
+    return (
+      <DashboardLayout>
+        <AccessDeniedScreen
+          posCode="abarrotes"
+          description="Sistema de punto de venta para tiendas de abarrotes con codigo de barras, productos a granel y bascula integrada."
+          benefits={[
+            "Codigo de barras y busqueda rapida",
+            "Productos a granel y por peso",
+            "Control de inventario en tiempo real",
+            "Reportes de ventas diarias",
+            "$300 al mes o $3,000 al ano",
+          ]}
+          onViewPlans={() => navigate("/pricing?posCode=abarrotes")}
+          onBack={() => navigate("/sistemas")}
+          mode="embedded"
+        />
+      </DashboardLayout>
+    );
+  }
 
   const filteredProducts = products?.filter((p) =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -426,51 +482,3 @@ function AbarrotesPOSContent() {
     </div>
   );
 }
-
-
-// ============================================================================
-// SUBSCRIPTION CORE V1 - Guard de acceso para Abarrotes
-// Patron wrapper: el componente original (AbarrotesPOSContent) queda intacto
-// con todos sus hooks existentes. Este wrapper hace la validacion y solo
-// renderiza el contenido si el usuario tiene acceso.
-// ============================================================================
-
-export default function AbarrotesPOS() {
-  const [, navigateTo] = useLocation();
-  const { data: access, isLoading: accessLoading } =
-    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "abarrotes" });
-
-  // Mientras carga el estado de acceso: loading amigable
-  if (accessLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-slate-50">
-        <div className="w-12 h-12 rounded-full border-4 border-orange-500/20 border-t-orange-500 animate-spin mb-4" />
-        <p className="text-slate-500 text-sm font-medium">Verificando tu acceso...</p>
-      </div>
-    );
-  }
-
-  // Sin acceso activo: pantalla amigable con CTAs a planes
-  // V1.6 refactor: usa componente compartido AccessDeniedScreen
-  if (access && !access.hasAccess) {
-    return (
-      <AccessDeniedScreen
-        posCode="abarrotes"
-        description="Para usar Abarrotes necesitas estar suscrito. Cobra ventas, controla inventario y revisa tus ingresos diarios."
-        benefits={[
-          "Codigos de barras y bascula",
-          "Inventario ilimitado",
-          "Ventas con fiado y reportes diarios",
-          "$300/mes o $3,000/ano",
-        ]}
-        onViewPlans={() => navigateTo("/pricing?posCode=abarrotes")}
-        onBack={() => navigateTo("/sistemas")}
-        mode="standalone"
-      />
-    );
-  }
-
-  // Acceso confirmado: renderiza el POS normal (componente original intacto)
-  return <AbarrotesPOSContent />;
-}
-
