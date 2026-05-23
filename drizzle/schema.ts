@@ -1498,3 +1498,4 @@ export const posStaffPermissions = mysqlTable("posStaffPermissions", {
 
 export type PosStaffPermission = typeof posStaffPermissions.$inferSelect;
 export type InsertPosStaffPermission = typeof posStaffPermissions.$inferInsert;
+export * from "./mobility-schema";
