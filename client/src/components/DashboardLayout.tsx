@@ -58,6 +58,7 @@ import {
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import BoutiqueShell from "@/layouts/BoutiqueShell";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
@@ -203,6 +204,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [location] = useLocation();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -238,6 +240,31 @@ export default function DashboardLayout({
         </div>
       </div>
     );
+  }
+
+  // =====================================================================
+  // BOUTIQUE ZONE DETECTION
+  // ---------------------------------------------------------------------
+  // Si el usuario esta navegando en rutas Boutique (que son las "globales"
+  // sin prefijo), delegamos al BoutiqueShell magenta independiente.
+  //
+  // Las zonas con prefijo propio (Veterinaria, Verduleria, Tarima, Abarrotes)
+  // siguen usando este DashboardLayout viejo.
+  //
+  // /admin-cyberpiezas tambien sigue con este layout (es admin global).
+  // =====================================================================
+  const isBoutiqueZone =
+    !location.startsWith("/veterinaria-pos") &&
+    !location.startsWith("/vet-") &&
+    !location.startsWith("/verduleria") &&
+    !location.startsWith("/mi-tarima") &&
+    !location.startsWith("/abarrotes") &&
+    !location.startsWith("/taqueria") &&
+    !location.startsWith("/papeleria") &&
+    location !== "/admin-cyberpiezas";
+
+  if (isBoutiqueZone) {
+    return <BoutiqueShell>{children}</BoutiqueShell>;
   }
 
   return (
