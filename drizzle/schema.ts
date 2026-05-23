@@ -168,7 +168,7 @@ export type InsertProductVariant = typeof productVariants.$inferInsert;
 export const sales = mysqlTable("sales", {
   id: int("id").autoincrement().primaryKey(),
   saleNumber: varchar("saleNumber", { length: 50 }).notNull().unique(),
-  userId: int("userId").notNull(), // Cashier who made the sale
+  userId: int("userId").notNull(), // Owner del POS (tenant). Si es staff, resolver al owner real.
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   discount: decimal("discount", { precision: 10, scale: 2 }).default("0").notNull(),
   tax: decimal("tax", { precision: 10, scale: 2 }).default("0").notNull(),
@@ -176,6 +176,14 @@ export const sales = mysqlTable("sales", {
   paymentMethod: mysqlEnum("paymentMethod", ["cash", "card", "transfer"]).default("cash").notNull(),
   notes: text("notes"),
   posCode: varchar("posCode", { length: 40 }).notNull().default("legacy"),
+  // COMMIT 3b-1: Sales Lifecycle
+  status: mysqlEnum("status", ["active", "cancelled", "refunded"]).notNull().default("active"),
+  createdByUserId: int("createdByUserId"), // staff que creo la venta (NULL si fue el owner directo)
+  cancelledAt: timestamp("cancelledAt"),
+  cancelledByUserId: int("cancelledByUserId"),
+  refundedAt: timestamp("refundedAt"),
+  refundedByUserId: int("refundedByUserId"),
+  refundReason: text("refundReason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
