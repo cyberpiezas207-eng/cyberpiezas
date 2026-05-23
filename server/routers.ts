@@ -15,8 +15,6 @@ import { verduleriaRouter } from "./routers/verduleria";
 import { tarimaRouter } from "./routers/tarima";
 import { pagosRouter } from "./routers/pagos";
 import { taqueriaRouter } from "./routers/taqueria";
-import { staffRouter } from "./routers/staff";
-import { abarrotesRouter } from "./routers/abarrotes";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -186,8 +184,6 @@ export const appRouter = router({
   tarima: tarimaRouter,
   pagos: pagosRouter,
   taqueria: taqueriaRouter,
-  staff: staffRouter,
-  abarrotes: abarrotesRouter,
   auth: router({
     login: publicProcedure
       .input(
@@ -302,30 +298,57 @@ export const appRouter = router({
       const user = opts.ctx.user;
       if (!user?.id) return user;
 
-      let programAccess = await db.getActiveProgramAccessByUserId(user.id);
+      // ====================================================================
+      // SUBSCRIPTION CORE V1 (hotfix Ana Karen):
+      // ProgramAccess hibrido: combina userProgramAccess legacy + subscriptions
+      // canonica nueva. Asi el sidebar y los guards de frontend ven TODOS
+      // los POS a los que el usuario tiene acceso real, sin depender de que
+      // userProgramAccess legacy este sincronizado.
+      //
+      // Tambien elimina el fallback boutique hardcodeado que asignaba acceso
+      // a Boutique a cualquier usuario con subscription "activa" del sistema
+      // viejo, sin importar el POS real al que estaba suscrito.
+      // ====================================================================
 
-      if (programAccess.length === 0) {
-        const effectiveSubscription = await db.getEffectiveUserSubscription(user.id);
-        const effectiveStatus = effectiveSubscription?.user?.effectiveSubscriptionStatus ?? effectiveSubscription?.user?.subscriptionStatus;
+      // 1. ProgramAccess legacy (fila real en userProgramAccess)
+      const legacyProgramAccess = await db.getActiveProgramAccessByUserId(user.id);
 
-        if (effectiveStatus === "active" || user.role === "admin") {
-          programAccess = [
-            {
-              id: 0,
-              userId: user.id,
-              programCode: "boutique",
-              status: "active",
-              accessSource: "subscription",
-              startsAt: new Date(),
-              endsAt: null,
-              grantedByUserId: null,
-              notes: "Acceso de compatibilidad mientras se migra el control por programa.",
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-          ];
-        }
-      }
+      // 2. ProgramAccess virtual desde subscriptions (fuente canonica)
+      //    Tomamos todas las subs y filtramos las activas vigentes en codigo
+      //    (no creamos helper nuevo en db.ts para evitar superficie de cambio).
+      const allSubs = await db.listSubscriptionsByUser(user.id);
+      const nowMs = Date.now();
+      const activeSubs = allSubs.filter(
+        (sub) =>
+          sub.status === "active" &&
+          sub.currentPeriodEnd &&
+          new Date(sub.currentPeriodEnd).getTime() >= nowMs,
+      );
+
+      // 3. Merge sin duplicar por programCode
+      const seenProgramCodes = new Set(
+        legacyProgramAccess.map((entry) => entry.programCode),
+      );
+      const virtualFromSubs = activeSubs
+        .filter((sub) => !seenProgramCodes.has(sub.posCode as never))
+        .map((sub) => ({
+          id: 0,
+          userId: user.id,
+          // Cast: posCode incluye veterinaria/verduleria/etc. El enum legacy
+          // de programCode solo conoce boutique/abarrotes/celine/veterinaria
+          // pero el frontend trata programCode como string libre.
+          programCode: sub.posCode,
+          status: "active" as const,
+          accessSource: "subscription" as const,
+          startsAt: sub.currentPeriodStart,
+          endsAt: sub.currentPeriodEnd,
+          grantedByUserId: sub.grantedByUserId ?? null,
+          notes: "Acceso derivado de subscription canonica.",
+          createdAt: sub.createdAt ?? new Date(),
+          updatedAt: sub.updatedAt ?? new Date(),
+        }));
+
+      const programAccess = [...legacyProgramAccess, ...virtualFromSubs];
 
       return {
         ...user,
