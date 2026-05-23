@@ -1415,7 +1415,7 @@ function WhyDifferent() {
     {
       num: "iv.",
       title: "Soporte humano, no chatbots.",
-      desc: "Cuando algo no sale bien, te responde una persona en menos de 10 minutos. En español. Por WhatsApp. Porque en México, soporte = confianza.",
+      desc: "Cuando algo no sale bien, te responde una persona — no un bot. En español. Por WhatsApp. Soporte humano, rápido y cercano. Porque en México, soporte = confianza.",
     },
     {
       num: "v.",
@@ -1535,7 +1535,7 @@ function Services() {
     { icon: Wrench, title: "Instalacion", price: "$1,500", desc: "Te instalamos todo en sitio", gradient: "from-emerald-500 to-cyan-500" },
     { icon: GraduationCap, title: "Capacitacion", price: "$500", desc: "1 hora 1:1 con tu equipo", gradient: "from-purple-500 to-pink-500" },
     { icon: Truck, title: "Migracion", price: "Desde $1,000", desc: "Migramos tu inventario de Aspel/Excel", gradient: "from-amber-500 to-orange-500" },
-    { icon: MessageCircle, title: "Soporte WhatsApp", price: "$299/mes", desc: "Respuesta en menos de 1 hora", gradient: "from-rose-500 to-red-500" },
+    { icon: MessageCircle, title: "Soporte WhatsApp", price: "$299/mes", desc: "Atención humana, rapida y cercana", gradient: "from-rose-500 to-red-500" },
   ];
 
   const handleContratar = (s: string) => {
