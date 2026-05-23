@@ -10,6 +10,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   Bell,
+  Briefcase,
   Camera,
   Check,
   Cloud,
@@ -21,23 +22,36 @@ import {
   HardDrive,
   Heart,
   Handshake,
+  Hash,
   LayoutDashboard,
+  Leaf,
   LineChart,
   ListChecks,
   LogIn,
   Mail,
+  MapPin,
   MessageCircle,
+  Mic,
   Monitor,
+  Mountain,
+  Music,
   Package,
   Phone,
   Play,
+  Plus,
+  Send,
+  Shield,
   ShieldCheck,
+  Shuffle,
   Sparkles,
   Stethoscope,
   Store,
   ShoppingBasket,
+  Sun,
+  TreePine,
   TrendingUp,
   Truck,
+  Users,
   Wifi,
   Wrench,
   X,
@@ -71,8 +85,12 @@ export function CyberpiezasHome() {
         isAuthenticated={isAuthenticated}
         onDemo={() => setShowDemoModal(true)}
       />
-      <Wizard setLocation={setLocation} />
+      <WhatIsThis />
+      <Houses setLocation={setLocation} />
       <Industries setLocation={setLocation} />
+      <TrustLayer />
+      <Communities />
+      <WhyDifferent />
       <Hardware />
       <Services />
       <Features />
@@ -99,7 +117,6 @@ export function CyberpiezasHome() {
 }
 
 function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }) {
-  // Stats de pagos - se actualiza cada 30 segundos
   const { data: stats } = trpc.pagos.admin.stats.useQuery(undefined, {
     refetchInterval: 30000,
   });
@@ -110,7 +127,6 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
   return (
     <section className="py-12 px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -119,12 +135,8 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
                 Centro de administración
               </span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
-              Tu panel de control
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Acciones rápidas para gestionar CyberPiezas
-            </p>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Tu panel de control</h2>
+            <p className="text-sm text-slate-500 mt-1">Acciones rápidas para gestionar CyberPiezas</p>
           </div>
           {pendingCount > 0 && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-rose-100 border border-rose-200 rounded-full">
@@ -136,9 +148,7 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
           )}
         </div>
 
-        {/* Grid de cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* PAGOS POR APROBAR - prioridad alta */}
           <button
             onClick={() => setLocation("/admin-pagos")}
             className={
@@ -153,43 +163,18 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
                 {pendingCount}
               </span>
             )}
-            <div
-              className={
-                "w-10 h-10 rounded-xl flex items-center justify-center mb-3 " +
-                (pendingCount > 0 ? "bg-white/20" : "bg-emerald-100")
-              }
-            >
-              <DollarSign
-                className={"w-5 h-5 " + (pendingCount > 0 ? "text-white" : "text-emerald-600")}
-              />
+            <div className={"w-10 h-10 rounded-xl flex items-center justify-center mb-3 " + (pendingCount > 0 ? "bg-white/20" : "bg-emerald-100")}>
+              <DollarSign className={"w-5 h-5 " + (pendingCount > 0 ? "text-white" : "text-emerald-600")} />
             </div>
-            <h3
-              className={
-                "font-bold text-base mb-1 " + (pendingCount > 0 ? "text-white" : "text-slate-900")
-              }
-            >
-              Pagos por aprobar
-            </h3>
-            <p
-              className={
-                "text-xs " + (pendingCount > 0 ? "text-white/80" : "text-slate-500")
-              }
-            >
-              {pendingCount > 0
-                ? `Hay ${pendingCount} solicitud${pendingCount !== 1 ? "es" : ""} esperando`
-                : "Sin solicitudes pendientes"}
+            <h3 className={"font-bold text-base mb-1 " + (pendingCount > 0 ? "text-white" : "text-slate-900")}>Pagos por aprobar</h3>
+            <p className={"text-xs " + (pendingCount > 0 ? "text-white/80" : "text-slate-500")}>
+              {pendingCount > 0 ? `Hay ${pendingCount} solicitud${pendingCount !== 1 ? "es" : ""} esperando` : "Sin solicitudes pendientes"}
             </p>
-            <div
-              className={
-                "mt-3 flex items-center gap-1 text-xs font-bold " +
-                (pendingCount > 0 ? "text-white" : "text-emerald-600")
-              }
-            >
+            <div className={"mt-3 flex items-center gap-1 text-xs font-bold " + (pendingCount > 0 ? "text-white" : "text-emerald-600")}>
               Ver panel <ArrowRight className="w-3 h-3" />
             </div>
           </button>
 
-          {/* CENTRO ADMIN */}
           <button
             onClick={() => setLocation("/admin-cyberpiezas")}
             className="group p-5 rounded-2xl border-2 bg-white border-slate-200 hover:border-purple-300 hover:shadow-lg text-left transition-all hover:scale-[1.02]"
@@ -198,15 +183,12 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
               <ShieldCheck className="w-5 h-5 text-purple-600" />
             </div>
             <h3 className="font-bold text-base text-slate-900 mb-1">Gestión usuarios</h3>
-            <p className="text-xs text-slate-500">
-              Activa programas y administra accesos
-            </p>
+            <p className="text-xs text-slate-500">Activa programas y administra accesos</p>
             <div className="mt-3 flex items-center gap-1 text-xs font-bold text-purple-600">
               Ir <ArrowRight className="w-3 h-3" />
             </div>
           </button>
 
-          {/* INGRESOS DEL MES */}
           <div className="p-5 rounded-2xl border-2 bg-white border-slate-200">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
               <TrendingUp className="w-5 h-5 text-emerald-600" />
@@ -220,7 +202,6 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
             </p>
           </div>
 
-          {/* PRECIOS Y PLANES */}
           <button
             onClick={() => setLocation("/pricing")}
             className="group p-5 rounded-2xl border-2 bg-gradient-to-br from-fuchsia-500 to-purple-600 border-fuchsia-400 text-left transition-all hover:scale-[1.02] hover:shadow-lg shadow-purple-200"
@@ -229,9 +210,7 @@ function AdminQuickActions({ setLocation }: { setLocation: (p: string) => void }
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <h3 className="font-bold text-base text-white mb-1">Precios y Planes</h3>
-            <p className="text-xs text-white/80">
-              Ver catálogo completo de suscripciones
-            </p>
+            <p className="text-xs text-white/80">Ver catálogo completo de suscripciones</p>
             <div className="mt-3 flex items-center gap-1 text-xs font-bold text-white">
               Ver <ArrowRight className="w-3 h-3" />
             </div>
@@ -260,11 +239,7 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
       className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-start justify-center p-4 sm:items-center animate-in fade-in"
       onClick={onClose}
     >
-      <div
-        className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl relative max-h-[92vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* HEADER */}
+      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-3xl z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
@@ -275,17 +250,12 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
               <p className="text-xs text-slate-500">Acciones rápidas de administración</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-          >
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
             <X className="w-4 h-4 text-slate-700" />
           </button>
         </div>
 
-        {/* CONTENIDO */}
         <div className="p-6 space-y-4">
-          {/* Stats banner */}
           {pendingCount > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 bg-rose-50 border-2 border-rose-200 rounded-2xl">
               <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse" />
@@ -295,9 +265,7 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
             </div>
           )}
 
-          {/* Grid de cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* PAGOS POR APROBAR */}
             <button
               onClick={() => go("/admin-pagos")}
               className={
@@ -312,39 +280,18 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
                   {pendingCount}
                 </span>
               )}
-              <div
-                className={
-                  "w-10 h-10 rounded-xl flex items-center justify-center mb-3 " +
-                  (pendingCount > 0 ? "bg-white/20" : "bg-emerald-100")
-                }
-              >
-                <DollarSign
-                  className={"w-5 h-5 " + (pendingCount > 0 ? "text-white" : "text-emerald-600")}
-                />
+              <div className={"w-10 h-10 rounded-xl flex items-center justify-center mb-3 " + (pendingCount > 0 ? "bg-white/20" : "bg-emerald-100")}>
+                <DollarSign className={"w-5 h-5 " + (pendingCount > 0 ? "text-white" : "text-emerald-600")} />
               </div>
-              <h3
-                className={
-                  "font-bold text-base mb-1 " + (pendingCount > 0 ? "text-white" : "text-slate-900")
-                }
-              >
-                Pagos por aprobar
-              </h3>
+              <h3 className={"font-bold text-base mb-1 " + (pendingCount > 0 ? "text-white" : "text-slate-900")}>Pagos por aprobar</h3>
               <p className={"text-xs " + (pendingCount > 0 ? "text-white/80" : "text-slate-500")}>
-                {pendingCount > 0
-                  ? `${pendingCount} solicitud${pendingCount !== 1 ? "es" : ""} esperando`
-                  : "Sin solicitudes pendientes"}
+                {pendingCount > 0 ? `${pendingCount} solicitud${pendingCount !== 1 ? "es" : ""} esperando` : "Sin solicitudes pendientes"}
               </p>
-              <div
-                className={
-                  "mt-3 flex items-center gap-1 text-xs font-bold " +
-                  (pendingCount > 0 ? "text-white" : "text-emerald-600")
-                }
-              >
+              <div className={"mt-3 flex items-center gap-1 text-xs font-bold " + (pendingCount > 0 ? "text-white" : "text-emerald-600")}>
                 Ver panel <ArrowRight className="w-3 h-3" />
               </div>
             </button>
 
-            {/* GESTION USUARIOS */}
             <button
               onClick={() => go("/admin-cyberpiezas")}
               className="group p-5 rounded-2xl border-2 bg-white border-slate-200 hover:border-purple-300 hover:shadow-lg text-left transition-all hover:scale-[1.02]"
@@ -359,7 +306,6 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
               </div>
             </button>
 
-            {/* INGRESOS DEL MES */}
             <div className="p-5 rounded-2xl border-2 bg-white border-slate-200">
               <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
                 <TrendingUp className="w-5 h-5 text-emerald-600" />
@@ -373,7 +319,6 @@ function AdminPanelModal({ setLocation, onClose }: { setLocation: (p: string) =>
               </p>
             </div>
 
-            {/* IR A SISTEMAS */}
             <button
               onClick={() => go("/sistemas")}
               className="group p-5 rounded-2xl border-2 bg-gradient-to-br from-slate-900 to-slate-700 border-slate-700 text-left transition-all hover:scale-[1.02] hover:shadow-lg"
@@ -452,9 +397,17 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab, on
         </button>
 
         <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600">
-          <a href="#sistemas" className="hover:text-slate-900 transition-colors">Sistemas</a>
-          <a href="#hardware" className="hover:text-slate-900 transition-colors">Hardware</a>
-          <a href="#servicios" className="hover:text-slate-900 transition-colors">Servicios</a>
+          <a href="#casas" className="hover:text-slate-900 transition-colors">El edificio</a>
+          <a href="#sistemas" className="hover:text-slate-900 transition-colors flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500" /> POS
+          </a>
+          <a href="#mobility" className="hover:text-slate-900 transition-colors flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Mobility
+          </a>
+          <a href="#celine" className="hover:text-slate-900 transition-colors flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Celine
+          </a>
+          <a href="#confianza" className="hover:text-slate-900 transition-colors">Confianza</a>
           <a href="#historia" className="hover:text-slate-900 transition-colors">Historia</a>
           <a href="#precios" className="hover:text-slate-900 transition-colors">Precios</a>
           <button onClick={onCollab} className="hover:text-slate-900 transition-colors">Colaborar</button>
@@ -500,9 +453,17 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab, on
       {mobileOpen && (
         <div className="lg:hidden border-t border-slate-100 bg-white">
           <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-2 gap-2 text-sm font-medium">
-            <a href="#sistemas" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Sistemas</a>
-            <a href="#hardware" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Hardware</a>
-            <a href="#servicios" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Servicios</a>
+            <a href="#casas" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">El edificio</a>
+            <a href="#sistemas" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500" /> POS
+            </a>
+            <a href="#mobility" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Mobility
+            </a>
+            <a href="#celine" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Celine
+            </a>
+            <a href="#confianza" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Confianza</a>
             <a href="#historia" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Historia</a>
             <a href="#precios" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100">Precios</a>
             <button onClick={() => { setMobileOpen(false); onCollab(); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-100">Colaborar</button>
@@ -521,140 +482,622 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab, on
   );
 }
 
+// ============================================================================
+// HERO — Infraestructura de confianza local
+// Grafo vivo del edificio con las casas alrededor
+// ============================================================================
+
 function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: string) => void; isAuthenticated: boolean; onDemo: () => void }) {
   return (
     <section className="relative overflow-hidden bg-white">
-      {/* Orbes decorativos - mas sutiles en mobile */}
+      {/* Orbes decorativos */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -right-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-200/20 rounded-full blur-3xl" />
         <div className="absolute top-40 -left-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/3 w-[280px] h-[280px] bg-amber-200/15 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pt-16 sm:pt-24 lg:pt-32 pb-16 sm:pb-20 lg:pb-28 text-center">
-        {/* Eyebrow minimal */}
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pt-14 sm:pt-20 lg:pt-28 pb-12 sm:pb-16 lg:pb-24 text-center">
+        {/* Eyebrow */}
         <div className="inline-flex items-center gap-2.5 mb-6 sm:mb-8">
           <span className="w-6 sm:w-8 h-px bg-slate-300" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-[0.25em] sm:tracking-[0.3em]">
-            Hecho en Mexico
+            Hecho en Morelos · Para Morelos
           </p>
           <span className="w-6 sm:w-8 h-px bg-slate-300" />
         </div>
 
-        {/* H1 MASIVO - mobile first */}
-        <h1 className="text-[2.75rem] leading-[1] sm:text-7xl sm:leading-[0.95] lg:text-8xl xl:text-[6.5rem] font-bold tracking-tighter text-slate-900 max-w-5xl mx-auto">
-          El sistema POS{" "}
-          <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
-            que tu negocio merece.
-          </span>
+        {/* H1 - El nuevo headline */}
+        <h1 className="text-[2.5rem] leading-[1.02] sm:text-6xl sm:leading-[0.98] lg:text-7xl xl:text-[5.5rem] font-bold tracking-tighter text-slate-900 max-w-5xl mx-auto">
+          CyberPiezas no es solo software.
+          <br className="hidden sm:block" />
+          <span className="sm:hidden"> </span>
+          Es{" "}
+          <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent italic font-medium">
+            infraestructura de confianza
+          </span>{" "}
+          local.
         </h1>
 
-        {/* Subhead editorial */}
-        <p className="mt-7 sm:mt-10 text-lg sm:text-2xl lg:text-3xl text-slate-600 max-w-3xl mx-auto font-light leading-relaxed tracking-tight px-2">
-          Para boutiques, veterinarias, abarrotes y mas.
+        {/* Subhead */}
+        <p className="mt-6 sm:mt-8 text-lg sm:text-xl lg:text-2xl text-slate-600 max-w-3xl mx-auto font-light leading-relaxed tracking-tight px-2">
+          La red donde personas, negocios y comunidades de Morelos
           <br className="hidden sm:block" />
-          <span className="text-slate-900 font-normal">
-            Si tu negocio crece, el mio tambien.
-          </span>
+          <span className="sm:hidden"> </span>
+          <span className="text-slate-900 font-normal">se conectan, se conocen y se cuidan entre sí.</span>
         </p>
 
         {/* CTAs */}
-        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-3 px-4 sm:px-0">
+        <div className="mt-9 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 px-4 sm:px-0">
           <Button
-            onClick={() => { const el = document.getElementById("wizard"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
+            onClick={() => { const el = document.getElementById("casas"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
             className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:-translate-y-0.5 transition-all"
           >
-            Encontrar mi sistema <ArrowRight className="w-4 h-4 ml-1.5" />
+            Conoce el ecosistema <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
           <Button
-            onClick={onDemo}
+            onClick={() => { const el = document.getElementById("confianza"); if (el) el.scrollIntoView({ behavior: "smooth" }); }}
             variant="outline"
             className="w-full sm:w-auto border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-12 sm:h-14 px-7 sm:px-8 text-base font-semibold"
           >
-            <Play className="w-4 h-4 mr-1.5" /> Ver demo
+            Cómo funciona la confianza
           </Button>
         </div>
 
-        {/* Trust badges row - solo desktop */}
-        <div className="hidden sm:flex flex-wrap items-center justify-center gap-x-8 gap-y-2 mt-14 text-xs text-slate-500">
+        {/* Trust badges */}
+        <div className="hidden sm:flex flex-wrap items-center justify-center gap-x-7 gap-y-2 mt-12 text-xs text-slate-500">
           <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Sin contratos</span>
-          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Funciona offline</span>
-          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Soporte WhatsApp</span>
-          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Cancela cuando quieras</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Sin algoritmos opacos</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Soporte humano</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Datos en México</span>
         </div>
 
-        {/* Scroll indicator sutil */}
-        <div className="mt-12 sm:mt-20 flex flex-col items-center gap-2 text-slate-400 animate-bounce">
-          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.3em]">
-            Conoce la historia
-          </p>
+        {/* GRAFO VIVO DEL EDIFICIO */}
+        <div className="mt-10 sm:mt-16 max-w-4xl mx-auto">
+          <HeroGraph />
         </div>
       </div>
     </section>
   );
 }
 
-function Wizard({ setLocation }: { setLocation: (p: string) => void }) {
-  const items = [
-    { id: "veterinaria", name: "Veterinaria", desc: "Expediente + agenda + POS", icon: Stethoscope, gradient: "from-emerald-500 to-cyan-500", path: "/veterinaria-pos" },
-    { id: "boutique", name: "Boutique", desc: "Ropa, accesorios, calzado", icon: Store, gradient: "from-purple-500 to-pink-500", path: "/dashboard" },
-    { id: "verduleria", name: "Verduleria", desc: "Frutas y verduras al granel", icon: ShoppingBasket, gradient: "from-green-500 to-emerald-500", path: "/verduleria" },
-    { id: "abarrotes", name: "Abarrotes", desc: "Codigo barras y bascula", icon: Package, gradient: "from-amber-500 to-orange-500", path: "/abarrotes-pos" },
-    { id: "tarima", name: "Tarima", desc: "Perfil para artistas y musicos", icon: Sparkles, gradient: "from-fuchsia-500 to-purple-500", path: "/mi-tarima" },
-    { id: "celine", name: "Celine", desc: "Ofertas y trueques (proximamente)", icon: Handshake, gradient: "from-rose-500 to-orange-500", path: "/celine" },
-  ];
+function HeroGraph() {
   return (
-    <section id="wizard" className="bg-slate-50 py-16 sm:py-24 lg:py-32">
+    <div className="w-full aspect-[21/10] sm:aspect-[2.1/1] relative">
+      <svg viewBox="0 0 840 400" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="heroNodeGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <radialGradient id="heroCenterGrad">
+            <stop offset="0%" stopColor="#fefce8" />
+            <stop offset="100%" stopColor="#d4a373" />
+          </radialGradient>
+          <linearGradient id="heroLineMob" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0" />
+            <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="heroLineCel" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0" />
+            <stop offset="50%" stopColor="#f97316" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="heroLinePos" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#14b8a6" stopOpacity="0" />
+            <stop offset="50%" stopColor="#14b8a6" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Orbits */}
+        <ellipse cx="420" cy="200" rx="320" ry="150" fill="none" stroke="rgba(212,163,115,0.18)" strokeWidth="1" strokeDasharray="2 6" />
+        <ellipse cx="420" cy="200" rx="220" ry="100" fill="none" stroke="rgba(212,163,115,0.12)" strokeWidth="1" strokeDasharray="2 6" />
+
+        {/* Connections center → houses */}
+        <line x1="420" y1="200" x2="160" y2="130" stroke="url(#heroLineMob)" strokeWidth="1.5" strokeDasharray="5 3">
+          <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+        </line>
+        <line x1="420" y1="200" x2="680" y2="130" stroke="url(#heroLineCel)" strokeWidth="1.5" strokeDasharray="5 3">
+          <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" begin="-0.5s" />
+        </line>
+        <line x1="420" y1="200" x2="420" y2="340" stroke="url(#heroLinePos)" strokeWidth="1.5" strokeDasharray="5 3">
+          <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" begin="-1s" />
+        </line>
+
+        {/* Cross-house */}
+        <line x1="160" y1="130" x2="680" y2="130" stroke="rgba(212,163,115,0.18)" strokeWidth="1" strokeDasharray="2 4" />
+        <line x1="160" y1="130" x2="420" y2="340" stroke="rgba(212,163,115,0.15)" strokeWidth="1" strokeDasharray="2 4" />
+        <line x1="680" y1="130" x2="420" y2="340" stroke="rgba(212,163,115,0.15)" strokeWidth="1" strokeDasharray="2 4" />
+
+        {/* People dots */}
+        <g>
+          {[
+            { cx: 200, cy: 80, c: "#3b82f6", o: 0.5 }, { cx: 280, cy: 50, c: "#3b82f6", o: 0.5 },
+            { cx: 100, cy: 180, c: "#3b82f6", o: 0.4 }, { cx: 120, cy: 100, c: "#3b82f6", o: 0.4 },
+            { cx: 640, cy: 80, c: "#f97316", o: 0.5 }, { cx: 720, cy: 50, c: "#f97316", o: 0.5 },
+            { cx: 740, cy: 180, c: "#f97316", o: 0.4 }, { cx: 760, cy: 120, c: "#f97316", o: 0.4 },
+            { cx: 360, cy: 380, c: "#14b8a6", o: 0.5 }, { cx: 480, cy: 380, c: "#14b8a6", o: 0.5 },
+            { cx: 320, cy: 350, c: "#14b8a6", o: 0.4 }, { cx: 520, cy: 350, c: "#14b8a6", o: 0.4 },
+          ].map((d, i) => (
+            <circle key={i} cx={d.cx} cy={d.cy} r="3" fill={d.c} opacity={d.o} />
+          ))}
+        </g>
+
+        {/* Mobility node */}
+        <g>
+          <circle cx="160" cy="130" r="22" fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.6">
+            <animate attributeName="r" values="22;44;22" dur="2.4s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="160" cy="130" r="28" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.30)" strokeWidth="1" />
+          <circle cx="160" cy="130" r="18" fill="#3b82f6" filter="url(#heroNodeGlow)" />
+          <text x="160" y="135" textAnchor="middle" fill="#fff" fontFamily="system-ui" fontSize="11" fontWeight="700">MOB</text>
+          <text x="160" y="180" textAnchor="middle" fill="#1e40af" fontFamily="Georgia, serif" fontSize="14" fontWeight="500">Mobility</text>
+        </g>
+
+        {/* Celine node */}
+        <g>
+          <circle cx="680" cy="130" r="22" fill="none" stroke="#f97316" strokeWidth="2" opacity="0.6">
+            <animate attributeName="r" values="22;44;22" dur="2.4s" repeatCount="indefinite" begin="-0.8s" />
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" repeatCount="indefinite" begin="-0.8s" />
+          </circle>
+          <circle cx="680" cy="130" r="28" fill="rgba(249,115,22,0.08)" stroke="rgba(249,115,22,0.30)" strokeWidth="1" />
+          <circle cx="680" cy="130" r="18" fill="#f97316" filter="url(#heroNodeGlow)" />
+          <text x="680" y="135" textAnchor="middle" fill="#fff" fontFamily="system-ui" fontSize="11" fontWeight="700">CEL</text>
+          <text x="680" y="180" textAnchor="middle" fill="#9a3412" fontFamily="Georgia, serif" fontSize="14" fontWeight="500">Celine</text>
+        </g>
+
+        {/* POS node */}
+        <g>
+          <circle cx="420" cy="340" r="22" fill="none" stroke="#14b8a6" strokeWidth="2" opacity="0.6">
+            <animate attributeName="r" values="22;44;22" dur="2.4s" repeatCount="indefinite" begin="-1.6s" />
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="2.4s" repeatCount="indefinite" begin="-1.6s" />
+          </circle>
+          <circle cx="420" cy="340" r="28" fill="rgba(20,184,166,0.08)" stroke="rgba(20,184,166,0.30)" strokeWidth="1" />
+          <circle cx="420" cy="340" r="18" fill="#14b8a6" filter="url(#heroNodeGlow)" />
+          <text x="420" y="345" textAnchor="middle" fill="#fff" fontFamily="system-ui" fontSize="11" fontWeight="700">POS</text>
+          <text x="420" y="390" textAnchor="middle" fill="#115e59" fontFamily="Georgia, serif" fontSize="14" fontWeight="500">Punto de venta</text>
+        </g>
+
+        {/* Center: CyberPiezas */}
+        <g>
+          <circle cx="420" cy="200" r="56" fill="rgba(255,255,255,0.5)" stroke="rgba(212,163,115,0.30)" strokeWidth="1" strokeDasharray="3 3" />
+          <circle cx="420" cy="200" r="42" fill="url(#heroCenterGrad)" filter="url(#heroNodeGlow)">
+            <animate attributeName="r" values="42;46;42" dur="3.5s" repeatCount="indefinite" />
+          </circle>
+          <text x="420" y="194" textAnchor="middle" fill="#0c1426" fontFamily="Georgia, serif" fontSize="20" fontWeight="500" fontStyle="italic">Cyber</text>
+          <text x="420" y="214" textAnchor="middle" fill="#0c1426" fontFamily="Georgia, serif" fontSize="20" fontWeight="500" fontStyle="italic">Piezas</text>
+        </g>
+
+        {/* Moving particles */}
+        <circle r="3" fill="#3b82f6" filter="url(#heroNodeGlow)" opacity="0.9">
+          <animateMotion dur="4s" repeatCount="indefinite" path="M420 200 L160 130" />
+        </circle>
+        <circle r="3" fill="#f97316" filter="url(#heroNodeGlow)" opacity="0.9">
+          <animateMotion dur="5s" repeatCount="indefinite" path="M420 200 L680 130" />
+        </circle>
+        <circle r="3" fill="#14b8a6" filter="url(#heroNodeGlow)" opacity="0.9">
+          <animateMotion dur="4.5s" repeatCount="indefinite" path="M420 200 L420 340" />
+        </circle>
+        <circle r="2.5" fill="rgba(212,163,115,0.6)" opacity="0.7">
+          <animateMotion dur="7s" repeatCount="indefinite" path="M160 130 Q420 50 680 130" />
+        </circle>
+      </svg>
+    </div>
+  );
+}
+
+// ============================================================================
+// WHAT IS THIS — Ni banco, ni red social, ni gobierno
+// ============================================================================
+
+function WhatIsThis() {
+  return (
+    <section className="bg-gradient-to-b from-white to-amber-50/30 py-16 sm:py-24 lg:py-32">
       <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16 lg:mb-20">
-          <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-emerald-400">01</span>
-            <span className="w-6 h-px bg-emerald-300" />
-            <span>Empieza aqui</span>
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-700 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-amber-500">01</span>
+            <span className="w-6 h-px bg-amber-400" />
+            <span>¿Qué es CyberPiezas?</span>
           </div>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
-            ¿Que tipo de
+            Ni banco, ni red social, ni gobierno.
             <br className="hidden sm:block" />
-            <span className="sm:hidden"> </span>negocio tienes?
+            <span className="sm:hidden"> </span>
+            <span className="bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 bg-clip-text text-transparent italic font-medium">
+              Algo más cercano.
+            </span>
           </h2>
+          <p className="mt-6 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            Somos la infraestructura digital donde se administran tres tipos de confianza local. Cada uno con su propia casa.
+          </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setLocation(item.path)}
-                className="group bg-white rounded-3xl p-6 sm:p-7 text-left border border-slate-200/60 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-900/5 hover:-translate-y-1 active:scale-[0.98] transition-all"
-              >
-                <div className={"w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br " + item.gradient + " flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform mb-4 sm:mb-5"}>
-                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 mb-1">
-                  {item.name}
-                </h3>
-                <p className="text-slate-500 text-sm mb-4 sm:mb-5">{item.desc}</p>
-                <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-                  Conocer mas
-                  <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </div>
-              </button>
-            );
-          })}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+          {/* POS — Confianza económica */}
+          <div className="group bg-white rounded-3xl p-7 border border-slate-200/60 hover:border-teal-200 hover:shadow-2xl hover:shadow-teal-500/10 hover:-translate-y-1 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg mb-5 group-hover:scale-110 transition-transform">
+              <CreditCard className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-2">Tipo de confianza</p>
+            <h3 className="text-2xl font-bold tracking-tight text-slate-900 mb-3">Económica</h3>
+            <p className="text-sm text-slate-600 mb-5 leading-relaxed">
+              Para tu negocio. Cobrar, operar, crecer. Veterinarias, boutiques, abarrotes y más.
+            </p>
+            <div className="h-16 rounded-xl bg-teal-50 overflow-hidden">
+              <svg viewBox="0 0 280 64" className="w-full h-full">
+                <g>
+                  <rect x="20" y="38" width="18" height="20" rx="3" fill="#14b8a6" opacity="0.3" />
+                  <rect x="48" y="30" width="18" height="28" rx="3" fill="#14b8a6" opacity="0.5" />
+                  <rect x="76" y="22" width="18" height="36" rx="3" fill="#14b8a6" opacity="0.65" />
+                  <rect x="104" y="16" width="18" height="42" rx="3" fill="#14b8a6" opacity="0.8" />
+                  <rect x="132" y="10" width="18" height="48" rx="3" fill="#14b8a6" />
+                  <rect x="160" y="18" width="18" height="40" rx="3" fill="#14b8a6" opacity="0.8" />
+                  <rect x="188" y="12" width="18" height="46" rx="3" fill="#14b8a6" />
+                  <rect x="216" y="6" width="18" height="52" rx="3" fill="#14b8a6" />
+                  <circle cx="225" cy="6" r="3" fill="#14b8a6">
+                    <animate attributeName="cy" values="6;2;6" dur="2.5s" repeatCount="indefinite" />
+                  </circle>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          {/* Mobility — Confianza física y social */}
+          <div className="group bg-white rounded-3xl p-7 border border-slate-200/60 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg mb-5 group-hover:scale-110 transition-transform">
+              <MapPin className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-2">Tipo de confianza</p>
+            <h3 className="text-2xl font-bold tracking-tight text-slate-900 mb-3">Física y social</h3>
+            <p className="text-sm text-slate-600 mb-5 leading-relaxed">
+              Mobility, viajes compartidos. Subirte al coche de alguien requiere confianza real, no solo precio.
+            </p>
+            <div className="h-16 rounded-xl bg-blue-50 overflow-hidden">
+              <svg viewBox="0 0 280 64" className="w-full h-full">
+                <defs>
+                  <linearGradient id="cardRoadMob" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.1" />
+                    <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.8" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1" />
+                  </linearGradient>
+                </defs>
+                <path d="M30 45 Q90 18 140 30 T250 22" stroke="url(#cardRoadMob)" strokeWidth="2.5" fill="none" strokeDasharray="5 3">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+                </path>
+                <circle cx="30" cy="45" r="4.5" fill="#3b82f6" />
+                <circle cx="140" cy="30" r="4.5" fill="#3b82f6" />
+                <circle cx="250" cy="22" r="4.5" fill="#3b82f6" />
+                <circle r="3" fill="#3b82f6">
+                  <animateMotion dur="4s" repeatCount="indefinite" path="M30 45 Q90 18 140 30 T250 22" />
+                </circle>
+              </svg>
+            </div>
+          </div>
+
+          {/* Celine — Confianza entre personas */}
+          <div className="group bg-white rounded-3xl p-7 border border-slate-200/60 hover:border-orange-200 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg mb-5 group-hover:scale-110 transition-transform">
+              <Shuffle className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-2">Tipo de confianza</p>
+            <h3 className="text-2xl font-bold tracking-tight text-slate-900 mb-3">Entre personas</h3>
+            <p className="text-sm text-slate-600 mb-5 leading-relaxed">
+              Celine, ofertas y trueques locales. Le vendes a tu vecino, no a un desconocido del otro lado del país.
+            </p>
+            <div className="h-16 rounded-xl bg-orange-50 overflow-hidden">
+              <svg viewBox="0 0 280 64" className="w-full h-full">
+                <g>
+                  <circle cx="80" cy="32" r="16" fill="#fff" stroke="#fb923c" strokeWidth="1.5" />
+                  <text x="80" y="38" textAnchor="middle" fontSize="16">📦</text>
+                  <circle cx="200" cy="32" r="16" fill="#fff" stroke="#fb923c" strokeWidth="1.5" />
+                  <text x="200" y="38" textAnchor="middle" fontSize="16">🌱</text>
+                  <path d="M101 22 Q140 4 175 22" stroke="#fb923c" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="5 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+                  </path>
+                  <polyline points="167,16 175,22 170,28" stroke="#fb923c" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  <path d="M179 42 Q140 60 105 42" stroke="#fb923c" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="5 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" begin="-0.8s" />
+                  </path>
+                  <polyline points="113,48 105,42 110,36" stroke="#fb923c" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+
+// ============================================================================
+// HOUSES — Todo bajo el mismo techo
+// ============================================================================
+
+function Houses({ setLocation }: { setLocation: (p: string) => void }) {
+  return (
+    <section id="casas" className="bg-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-slate-400">02</span>
+            <span className="w-6 h-px bg-slate-300" />
+            <span>El edificio</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
+            Todo bajo el{" "}
+            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent italic font-medium">
+              mismo techo.
+            </span>
+          </h2>
+          <p className="mt-6 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            Cada producto es completo y tiene su propia app. Pero todos comparten quién eres y la confianza que has construido. Iremos agregando más con el tiempo.
+          </p>
+        </div>
+
+        {/* Two top houses: Mobility + Celine */}
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-5 mb-4 sm:mb-5">
+          {/* MOBILITY */}
+          <a
+            href="#mobility"
+            id="mobility"
+            className="group relative bg-gradient-to-br from-blue-50 via-white to-white rounded-3xl p-7 sm:p-9 border border-blue-100 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/15 hover:-translate-y-1 transition-all overflow-hidden min-h-[360px] flex flex-col"
+          >
+            <span className="absolute top-5 right-5 w-9 h-9 rounded-full bg-blue-100 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4 text-blue-700" />
+            </span>
+
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-3xl font-bold tracking-tight text-slate-900">Mobility</h3>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    Próximamente
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500 font-medium">Viajes compartidos en Morelos</p>
+              </div>
+            </div>
+
+            <p className="text-slate-600 mb-5 leading-relaxed text-sm">
+              Conecta con personas que ya recorren tu mismo camino. Como BlaBlaCar, pero hecho en casa y con confianza local.
+            </p>
+
+            {/* Mini map visualization */}
+            <div className="flex-1 rounded-xl bg-white/60 backdrop-blur border border-blue-100/60 p-4 mb-4 min-h-[120px]">
+              <svg viewBox="0 0 500 140" className="w-full h-full">
+                <defs>
+                  <linearGradient id="mobHouseRoad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
+                    <stop offset="50%" stopColor="#3b82f6" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
+                  </linearGradient>
+                </defs>
+                <g stroke="rgba(59,130,246,0.06)" strokeWidth="1">
+                  <path d="M0 35 L500 35" />
+                  <path d="M0 70 L500 70" />
+                  <path d="M0 105 L500 105" />
+                </g>
+                <path d="M60 110 Q180 60 250 80 T440 40" stroke="url(#mobHouseRoad)" strokeWidth="2.5" fill="none" strokeDasharray="5 3">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+                </path>
+                <g>
+                  <circle cx="60" cy="110" r="6" fill="#3b82f6" />
+                  <circle cx="60" cy="110" r="2.5" fill="#fff" />
+                </g>
+                <g>
+                  <circle cx="250" cy="80" r="6" fill="none" stroke="#3b82f6" strokeWidth="2">
+                    <animate attributeName="r" values="6;14;6" dur="2.4s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur="2.4s" repeatCount="indefinite" />
+                  </circle>
+                  <circle cx="250" cy="80" r="8" fill="#3b82f6" />
+                  <circle cx="250" cy="80" r="3" fill="#fff" />
+                </g>
+                <g>
+                  <circle cx="440" cy="40" r="6" fill="#3b82f6" />
+                  <circle cx="440" cy="40" r="2.5" fill="#fff" />
+                </g>
+                <circle r="4" fill="#3b82f6">
+                  <animateMotion dur="5s" repeatCount="indefinite" path="M60 110 Q180 60 250 80 T440 40" />
+                </circle>
+              </svg>
+            </div>
+
+            <div className="flex items-end justify-between pt-4 border-t border-blue-100">
+              <div className="flex gap-6">
+                <div>
+                  <p className="text-xl font-bold tracking-tight text-slate-900">Piloto</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cerrado</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold tracking-tight text-slate-900">2026</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Lanzamiento</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 group-hover:gap-2.5 transition-all">
+                Lista de espera <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </a>
+
+          {/* CELINE */}
+          <a
+            href="#celine"
+            id="celine"
+            className="group relative bg-gradient-to-br from-orange-50 via-white to-white rounded-3xl p-7 sm:p-9 border border-orange-100 hover:border-orange-300 hover:shadow-2xl hover:shadow-orange-500/15 hover:-translate-y-1 transition-all overflow-hidden min-h-[360px] flex flex-col"
+          >
+            <span className="absolute top-5 right-5 w-9 h-9 rounded-full bg-orange-100 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4 text-orange-700" />
+            </span>
+
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg">
+                <Shuffle className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-3xl font-bold tracking-tight text-slate-900">Celine</h3>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                    Próximamente
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500 font-medium">Ofertas y trueques locales</p>
+              </div>
+            </div>
+
+            <p className="text-slate-600 mb-5 leading-relaxed text-sm">
+              Plataforma abierta donde vecinos venden, regalan o truequean. Sin cuotas. Con un módulo especial para productores rurales.
+            </p>
+
+            {/* Mini trade visualization */}
+            <div className="flex-1 rounded-xl bg-white/60 backdrop-blur border border-orange-100/60 p-4 mb-4 min-h-[120px]">
+              <svg viewBox="0 0 500 140" className="w-full h-full">
+                <g fill="rgba(249,115,22,0.10)">
+                  <circle cx="40" cy="25" r="2" />
+                  <circle cx="450" cy="25" r="2" />
+                  <circle cx="40" cy="115" r="2" />
+                  <circle cx="450" cy="115" r="2" />
+                </g>
+                <g transform="translate(120 70)">
+                  <circle r="36" fill="#fff" stroke="#fb923c" strokeWidth="1.5" />
+                  <text y="8" textAnchor="middle" fontSize="32">📚</text>
+                  <text y="56" textAnchor="middle" fill="#9a3412" fontFamily="system-ui" fontSize="10" fontWeight="600">Vendedor</text>
+                </g>
+                <g transform="translate(380 70)">
+                  <circle r="36" fill="#fff" stroke="#fb923c" strokeWidth="1.5" />
+                  <text y="8" textAnchor="middle" fontSize="32">🌽</text>
+                  <text y="56" textAnchor="middle" fill="#9a3412" fontFamily="system-ui" fontSize="10" fontWeight="600">Comprador</text>
+                </g>
+                <g stroke="#fb923c" strokeWidth="2" fill="none" strokeLinecap="round">
+                  <path d="M165 50 Q250 25 335 50" strokeDasharray="5 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+                  </path>
+                  <polyline points="325,42 335,50 328,58" />
+                  <path d="M335 90 Q250 115 165 90" strokeDasharray="5 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" begin="-0.8s" />
+                  </path>
+                  <polyline points="175,98 165,90 172,82" />
+                </g>
+                <g transform="translate(250 70)">
+                  <rect x="-30" y="-12" width="60" height="24" rx="12" fill="#fff" stroke="#fb923c" strokeWidth="1.5" />
+                  <text y="5" textAnchor="middle" fill="#9a3412" fontFamily="system-ui" fontSize="10" fontWeight="700">TRATO</text>
+                </g>
+              </svg>
+            </div>
+
+            <div className="flex items-end justify-between pt-4 border-t border-orange-100">
+              <div className="flex gap-6">
+                <div>
+                  <p className="text-xl font-bold tracking-tight text-slate-900">Abierta</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Sin cuotas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold tracking-tight text-slate-900">Q3 '26</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Lanzamiento</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-700 group-hover:gap-2.5 transition-all">
+                Conocer <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </a>
+        </div>
+
+        {/* POS — wide */}
+        <a
+          href="#sistemas"
+          className="group relative block bg-gradient-to-br from-teal-50 via-white to-white rounded-3xl p-7 sm:p-9 border border-teal-100 hover:border-teal-300 hover:shadow-2xl hover:shadow-teal-500/15 hover:-translate-y-1 transition-all overflow-hidden"
+        >
+          <span className="absolute top-5 right-5 w-9 h-9 rounded-full bg-teal-100 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all flex items-center justify-center">
+            <ArrowUpRight className="w-4 h-4 text-teal-700" />
+          </span>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-5 sm:mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg flex-shrink-0">
+              <CreditCard className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-3xl font-bold tracking-tight text-slate-900">Punto de venta</h3>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                  Activo · 5 giros
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 font-medium">Una casa con varios cuartos · uno por giro</p>
+            </div>
+          </div>
+
+          <p className="text-slate-600 mb-6 leading-relaxed text-sm max-w-3xl">
+            El POS donde empezó CyberPiezas. Cada giro vive en su propio cuarto, hecho a la medida. Cobrar, operar, crecer — sin funciones que no usas.
+          </p>
+
+          {/* Rooms grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-6">
+            {[
+              { emoji: "🐾", name: "Veterinaria" },
+              { emoji: "👗", name: "Boutique" },
+              { emoji: "🥬", name: "Verdulería" },
+              { emoji: "🛒", name: "Abarrotes" },
+              { emoji: "🎤", name: "Tarima" },
+            ].map((room) => (
+              <div
+                key={room.name}
+                className="bg-white/80 backdrop-blur border border-slate-200/60 rounded-2xl p-3 text-center cursor-pointer hover:bg-white hover:border-teal-200 hover:-translate-y-1 hover:shadow-md transition-all"
+              >
+                <div className="text-2xl mb-1 transition-transform group-hover:scale-110">{room.emoji}</div>
+                <p className="text-xs font-bold text-slate-800">{room.name}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-end justify-between pt-5 border-t border-teal-100">
+            <div className="flex gap-6 flex-wrap">
+              <div>
+                <p className="text-xl font-bold tracking-tight text-slate-900">5</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cuartos</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold tracking-tight text-slate-900">Desde $150</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Por mes</p>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-xl font-bold tracking-tight text-slate-900">∞</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Sin contratos</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 group-hover:gap-2.5 transition-all">
+              Ver los cuartos <ArrowRight className="w-4 h-4" />
+            </span>
+          </div>
+        </a>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// INDUSTRIES — Los cuartos de la casa POS
+// ============================================================================
 
 function Industries({ setLocation }: { setLocation: (p: string) => void }) {
   return (
-    <section id="sistemas" className="bg-white py-16 sm:py-24 lg:py-32">
+    <section id="sistemas" className="bg-slate-50 py-16 sm:py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16 lg:mb-20">
-          <div className="inline-flex items-center gap-2 text-xs font-bold text-purple-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-purple-400">02</span>
-            <span className="w-6 h-px bg-purple-300" />
-            <span>Sistemas especializados</span>
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-teal-700 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-teal-400">03</span>
+            <span className="w-6 h-px bg-teal-300" />
+            <span>Dentro de la casa POS</span>
           </div>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
             Construido para
@@ -664,9 +1107,12 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
               tu industria.
             </span>
           </h2>
+          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            Cada cuarto del POS está hecho a la medida del giro. Sin funciones que no usas, sin pagar por lo que no necesitas.
+          </p>
         </div>
 
-        {/* Vet featured - Premium target */}
+        {/* Vet featured */}
         <div className="bg-gradient-to-br from-emerald-50 via-white to-cyan-50 rounded-3xl border border-emerald-100/60 overflow-hidden mb-5 sm:mb-6 shadow-xl shadow-emerald-500/5">
           <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 p-6 sm:p-10 lg:p-14 items-center">
             <div>
@@ -698,7 +1144,7 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
           </div>
         </div>
 
-        {/* 4 secundarios en grid */}
+        {/* 4 secundarios */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-8 sm:mb-12">
           {[
             { name: "Boutique", desc: "Variantes y multi-sucursal", icon: "👗", gradient: "from-purple-50 to-pink-50", path: "/dashboard" },
@@ -723,11 +1169,11 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
         </div>
 
         {/* Proximamente */}
-        <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 border border-slate-200/60">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 border border-slate-200/60">
           <div className="text-center mb-5 sm:mb-6">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-2 sm:mb-3">Proximamente</p>
             <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
-              Mas sistemas en camino
+              Mas cuartos en camino
             </h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -737,7 +1183,7 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
               { name: "Refaccionaria", icon: "🔧" },
               { name: "Panaderia", icon: "🥖" },
             ].map((p) => (
-              <div key={p.name} className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200/40 text-center">
+              <div key={p.name} className="bg-slate-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200/40 text-center">
                 <div className="text-2xl sm:text-3xl mb-1.5 sm:mb-2">{p.icon}</div>
                 <p className="text-xs font-bold text-slate-700">{p.name}</p>
               </div>
@@ -748,6 +1194,279 @@ function Industries({ setLocation }: { setLocation: (p: string) => void }) {
     </section>
   );
 }
+
+// ============================================================================
+// TRUST LAYER — Cómo se construye la confianza
+// ============================================================================
+
+function TrustLayer() {
+  const steps = [
+    {
+      num: "01",
+      title: "Te conocemos",
+      desc: "Empiezas con tu correo. Si quieres, verificas teléfono. Después INE. Cada paso es opcional y te abre nuevas puertas.",
+      visual: "verifications",
+    },
+    {
+      num: "02",
+      title: "Participas",
+      desc: "Compartes un viaje en Mobility, vendes algo en Celine, abres tu negocio con POS. Cada actividad deja huella.",
+      visual: "activity",
+    },
+    {
+      num: "03",
+      title: "Tu comunidad respalda",
+      desc: "Personas reales con las que has interactuado escriben sobre ti. Sin estrellas, sin números. Solo lo que pasó.",
+      visual: "people",
+    },
+    {
+      num: "04",
+      title: "Te acompaña",
+      desc: "Tu identidad vive en una sola cuenta. Tu reputación se interpreta según cada casa — buena en una no significa lo mismo en otra.",
+      visual: "quote",
+    },
+  ];
+
+  return (
+    <section id="confianza" className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-700 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-amber-500">04</span>
+            <span className="w-6 h-px bg-amber-400" />
+            <span>Cómo se construye la confianza</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
+            No es un score.
+            <br />
+            <span className="bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 bg-clip-text text-transparent italic font-medium">
+              Son personas describiendo a personas.
+            </span>
+          </h2>
+          <p className="mt-6 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            La confianza en CyberPiezas se gana con tiempo, comunidad y memoria social — no con un algoritmo opaco.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {steps.map((step, idx) => (
+            <div
+              key={step.num}
+              className="bg-white rounded-3xl p-7 border border-slate-200/60 hover:border-slate-300 hover:shadow-xl hover:-translate-y-1 transition-all"
+            >
+              <p className="font-serif italic text-amber-600 text-sm mb-4">{step.num} ·</p>
+              <h4 className="text-xl font-bold tracking-tight text-slate-900 mb-2">{step.title}</h4>
+              <p className="text-sm text-slate-600 leading-relaxed mb-5">{step.desc}</p>
+              <div className="h-20 rounded-xl bg-slate-50 grid place-items-center overflow-hidden">
+                {step.visual === "verifications" && (
+                  <div className="flex gap-1.5 justify-center px-3">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="w-7 h-7 bg-emerald-500 rounded-full grid place-items-center shadow-md shadow-emerald-200"
+                        style={{
+                          animation: `popIn 0.5s ease ${i * 0.15}s forwards`,
+                          opacity: 0,
+                        }}
+                      >
+                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {step.visual === "activity" && (
+                  <svg viewBox="0 0 240 70" className="w-full h-full">
+                    <path d="M30 50 Q90 18 150 32 T220 28" stroke="rgba(212,163,115,0.4)" strokeWidth="1.5" fill="none" strokeDasharray="5 3">
+                      <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.6s" repeatCount="indefinite" />
+                    </path>
+                    <circle cx="30" cy="50" r="5" fill="#3b82f6" />
+                    <circle cx="120" cy="36" r="5" fill="#f97316" />
+                    <circle cx="220" cy="28" r="5" fill="#14b8a6" />
+                    <circle r="3" fill="#d4a373">
+                      <animateMotion dur="3.5s" repeatCount="indefinite" path="M30 50 Q90 18 150 32 T220 28" />
+                    </circle>
+                  </svg>
+                )}
+                {step.visual === "people" && (
+                  <div className="flex">
+                    {[
+                      { bg: "linear-gradient(135deg, #ff8a4f, #ff5c8e)", text: "AG" },
+                      { bg: "linear-gradient(135deg, #4f8cff, #6c5cff)", text: "CM" },
+                      { bg: "linear-gradient(135deg, #4fc3ff, #4f8cff)", text: "LH" },
+                      { bg: "linear-gradient(135deg, #b97cff, #8a4cdb)", text: "SR" },
+                    ].map((p, i) => (
+                      <div
+                        key={i}
+                        className="w-9 h-9 rounded-full border-[3px] border-slate-50 grid place-items-center text-white text-[10px] font-bold"
+                        style={{ background: p.bg, marginLeft: i === 0 ? 0 : -10, zIndex: 10 - i }}
+                      >
+                        {p.text}
+                      </div>
+                    ))}
+                    <div className="w-9 h-9 rounded-full border-[3px] border-slate-50 bg-slate-100 grid place-items-center text-[10px] font-bold text-slate-500" style={{ marginLeft: -10 }}>+8</div>
+                  </div>
+                )}
+                {step.visual === "quote" && (
+                  <p className="font-serif italic text-sm text-slate-700 px-4 text-center leading-snug">
+                    "Llega puntual y la conversación se vuelve amena."
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </section>
+  );
+}
+
+// ============================================================================
+// COMMUNITIES — Sectores
+// ============================================================================
+
+function Communities() {
+  const sectors = [
+    { emoji: "🎓", name: "Estudiantes", desc: "Universitarios y de prepa. Rutas compartidas, libros usados, tutorías." },
+    { emoji: "💜", name: "Mujeres", desc: "Comunidad verificada con modo discreto activado por default. Privacidad extra fuerte." },
+    { emoji: "🌽", name: "Productores", desc: "Campesinos, ganaderos y artesanos de Morelos. Comercio directo, sin coyotes en medio." },
+    { emoji: "🏘️", name: "Vecinos", desc: "Personas que comparten colonia. Trueques, ofertas y recomendaciones entre quienes ya se conocen." },
+    { emoji: "🏢", name: "Negocios locales", desc: "Comercios independientes de Morelos. Validados, recomendados, conectados entre sí." },
+    { emoji: "🎵", name: "Músicos y artistas", desc: "Para agrupaciones, solistas y eventos. Donde la tarima encuentra al público." },
+    { emoji: "🌄", name: "Turismo", desc: "Anfitriones, guías y comunidad receptora. Movilidad y descubrimiento responsable." },
+  ];
+
+  return (
+    <section id="comunidades" className="bg-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16 lg:mb-20">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-rose-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-rose-400">05</span>
+            <span className="w-6 h-px bg-rose-300" />
+            <span>Comunidades reales</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 max-w-3xl mx-auto leading-[1.05] sm:leading-[1.0]">
+            Aquí no eres{" "}
+            <span className="font-serif italic text-slate-400 font-medium">un usuario más.</span>
+            <br />
+            Eres parte de algo.
+          </h2>
+          <p className="mt-6 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            Las comunidades son el corazón de CyberPiezas. Tienen reglas propias, moderadores reales y un punto seguro físico donde encontrarse.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {sectors.map((s) => (
+            <div
+              key={s.name}
+              className="group relative bg-white rounded-2xl p-6 border border-slate-200/60 hover:border-amber-200 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-0 group-hover:opacity-60 transition-opacity" />
+              <span className="absolute top-4 right-4 text-slate-400 opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all text-base">↗</span>
+              <div className="text-3xl mb-4">{s.emoji}</div>
+              <h3 className="text-lg font-bold tracking-tight text-slate-900 mb-2">{s.name}</h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed mb-4">{s.desc}</p>
+              <p className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-300" />
+                Próximamente
+              </p>
+            </div>
+          ))}
+
+          {/* Slot abierto */}
+          <div className="relative bg-slate-50 rounded-2xl p-6 border border-dashed border-slate-300 hover:border-slate-400 transition-all cursor-pointer group">
+            <div className="text-3xl mb-4 text-slate-400">＋</div>
+            <h3 className="text-lg font-bold tracking-tight text-slate-700 mb-2">¿Falta la tuya?</h3>
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
+              Si tu sector tiene 30+ personas dispuestas a participar, te ayudamos a crearla.
+            </p>
+            <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1 group-hover:gap-2 transition-all">
+              Proponer <ArrowRight className="w-3 h-3" />
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// WHY DIFFERENT — Por qué somos distintos
+// ============================================================================
+
+function WhyDifferent() {
+  const reasons = [
+    {
+      num: "i.",
+      title: "Tu reputación no es un número.",
+      desc: 'No hay "8.7/10 puntos de confianza". Hay personas reales describiendo lo que pasó contigo. La confianza se gana con hechos, no con algoritmos.',
+    },
+    {
+      num: "ii.",
+      title: "Tus datos no son nuestro negocio.",
+      desc: "No vendemos información. No mostramos publicidad. No rastreamos tus hábitos. Lo que ganamos viene de quienes usan nuestro POS, no de quienes confían en nosotros con sus rutas o intercambios.",
+    },
+    {
+      num: "iii.",
+      title: "Crecemos lento. A propósito.",
+      desc: "Mobility empieza con un piloto cerrado. Celine arranca con comunidades pequeñas. Densidad antes que escala. Si las primeras 100 personas no se sienten seguras, no vale la pena tener 10,000.",
+    },
+    {
+      num: "iv.",
+      title: "Soporte humano, no chatbots.",
+      desc: "Cuando algo no sale bien, te responde una persona en menos de 10 minutos. En español. Por WhatsApp. Porque en México, soporte = confianza.",
+    },
+    {
+      num: "v.",
+      title: "Hecho en casa.",
+      desc: "El código se escribe en Morelos. Los datos viven en servidores que cumplen LFPDPPP. Los problemas los resuelve gente que conoce el contexto local. No somos Silicon Valley vestido de mexicano.",
+    },
+  ];
+
+  return (
+    <section className="bg-gradient-to-b from-teal-50/30 to-white py-16 sm:py-24 lg:py-32">
+      <div className="max-w-4xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="text-center mb-12 sm:mb-16">
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
+            <span className="text-slate-400">06</span>
+            <span className="w-6 h-px bg-slate-300" />
+            <span>Por qué somos distintos</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-slate-900 leading-[1.05] sm:leading-[1.0]">
+            Profundidad local,
+            <br />
+            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent italic font-medium">
+              no escala artificial.
+            </span>
+          </h2>
+          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-light leading-relaxed">
+            No queremos ser la próxima startup unicornio. Queremos ser la red en la que tu comunidad confía dentro de 10 años.
+          </p>
+        </div>
+
+        <div className="space-y-0">
+          {reasons.map((r, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[40px_1fr] sm:grid-cols-[64px_1fr] gap-4 sm:gap-7 py-7 sm:py-8 border-b border-slate-200 last:border-b-0"
+            >
+              <span className="font-serif italic text-amber-600 text-3xl sm:text-4xl leading-none">{r.num}</span>
+              <div>
+                <h4 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 mb-2 leading-snug">{r.title}</h4>
+                <p className="text-[14px] sm:text-base text-slate-600 leading-relaxed">{r.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// HARDWARE
+// ============================================================================
 
 function Hardware() {
   const products = [
@@ -770,7 +1489,7 @@ function Hardware() {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16 lg:mb-20">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-blue-400">03</span>
+            <span className="text-blue-400">07</span>
             <span className="w-6 h-px bg-blue-300" />
             <span>Tienda</span>
           </div>
@@ -807,6 +1526,10 @@ function Hardware() {
   );
 }
 
+// ============================================================================
+// SERVICES
+// ============================================================================
+
 function Services() {
   const services = [
     { icon: Wrench, title: "Instalacion", price: "$1,500", desc: "Te instalamos todo en sitio", gradient: "from-emerald-500 to-cyan-500" },
@@ -826,7 +1549,7 @@ function Services() {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16 lg:mb-20">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-emerald-400">04</span>
+            <span className="text-emerald-400">08</span>
             <span className="w-6 h-px bg-emerald-300" />
             <span>Servicios profesionales</span>
           </div>
@@ -859,6 +1582,10 @@ function Services() {
   );
 }
 
+// ============================================================================
+// FEATURES
+// ============================================================================
+
 function Features() {
   const features = [
     { icon: Wifi, title: "Funciona sin internet", desc: "Sigue vendiendo aunque se caiga la red." },
@@ -873,7 +1600,7 @@ function Features() {
       <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-10 sm:mb-16 lg:mb-20">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-amber-400">05</span>
+            <span className="text-amber-400">09</span>
             <span className="w-6 h-px bg-amber-300" />
             <span>Lo esencial</span>
           </div>
@@ -910,14 +1637,16 @@ function Features() {
   );
 }
 
+// ============================================================================
+// REFERRALS
+// ============================================================================
+
 function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: boolean; user: any; setLocation: (p: string) => void }) {
   const [copied, setCopied] = useState(false);
 
-  // Generar código único determinista basado en el user
   const getReferralCode = () => {
     if (!user) return null;
     const seed = user.id || user.email || "guest";
-    // Convertir a string base36 (más compacto y único)
     const hash = String(seed).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
     const code = (hash * 7919).toString(36).toUpperCase().slice(0, 6).padStart(6, "0");
     return "CYB-" + code;
@@ -952,7 +1681,7 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
 
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-              <span className="text-emerald-400">07</span>
+              <span className="text-emerald-400">11</span>
               <span className="w-6 h-px bg-emerald-300" />
               <span className="flex items-center gap-1.5"><Gift className="w-3 h-3" /> Programa de referidos</span>
             </div>
@@ -968,7 +1697,6 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
               <strong className="text-slate-900 font-bold">1 mes GRATIS</strong>.
             </p>
 
-            {/* Si está autenticado: mostrar SU código */}
             {isAuthenticated && referralCode ? (
               <div className="max-w-md mx-auto">
                 <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">
@@ -1027,8 +1755,11 @@ function Referrals({ isAuthenticated, user, setLocation }: { isAuthenticated: bo
   );
 }
 
+// ============================================================================
+// PRICING
+// ============================================================================
+
 function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) => void; isAuthenticated: boolean }) {
-  // Catálogo real de sistemas (sincronizado con backend)
   const systems = [
     {
       code: "boutique",
@@ -1093,10 +1824,9 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
   return (
     <section id="precios" className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        {/* HEADER */}
         <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-rose-600 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-5 sm:mb-6">
-            <span className="text-rose-400">08</span>
+            <span className="text-rose-400">12</span>
             <span className="w-6 h-px bg-rose-300" />
             <span>Un precio por sistema</span>
           </div>
@@ -1111,7 +1841,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
           </p>
         </div>
 
-        {/* TOGGLE Mensual / Anual */}
         <div className="flex justify-center mb-10">
           <div className="inline-flex items-center bg-white border border-slate-200 rounded-full p-1 shadow-md">
             <button
@@ -1142,7 +1871,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
           </div>
         </div>
 
-        {/* GRID DE 5 SISTEMAS */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {systems.map((sys) => {
             const isPremium = sys.featured;
@@ -1162,7 +1890,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
                     NUEVO
                   </div>
                 )}
-                {/* Icon */}
                 <div
                   className={
                     "w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-4 " +
@@ -1173,7 +1900,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
                 >
                   {sys.icon}
                 </div>
-                {/* Title */}
                 <h3
                   className={
                     "text-xl font-bold mb-1 tracking-tight " +
@@ -1189,7 +1915,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
                 >
                   {sys.desc}
                 </p>
-                {/* Price */}
                 <div className="mb-5">
                   <span
                     className={
@@ -1207,7 +1932,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
                     {period}
                   </span>
                 </div>
-                {/* CTA */}
                 <Button
                   onClick={() => {
                     if (isAuthenticated) {
@@ -1224,7 +1948,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
                 >
                   {isAuthenticated ? "Suscribirme" : "Empezar ahora"}
                 </Button>
-                {/* Features */}
                 <ul className="space-y-2">
                   {sys.features.map((f, i) => (
                     <li
@@ -1249,7 +1972,6 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
           })}
         </div>
 
-        {/* CTA inferior */}
         <div className="mt-12 text-center">
           <p className="text-sm text-slate-600 mb-4">
             ¿Necesitas varios sistemas? Suscríbete a cada uno por separado.
@@ -1267,11 +1989,14 @@ function Pricing({ setLocation, isAuthenticated }: { setLocation: (p: string) =>
   );
 }
 
+// ============================================================================
+// FINAL CTA
+// ============================================================================
+
 function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLocation: (p: string) => void; isAuthenticated: boolean; onSupport: () => void; onCollab: () => void }) {
   return (
     <section className="bg-slate-50 py-16 sm:py-24 lg:py-32">
       <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
-        {/* Testimonio editorial */}
         <div className="text-center mb-12 sm:mb-20 lg:mb-24">
           <div className="text-2xl sm:text-3xl mb-4 sm:mb-5 tracking-[0.5em]">⭐⭐⭐⭐⭐</div>
           <blockquote className="text-lg sm:text-3xl lg:text-4xl font-light text-slate-900 leading-relaxed tracking-tight max-w-3xl mx-auto mb-5 sm:mb-6 italic px-2">
@@ -1329,6 +2054,10 @@ function FinalCTA({ setLocation, isAuthenticated, onSupport, onCollab }: { setLo
   );
 }
 
+// ============================================================================
+// FOOTER — actualizado con casas + confianza
+// ============================================================================
+
 function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () => void }) {
   return (
     <footer className="bg-white border-t border-slate-100 py-10 sm:py-14">
@@ -1339,36 +2068,40 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
               <CyberpiezasLogo size={36} variant="dark" />
               <span className="font-bold text-lg text-slate-900">CyberPiezas</span>
             </div>
-            <p className="text-sm text-slate-600">Sistemas POS hechos a la medida de tu industria.</p>
+            <p className="text-sm text-slate-600">Infraestructura de confianza local. Hecho en Morelos, México. Sin contratos. Sin algoritmos opacos. Sin venta de datos.</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
             <div>
-              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Sistemas</p>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">El edificio</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#sistemas" className="hover:text-slate-900">Boutique</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900">Veterinaria</a></li>
-                <li><a href="#sistemas" className="hover:text-slate-900">Abarrotes</a></li>
+                <li><a href="#mobility" className="hover:text-slate-900 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Mobility</a></li>
+                <li><a href="#celine" className="hover:text-slate-900 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Celine</a></li>
+                <li><a href="#sistemas" className="hover:text-slate-900 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-teal-500" /> POS</a></li>
+                <li><a href="#hardware" className="hover:text-slate-900">Hardware</a></li>
               </ul>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Tienda</p>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Confianza</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#hardware" className="hover:text-slate-900">Hardware</a></li>
-                <li><a href="#hardware" className="hover:text-slate-900">Camaras</a></li>
-                <li><a href="#hardware" className="hover:text-slate-900">Kits POS</a></li>
+                <li><a href="#confianza" className="hover:text-slate-900">Cómo funciona</a></li>
+                <li><a href="#comunidades" className="hover:text-slate-900">Comunidades</a></li>
+                <li><a href="/terms" className="hover:text-slate-900">Términos</a></li>
+                <li><a href="/terms" className="hover:text-slate-900">Privacidad</a></li>
               </ul>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Servicios</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li><a href="#servicios" className="hover:text-slate-900">Instalacion</a></li>
-                <li><a href="#servicios" className="hover:text-slate-900">Capacitacion</a></li>
-                <li><a href="#servicios" className="hover:text-slate-900">Migracion</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Instalación</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Capacitación</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Migración</a></li>
+                <li><a href="#servicios" className="hover:text-slate-900">Soporte</a></li>
               </ul>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Empresa</p>
               <ul className="space-y-2 text-sm text-slate-600">
+                <li><a href="#historia" className="hover:text-slate-900">Historia</a></li>
                 <li><a href="#precios" className="hover:text-slate-900">Precios</a></li>
                 <li><button onClick={onCollab} className="hover:text-slate-900 text-left">Colaborar</button></li>
                 <li><button onClick={onSupport} className="hover:text-slate-900 text-left">Apoyar</button></li>
@@ -1378,13 +2111,17 @@ function Footer({ onSupport, onCollab }: { onSupport: () => void; onCollab: () =
           </div>
         </div>
         <div className="border-t border-slate-100 mt-8 pt-5 flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="text-sm text-slate-500">© {new Date().getFullYear()} CyberPiezas. Todos los derechos reservados.</p>
-          <p className="text-sm text-slate-500">Hecho en Mexico 🇲🇽</p>
+          <p className="text-sm text-slate-500">© {new Date().getFullYear()} CyberPiezas. Hecho con 💙 en Morelos, México.</p>
+          <p className="text-sm text-slate-500">Infraestructura de confianza local</p>
         </div>
       </div>
     </footer>
   );
 }
+
+// ============================================================================
+// DEMO MODAL
+// ============================================================================
 
 function DemoModal({ onClose }: { onClose: () => void }) {
   return (
@@ -1424,6 +2161,10 @@ function DemoModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ============================================================================
+// SUPPORT MODAL
+// ============================================================================
+
 function SupportModal({ onClose }: { onClose: () => void }) {
   const [supportCount, setSupportCount] = useState<number>(() => {
     if (typeof window === "undefined") return 0;
@@ -1433,7 +2174,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
   const [showThanks, setShowThanks] = useState(false);
   const [animateBar, setAnimateBar] = useState(false);
 
-  const monthlyGoal = 5000; // $5,000 MXN meta mensual
+  const monthlyGoal = 5000;
   const progressPercent = Math.min((supportCount / monthlyGoal) * 100, 100);
 
   useEffect(() => {
@@ -1442,27 +2183,9 @@ function SupportModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   const tiers = [
-    {
-      amount: 30,
-      emoji: "☕",
-      name: "Cafecito",
-      description: "Para que siga programando despierto",
-      color: "from-amber-400 to-orange-500",
-    },
-    {
-      amount: 150,
-      emoji: "🌮",
-      name: "Una comida",
-      description: "Energía para una jornada completa",
-      color: "from-rose-400 to-pink-500",
-    },
-    {
-      amount: 300,
-      emoji: "🚀",
-      name: "Un mes completo",
-      description: "Equivale a una suscripción mensual",
-      color: "from-fuchsia-500 to-purple-600",
-    },
+    { amount: 30, emoji: "☕", name: "Cafecito", description: "Para que siga programando despierto", color: "from-amber-400 to-orange-500" },
+    { amount: 150, emoji: "🌮", name: "Una comida", description: "Energía para una jornada completa", color: "from-rose-400 to-pink-500" },
+    { amount: 300, emoji: "🚀", name: "Un mes completo", description: "Equivale a una suscripción mensual", color: "from-fuchsia-500 to-purple-600" },
   ];
 
   const handleSupport = (amount: number) => {
@@ -1480,48 +2203,29 @@ function SupportModal({ onClose }: { onClose: () => void }) {
   };
 
   const openWhatsApp = (amount: number) => {
-    const msg = encodeURIComponent(
-      `Hola David! Quiero apoyar a CyberPiezas con $${amount} MXN. ¿Cómo te lo hago llegar?`,
-    );
+    const msg = encodeURIComponent(`Hola David! Quiero apoyar a CyberPiezas con $${amount} MXN. ¿Cómo te lo hago llegar?`);
     window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl relative max-h-[92vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-        >
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
           <X className="w-4 h-4 text-slate-700" />
         </button>
 
         <div className="p-6 sm:p-8">
-          {/* HEADER */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shadow-lg mx-auto mb-4 animate-pulse">
               <Heart className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-2">
-              Apoya el proyecto
-            </h2>
-            <p className="text-sm text-slate-600">
-              Tu apoyo nos ayuda a seguir construyendo herramientas para pequeños negocios.
-            </p>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-2">Apoya el proyecto</h2>
+            <p className="text-sm text-slate-600">Tu apoyo nos ayuda a seguir construyendo herramientas para pequeños negocios.</p>
           </div>
 
-          {/* BARRA DE PROGRESO */}
           <div className="mb-6 bg-slate-50 rounded-2xl p-4 border border-slate-200">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Meta del mes
-              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Meta del mes</span>
               <span className="text-xs font-bold text-slate-700">
                 ${supportCount.toLocaleString("es-MX")} / ${monthlyGoal.toLocaleString("es-MX")}
               </span>
@@ -1545,21 +2249,15 @@ function SupportModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
 
-          {/* TIERS DE APOYO */}
           {!showThanks ? (
             <>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                Elige cómo apoyar
-              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Elige cómo apoyar</h3>
               <div className="space-y-2 mb-6">
                 {tiers.map((tier) => (
                   <button
                     key={tier.amount}
                     onClick={() => handleSupport(tier.amount)}
-                    className={
-                      "w-full p-4 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] " +
-                      `bg-gradient-to-br ${tier.color} border-transparent text-white shadow-md hover:shadow-xl`
-                    }
+                    className={"w-full p-4 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] " + `bg-gradient-to-br ${tier.color} border-transparent text-white shadow-md hover:shadow-xl`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1583,42 +2281,26 @@ function SupportModal({ onClose }: { onClose: () => void }) {
               <div className="text-5xl mb-3">🙏</div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">¡Gracias por tu apoyo!</h3>
               <p className="text-sm text-slate-600 mb-5">
-                Tu aporte de <span className="font-bold text-rose-600">${selectedTier} MXN</span> es
-                un empujón enorme. Ahora completemos el pago:
+                Tu aporte de <span className="font-bold text-rose-600">${selectedTier} MXN</span> es un empujón enorme. Ahora completemos el pago:
               </p>
               <div className="space-y-2">
-                <button
-                  onClick={openPayPal}
-                  className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white rounded-full h-11 font-semibold flex items-center justify-center gap-2 transition-colors"
-                >
+                <button onClick={openPayPal} className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white rounded-full h-11 font-semibold flex items-center justify-center gap-2 transition-colors">
                   💙 Pagar con PayPal
                 </button>
-                <button
-                  onClick={() => openWhatsApp(selectedTier ?? 0)}
-                  className="w-full bg-[#25d366] hover:bg-[#1ea952] text-white rounded-full h-11 font-semibold flex items-center justify-center gap-2 transition-colors"
-                >
+                <button onClick={() => openWhatsApp(selectedTier ?? 0)} className="w-full bg-[#25d366] hover:bg-[#1ea952] text-white rounded-full h-11 font-semibold flex items-center justify-center gap-2 transition-colors">
                   <MessageCircle className="w-4 h-4" /> Coordinar por WhatsApp
                 </button>
                 <button
                   onClick={() => {
                     const subject = encodeURIComponent("[CyberPiezas] Apoyo al proyecto");
-                    const body = encodeURIComponent(
-                      `Hola, quiero apoyar con $${selectedTier} MXN. ¿Como te hago llegar el monto?`,
-                    );
-                    window.location.href =
-                      "mailto:cyberpiezas207@gmail.com?subject=" + subject + "&body=" + body;
+                    const body = encodeURIComponent(`Hola, quiero apoyar con $${selectedTier} MXN. ¿Como te hago llegar el monto?`);
+                    window.location.href = "mailto:cyberpiezas207@gmail.com?subject=" + subject + "&body=" + body;
                   }}
                   className="w-full border border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-11 font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Mail className="w-4 h-4" /> Otro método (email)
                 </button>
-                <button
-                  onClick={() => {
-                    setShowThanks(false);
-                    setSelectedTier(null);
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-700 mt-3"
-                >
+                <button onClick={() => { setShowThanks(false); setSelectedTier(null); }} className="text-xs text-slate-500 hover:text-slate-700 mt-3">
                   ← Elegir otro monto
                 </button>
               </div>
@@ -1633,6 +2315,10 @@ function SupportModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+// ============================================================================
+// COLLAB MODAL
+// ============================================================================
 
 function CollabModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
@@ -1703,39 +2389,47 @@ function CollabModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ============================================================================
+// STORY — Mejorada: capítulos editoriales con mejor ritmo y aterrizaje final
+// ============================================================================
+
 function Story() {
   return (
     <section id="historia" className="bg-white py-16 sm:py-28 lg:py-40 relative overflow-hidden">
-      {/* Orbes sutiles */}
+      {/* Orbes */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-emerald-100/30 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-100/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-amber-100/20 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-4xl mx-auto px-6 lg:px-8">
-        {/* La pregunta */}
+        {/* Eyebrow + headline editorial */}
         <div className="text-center mb-16 sm:mb-28 lg:mb-36">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-[0.25em] sm:tracking-[0.3em] mb-6 sm:mb-8">
-            <span className="text-slate-300">06</span>
+            <span className="text-slate-300">10</span>
             <span className="w-6 h-px bg-slate-300" />
             <span>Historia</span>
           </div>
           <h2 className="text-3xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-slate-900 leading-[1.0] sm:leading-[0.9]">
-            ¿Por que existe
+            ¿Por qué existe
             <br />
-            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent italic font-medium">
               CyberPiezas?
             </span>
           </h2>
+          <p className="mt-7 sm:mt-10 text-base sm:text-xl text-slate-500 max-w-xl mx-auto font-light leading-relaxed">
+            No empezó como ecosistema. Empezó como una hija ayudando a su mamá.
+          </p>
         </div>
 
-        {/* Capitulos minimalistas con mas aire */}
-        <div className="space-y-16 sm:space-y-28 lg:space-y-40">
-          {/* Capítulo 1: El origen */}
+        {/* Capítulos */}
+        <div className="space-y-16 sm:space-y-28 lg:space-y-36">
+          {/* Capítulo 1 */}
           <div className="text-center">
             <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">01 · El origen</p>
             <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
-              Empezo en{" "}
+              Empezó en{" "}
               <span className="text-slate-400">Facebook Marketplace</span>.
               <br className="hidden sm:block" />
               <span className="sm:hidden"> </span>Comprando computadoras viejas, armando piezas,{" "}
@@ -1745,28 +2439,28 @@ function Story() {
             </p>
           </div>
 
-          {/* Capítulo 2: La motivación real */}
+          {/* Capítulo 2 - La mamá */}
           <div className="text-center">
-            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">02 · La motivacion</p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">02 · La motivación real</p>
             <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
-              Pero lo que cambio todo fue mi mama.
+              Pero lo que cambió todo fue mi mamá.
             </p>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
-              Su tienda de abarrotes. Le faltaba producto. Le robaban. No sabia los precios.
+              Su tienda de abarrotes. Le faltaba producto. Le robaban. No sabía los precios.
               Llegaba a casa frustrada, cansada.
             </p>
-            <p className="mt-5 sm:mt-6 text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 leading-tight max-w-2xl mx-auto">
+            <p className="mt-6 sm:mt-8 text-xl sm:text-2xl lg:text-3xl font-medium text-slate-900 leading-tight max-w-2xl mx-auto">
               <span className="bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">
                 Quise ayudarla.
               </span>
             </p>
           </div>
 
-          {/* Capítulo 3: La mision */}
+          {/* Capítulo 3 - La misión */}
           <div className="text-center">
-            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">03 · La mision</p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">03 · La misión</p>
             <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
-              Si funciono para ella,
+              Si funcionó para ella,
               <br />
               <span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
                 puede funcionar para miles.
@@ -1778,21 +2472,41 @@ function Story() {
             </p>
           </div>
 
-          {/* Capítulo 4: El compromiso */}
+          {/* Capítulo 4 - El compromiso */}
           <div className="text-center">
             <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">04 · El compromiso</p>
             <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
-              He sido estafado mas veces de las que puedo contar.
+              He sido estafado más veces de las que puedo contar.
               <br />
               <br />
               <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                Aqui no.
+                Aquí no.
               </span>
             </p>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
               Trato justo. Sin letras chiquitas. Sin sorpresas.
               <br />
-              Si tu negocio crece, el mio tambien.
+              Si tu negocio crece, el mío también.
+            </p>
+          </div>
+
+          {/* Capítulo 5 - NUEVO: Donde estamos ahora */}
+          <div className="text-center">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 sm:mb-5">05 · Hoy</p>
+            <p className="text-xl sm:text-3xl lg:text-4xl font-medium text-slate-900 leading-[1.25] sm:leading-[1.15] tracking-tight max-w-3xl mx-auto">
+              Lo que empezó como una herramienta para mi mamá
+              <br />
+              <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-purple-500 bg-clip-text text-transparent italic">
+                se volvió algo más grande.
+              </span>
+            </p>
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl mx-auto px-2">
+              Una red de confianza local. Donde personas, negocios y comunidades de Morelos
+              pueden encontrarse, conocerse y cuidarse entre sí —
+              sin contratos, sin algoritmos opacos, sin venta de datos.
+            </p>
+            <p className="mt-7 sm:mt-9 text-lg sm:text-2xl font-medium text-slate-700 leading-tight max-w-xl mx-auto">
+              Eso es CyberPiezas.
             </p>
           </div>
         </div>
@@ -1802,11 +2516,11 @@ function Story() {
           <div className="inline-block max-w-2xl px-3 sm:px-0">
             <div className="w-px h-12 sm:h-16 bg-slate-300 mx-auto mb-7 sm:mb-10" />
             <p className="text-lg sm:text-2xl lg:text-3xl font-light text-slate-700 italic leading-relaxed tracking-tight">
-              "Construyo la herramienta que mi mama hubiera querido tener desde el principio."
+              "Construyo la herramienta que mi mamá hubiera querido tener desde el principio."
             </p>
             <div className="mt-8 flex flex-col items-center gap-1">
               <p className="text-sm font-bold text-slate-900 tracking-tight">
-                David Antonio Farfan
+                David Antonio Farfán
               </p>
               <p className="text-xs text-slate-400 uppercase tracking-[0.25em]">
                 Fundador · CyberPiezas
