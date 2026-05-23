@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Bell,
   CheckCheck,
@@ -43,9 +44,67 @@ function formatTimeAgo(date: Date | string) {
   return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
+// =============================================================================
+// ROUTING DE NOTIFICACIONES
+// -----------------------------------------------------------------------------
+// Cada tipo de notificacion lleva al usuario a la pantalla mas relevante.
+//
+// Tipos actuales en backend (createNotification):
+//  - sale                  Nueva venta (operacional)
+//  - low_stock             Producto con stock bajo (operacional)
+//  - payment_received      Cliente: tu pago fue aprobado/recibido
+//  - subscription_change   Cliente: tu suscripcion fue activada/renovada
+//  - payment_pending       Admin: hay un pago nuevo por revisar
+//  - new_subscriber        Admin: nuevo cliente se suscribio
+//  - system                Genericas / sin contexto especifico
+//
+// Comportamiento:
+// - Notificaciones de cliente (suscripcion, pago propio) -> /mis-suscripciones
+// - Notificaciones de admin (pago pendiente) -> /admin-cyberpiezas tab pagos
+// - Notificaciones operativas (sale, low_stock) -> dashboard del POS si se
+//   conoce, sino fallback al centro de sistemas.
+// - Si type no esta mapeado, fallback al centro de sistemas (/sistemas).
+//
+// Si en el futuro las notificaciones traen un campo relatedUrl o relatedPosCode
+// se puede mejorar la ruta. Por ahora derivamos del type + role.
+// =============================================================================
+function getNotificationUrl(
+  notificationType: string,
+  userRole: string | undefined,
+): string {
+  const isAdmin = userRole === "admin";
+  switch (notificationType) {
+    // -- Para clientes: cambios en su suscripcion --
+    case "subscription_change":
+      return "/mis-suscripciones";
+    case "payment_received":
+      return "/mis-suscripciones";
+    case "payment_rejected":
+      return "/mis-suscripciones";
+
+    // -- Para admin: pagos por revisar / clientes nuevos --
+    case "payment_pending":
+      return isAdmin ? "/admin-cyberpiezas" : "/mis-suscripciones";
+    case "new_subscriber":
+      return isAdmin ? "/admin-cyberpiezas" : "/sistemas";
+
+    // -- Operativas (asumen Boutique por ahora; mejorar cuando notif traiga posCode) --
+    case "sale":
+      return "/sales";
+    case "low_stock":
+      return "/inventory-reports";
+
+    // -- Generica o desconocida --
+    case "system":
+    default:
+      return "/sistemas";
+  }
+}
+
 // NAMED EXPORT (con "export" sin "default")
 export function NotificationBell() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const lastNotifIdRef = useRef<number | null>(null);
@@ -118,23 +177,9 @@ export function NotificationBell() {
 
   const handleNotifClick = (n: any) => {
     if (!n.isRead) markRead.mutate({ id: n.id });
-    let targetUrl: string | null = null;
-    switch (n.type) {
-      case "sale":
-      case "low_stock":
-        targetUrl = "/dashboard";
-        break;
-      case "payment_received":
-      case "subscription_change":
-        targetUrl = "/sistemas";
-        break;
-      default:
-        targetUrl = null;
-    }
-    if (targetUrl) {
-      setLocation(targetUrl);
-      setOpen(false);
-    }
+    const targetUrl = getNotificationUrl(n.type, user?.role ?? undefined);
+    setLocation(targetUrl);
+    setOpen(false);
   };
 
   return (
