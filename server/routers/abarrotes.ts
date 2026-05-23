@@ -454,10 +454,319 @@ const accessRouter = router({
 });
 
 // =============================================================================
+// SUB-ROUTER: SALES (Ventas con lifecycle)
+// -----------------------------------------------------------------------------
+// Endpoints:
+//   - create       Crear venta nueva con posCode='abarrotes' + createdByUserId
+//   - cancel       Cambiar status a 'cancelled' (solo desde 'active')
+//   - refund       Cambiar status a 'refunded' (solo desde 'active', con razon)
+//   - getById      Detalle de 1 venta (validando tenant + scope)
+//   - listHistory  Listar ventas del POS, con filtros opcionales
+//
+// PERMISOS por endpoint:
+//   create       -> sales.create
+//   cancel       -> sales.cancel
+//   refund       -> sales.refund
+//   getById      -> sales.view_history
+//   listHistory  -> sales.view_history
+//
+// REGLA DE TENANT:
+//   - userId del row = actor.ownerUserId (owner real, NO el staff)
+//   - createdByUserId del row = actor.actorUserId (quien creo la venta)
+//   - Si admin global crea sin staff context: createdByUserId = ctx.user.id
+//
+// CASHIER puede ver SOLO sus propias ventas (filtro automatico).
+// OWNER y MANAGER ven todas las ventas del POS.
+// =============================================================================
+
+const salesRouter = router({
+  /**
+   * Crea una venta nueva en Abarrotes.
+   *
+   * - userId del row = actor.ownerUserId (owner real, donde se contabiliza)
+   * - createdByUserId del row = actor.actorUserId (quien la creo realmente)
+   * - posCode = 'abarrotes' (estrictamente)
+   * - status = 'active' (default del schema)
+   *
+   * Genera saleNumber automatico via db.generateSaleNumber().
+   */
+  create: protectedProcedure
+    .input(
+      z.object({
+        subtotal: z.string().min(1),
+        discount: z.string().min(1).default("0"),
+        tax: z.string().min(1).default("0"),
+        total: z.string().min(1),
+        paymentMethod: z.enum(["cash", "card", "transfer"]),
+        notes: z.string().max(2000).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.create",
+      });
+
+      const saleNumber = await db.generateSaleNumber();
+
+      const saleId = await db.createSale(
+        {
+          saleNumber,
+          userId: actor.ownerUserId,
+          subtotal: input.subtotal,
+          discount: input.discount,
+          tax: input.tax,
+          total: input.total,
+          paymentMethod: input.paymentMethod,
+          notes: input.notes,
+        },
+        {
+          posCode: POS_CODE,
+          createdByUserId: actor.actorUserId,
+        },
+      );
+
+      return { id: saleId, saleNumber };
+    }),
+
+  /**
+   * Detalle de 1 venta de Abarrotes.
+   * Cashier solo puede ver sus propias ventas (filtro automatico).
+   * Owner/manager pueden ver cualquier venta del POS.
+   */
+  getById: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.view_history",
+      });
+
+      const sale = await db.getAbarrotesSaleById(input.id, actor.ownerUserId, {
+        posCode: POS_CODE,
+      });
+
+      if (!sale) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Venta no encontrada en este POS.",
+        });
+      }
+
+      // Si es cashier (no manager/owner/admin), validar que es su propia venta
+      const isCashierLevel =
+        actor.isStaff && actor.rolePreset === "cashier";
+
+      if (isCashierLevel && sale.createdByUserId !== actor.actorUserId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Solo puedes ver las ventas que tu creaste.",
+        });
+      }
+
+      return sale;
+    }),
+
+  /**
+   * Lista ventas de Abarrotes con filtros opcionales.
+   * - Cashier: solo ve SUS ventas (filtro forzado por createdByUserId)
+   * - Manager/Owner/Admin: ve todas las ventas del POS
+   */
+  listHistory: protectedProcedure
+    .input(
+      z
+        .object({
+          status: z.enum(["active", "cancelled", "refunded"]).optional(),
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+          limit: z.number().int().positive().max(500).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.view_history",
+      });
+
+      // Si es cashier, forzar filtro por sus propias ventas
+      const isCashierLevel =
+        actor.isStaff && actor.rolePreset === "cashier";
+
+      return db.listAbarrotesSales({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        status: input?.status,
+        createdByUserId: isCashierLevel ? actor.actorUserId : undefined,
+        startDate: input?.startDate,
+        endDate: input?.endDate,
+        limit: input?.limit,
+      });
+    }),
+
+  /**
+   * Cancela una venta activa.
+   * Solo ventas con status='active' pueden cancelarse.
+   *
+   * Cashier puede cancelar SOLO sus propias ventas (si tiene sales.cancel).
+   * Manager/Owner/Admin pueden cancelar cualquier venta del POS.
+   */
+  cancel: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.cancel",
+      });
+
+      // Validar venta existe + tenant + scope
+      const sale = await db.getAbarrotesSaleById(input.id, actor.ownerUserId, {
+        posCode: POS_CODE,
+      });
+
+      if (!sale) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Venta no encontrada en este POS.",
+        });
+      }
+
+      // Cashier solo puede cancelar las suyas
+      const isCashierLevel =
+        actor.isStaff && actor.rolePreset === "cashier";
+      if (isCashierLevel && sale.createdByUserId !== actor.actorUserId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Solo puedes cancelar las ventas que tu creaste.",
+        });
+      }
+
+      // Validar estado
+      if (sale.status !== "active") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            sale.status === "cancelled"
+              ? "Esta venta ya fue cancelada."
+              : "Esta venta ya fue devuelta y no se puede cancelar.",
+        });
+      }
+
+      const ok = await db.cancelSale({
+        saleId: input.id,
+        ownerUserId: actor.ownerUserId,
+        cancelledByUserId: actor.actorUserId,
+        posCode: POS_CODE,
+      });
+
+      if (!ok) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "No se pudo cancelar la venta. Intenta de nuevo.",
+        });
+      }
+
+      return { success: true, saleId: input.id, status: "cancelled" as const };
+    }),
+
+  /**
+   * Marca una venta como devuelta (refunded), con razon obligatoria.
+   * Solo ventas con status='active' pueden refundearse.
+   *
+   * NOTA: este endpoint NO mueve inventario. El restock se maneja
+   * via saleReturns en un flujo separado (futuro).
+   *
+   * Cashier puede refundear SOLO sus propias ventas (si tiene sales.refund).
+   * Manager/Owner/Admin pueden refundear cualquier venta del POS.
+   */
+  refund: protectedProcedure
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        reason: z.string().min(3).max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.refund",
+      });
+
+      const sale = await db.getAbarrotesSaleById(input.id, actor.ownerUserId, {
+        posCode: POS_CODE,
+      });
+
+      if (!sale) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Venta no encontrada en este POS.",
+        });
+      }
+
+      const isCashierLevel =
+        actor.isStaff && actor.rolePreset === "cashier";
+      if (isCashierLevel && sale.createdByUserId !== actor.actorUserId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Solo puedes hacer devoluciones de las ventas que tu creaste.",
+        });
+      }
+
+      if (sale.status !== "active") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            sale.status === "refunded"
+              ? "Esta venta ya tiene una devolucion registrada."
+              : "Esta venta esta cancelada y no se puede devolver.",
+        });
+      }
+
+      const ok = await db.refundSale({
+        saleId: input.id,
+        ownerUserId: actor.ownerUserId,
+        refundedByUserId: actor.actorUserId,
+        refundReason: input.reason,
+        posCode: POS_CODE,
+      });
+
+      if (!ok) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "No se pudo registrar la devolucion. Intenta de nuevo.",
+        });
+      }
+
+      return { success: true, saleId: input.id, status: "refunded" as const };
+    }),
+});
+
+// =============================================================================
 // ROUTER PRINCIPAL DE ABARROTES
 // =============================================================================
 
 export const abarrotesRouter = router({
   access: accessRouter,
   products: productsRouter,
+  sales: salesRouter,
 });
