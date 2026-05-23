@@ -1,4 +1,30 @@
-import { useState } from "react";
+// ============================================================================
+// AdminPendingPaymentsTab
+// ----------------------------------------------------------------------------
+// Tab "Pagos pendientes" del Admin Hub /admin-cyberpiezas.
+//
+// FILOSOFIA: "Quick action" panel.
+// Es un atajo rapido para procesar pagos pending desde el hub principal.
+// Para casos complejos (filtros, exports, historial), redirige al panel
+// completo en /admin-pagos.
+//
+// RESPONSABILIDAD:
+// - Listar solicitudes con status="pending"
+// - Permitir ver el comprobante (abre proofUrl en pestana nueva)
+// - Aprobar con preview (Crear nueva / Renovar / Reactivar)
+// - Rechazar con motivo obligatorio
+// - Sin filtros, sin exports, sin historial (eso vive en /admin-pagos)
+//
+// ENDPOINTS USADOS:
+// - pagos.admin.listAll({ status: "pending" })   query
+// - pagos.admin.previewApproval                   query (al abrir modal aprobar)
+// - pagos.admin.approve                           mutation
+// - pagos.admin.reject                            mutation
+//
+// PARTE DE V2 Admin Hub - Fase 1, Commit 3.
+// ============================================================================
+
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -19,6 +45,9 @@ import {
   RotateCcw,
   FilePlus,
   ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { PROGRAMS } from "@/lib/adminPosCatalog";
 
@@ -300,12 +329,17 @@ export default function AdminPendingPaymentsTab() {
         </div>
       )}
 
-      {/* Modal de aprobar (con preview) */}
+      {/* Modal de aprobar (con preview + selector de POS) */}
       {approveModalRequestId !== null && (
         <ApprovePaymentDialog
           requestId={approveModalRequestId}
           isLoading={approveMutation.isPending}
-          onConfirm={() => approveMutation.mutate({ requestId: approveModalRequestId })}
+          onConfirm={(approvedPosCode) =>
+            approveMutation.mutate({
+              requestId: approveModalRequestId,
+              approvedPosCode,
+            })
+          }
           onClose={() => setApproveModalRequestId(null)}
         />
       )}
@@ -337,6 +371,26 @@ export default function AdminPendingPaymentsTab() {
 // MODAL: Aprobar pago (con preview de escenario)
 // ============================================================================
 
+type ApprovedPosCode =
+  | "boutique"
+  | "abarrotes"
+  | "veterinaria"
+  | "verduleria"
+  | "tarima"
+  | "taqueria"
+  | "papeleria";
+
+// POS seleccionables al aprobar. NO incluye "celine" porque es admin interno.
+const SELECTABLE_POS: ApprovedPosCode[] = [
+  "boutique",
+  "abarrotes",
+  "veterinaria",
+  "verduleria",
+  "tarima",
+  "taqueria",
+  "papeleria",
+];
+
 function ApprovePaymentDialog({
   requestId,
   isLoading,
@@ -345,12 +399,42 @@ function ApprovePaymentDialog({
 }: {
   requestId: number;
   isLoading: boolean;
-  onConfirm: () => void;
+  onConfirm: (approvedPosCode: ApprovedPosCode | undefined) => void;
   onClose: () => void;
 }) {
-  const previewQuery = trpc.pagos.admin.previewApproval.useQuery({ requestId });
+  // ADMIN HUB V2.1: el admin puede corregir el POS al aprobar.
+  // selectedPosCode arranca en null hasta que llegue el preview con el
+  // requestedPosCode original. Cuando llega, se inicializa con ese valor.
+  const [selectedPosCode, setSelectedPosCode] = useState<ApprovedPosCode | null>(null);
+  const [posPickerOpen, setPosPickerOpen] = useState(false);
+
+  // Query con approvedPosCode. Cuando selectedPosCode cambia, el preview se
+  // recalcula automaticamente para reflejar lo que pasara si aprueba con ese POS.
+  const previewQuery = trpc.pagos.admin.previewApproval.useQuery({
+    requestId,
+    approvedPosCode: selectedPosCode ?? undefined,
+  });
   const preview = previewQuery.data;
 
+  // Una vez tengamos preview por primera vez, inicializar selectedPosCode con
+  // el requestedPosCode (lo que el cliente eligio al subir comprobante).
+  // Solo se ejecuta una vez (cuando selectedPosCode es null) para evitar
+  // sobreescribir el valor cuando el admin cambia el dropdown.
+  useEffect(() => {
+    if (selectedPosCode === null && preview?.requestedPosCode) {
+      setSelectedPosCode(preview.requestedPosCode as ApprovedPosCode);
+    }
+  }, [preview?.requestedPosCode, selectedPosCode]);
+
+  // Variables derivadas de preview
+  const requestedPosCode = (preview?.requestedPosCode ?? null) as ApprovedPosCode | null;
+  const posCodeCorrected = !!preview?.posCodeCorrected;
+
+  // Datos visuales del POS solicitado y el seleccionado actualmente
+  const requestedPosInfo = requestedPosCode ? getPosInfo(requestedPosCode) : null;
+  const selectedPosInfo = selectedPosCode ? getPosInfo(selectedPosCode) : null;
+
+  // Mapeo de escenario a estilos visuales
   let scenarioIcon = <FilePlus className="w-5 h-5 text-emerald-600" />;
   let scenarioLabel = "Crear nueva";
   let scenarioColor = "bg-emerald-100 text-emerald-700 border-emerald-300";
@@ -365,10 +449,16 @@ function ApprovePaymentDialog({
     scenarioColor = "bg-purple-100 text-purple-700 border-purple-300";
   }
 
+  // Texto del boton final dinamico
+  const approveBtnLabel = selectedPosInfo
+    ? "Aprobar " + selectedPosInfo.name.toUpperCase()
+    : "Aprobar";
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-        <div className="bg-gradient-to-br from-emerald-600 to-teal-600 px-6 py-5 relative">
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-emerald-600 to-teal-600 px-6 py-5 relative flex-shrink-0">
           <button
             onClick={onClose}
             disabled={isLoading}
@@ -389,7 +479,8 @@ function ApprovePaymentDialog({
           </div>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        {/* Cuerpo (scrollable si crece) */}
+        <div className="px-6 py-5 space-y-4 overflow-y-auto">
           {previewQuery.isLoading ? (
             <div className="text-center py-6 text-slate-500">
               <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
@@ -400,8 +491,118 @@ function ApprovePaymentDialog({
               <AlertTriangle className="w-4 h-4 inline mr-1" />
               {previewQuery.error.message || "No se pudo calcular preview"}
             </div>
-          ) : preview ? (
+          ) : preview && requestedPosInfo && selectedPosInfo ? (
             <>
+              {/* CARD: Cliente solicito */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">
+                  Cliente solicito
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-2xl shadow-sm">
+                    {requestedPosInfo.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900">{requestedPosInfo.name}</p>
+                    <p className="text-xs text-slate-500">
+                      Plan {preview.planType === "monthly" ? "mensual" : "anual"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SELECTOR: dropdown colapsable de POS a aprobar */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setPosPickerOpen((v) => !v)}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl">{selectedPosInfo.icon}</span>
+                    <div className="text-left min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                        Vas a aprobar
+                      </p>
+                      <p className="font-bold text-slate-900 truncate">
+                        {selectedPosInfo.name}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 flex-shrink-0">
+                    Cambiar POS
+                    {posPickerOpen ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </div>
+                </button>
+
+                {posPickerOpen && (
+                  <div className="mt-2 border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                    {SELECTABLE_POS.map((code) => {
+                      const info = getPosInfo(code);
+                      const isSelected = code === selectedPosCode;
+                      const isOriginal = code === requestedPosCode;
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPosCode(code);
+                            setPosPickerOpen(false);
+                          }}
+                          disabled={isLoading}
+                          className={
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors disabled:opacity-50 " +
+                            (isSelected ? "bg-emerald-50" : "")
+                          }
+                        >
+                          <span className="text-xl">{info.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-slate-900 text-sm truncate">
+                              {info.name}
+                            </p>
+                            {isOriginal && (
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                                Solicitado por el cliente
+                              </p>
+                            )}
+                          </div>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* WARNING amarillo si admin cambio el POS */}
+              {posCodeCorrected && requestedPosInfo && selectedPosInfo && (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-amber-900 text-sm">
+                        POS diferente al solicitado
+                      </p>
+                      <p className="text-xs text-amber-800 mt-1">
+                        Cliente pidio <span className="font-bold">{requestedPosInfo.name}</span>.
+                        Vas a activar <span className="font-bold">{selectedPosInfo.name}</span>.
+                      </p>
+                      <p className="text-[10px] text-amber-700 mt-1.5 uppercase tracking-wider">
+                        Esta correccion quedara registrada
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CARD: Escenario (Crear nueva / Renovar / Reactivar) */}
               <div className={"rounded-xl border-2 p-3 " + scenarioColor}>
                 <div className="flex items-center gap-2 mb-1">
                   {scenarioIcon}
@@ -412,11 +613,8 @@ function ApprovePaymentDialog({
                 <p className="text-sm">{preview.message}</p>
               </div>
 
+              {/* CARD: Detalles del periodo */}
               <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">POS</span>
-                  <span className="font-semibold text-slate-900">{preview.posCode}</span>
-                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Plan</span>
                   <span className="font-semibold text-slate-900">
@@ -442,7 +640,8 @@ function ApprovePaymentDialog({
           ) : null}
         </div>
 
-        <div className="border-t border-slate-200 px-6 py-4 bg-white flex gap-2">
+        {/* Footer: botones (sticky abajo) */}
+        <div className="border-t border-slate-200 px-6 py-4 bg-white flex gap-2 flex-shrink-0">
           <Button
             variant="outline"
             onClick={onClose}
@@ -452,8 +651,13 @@ function ApprovePaymentDialog({
             Cancelar
           </Button>
           <Button
-            onClick={onConfirm}
-            disabled={isLoading || previewQuery.isLoading || !!previewQuery.error}
+            onClick={() => onConfirm(selectedPosCode ?? undefined)}
+            disabled={
+              isLoading ||
+              previewQuery.isLoading ||
+              !!previewQuery.error ||
+              !selectedPosCode
+            }
             className="flex-1 rounded-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold disabled:opacity-50"
           >
             {isLoading ? (
@@ -464,7 +668,7 @@ function ApprovePaymentDialog({
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                Aprobar pago
+                {approveBtnLabel}
               </>
             )}
           </Button>
