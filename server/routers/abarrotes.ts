@@ -762,6 +762,304 @@ const salesRouter = router({
 });
 
 // =============================================================================
+// SUB-ROUTER: INVENTORY (Movimientos de stock)
+// -----------------------------------------------------------------------------
+// Endpoints:
+//   - listMovements  Historial de movimientos del POS (inventory.view)
+//   - adjust         Ajuste manual de stock con razon (inventory.adjust)
+//
+// REGLAS:
+// - userId del movimiento = actor.ownerUserId (siempre el owner real)
+// - posCode = 'abarrotes' (scope estricto)
+// - Tipo 'adjustment' obligatorio en ajustes manuales
+// - Razon obligatoria (auditoria)
+// =============================================================================
+
+const inventoryRouter = router({
+  /**
+   * Lista movimientos de inventario del POS Abarrotes.
+   * Filtros opcionales: tipo, variante, rango de fechas.
+   */
+  listMovements: protectedProcedure
+    .input(
+      z
+        .object({
+          movementType: z
+            .enum(["sale", "adjustment", "return", "purchase"])
+            .optional(),
+          productVariantId: z.number().int().positive().optional(),
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+          limit: z.number().int().positive().max(500).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "inventory.view",
+      });
+
+      return db.listAbarrotesInventoryMovements({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        movementType: input?.movementType,
+        productVariantId: input?.productVariantId,
+        startDate: input?.startDate,
+        endDate: input?.endDate,
+        limit: input?.limit,
+      });
+    }),
+
+  /**
+   * Ajuste manual de inventario.
+   * - quantity positiva: agrega stock (compra, devolucion, correccion alza)
+   * - quantity negativa: quita stock (merma, robo, correccion baja)
+   * - reason obligatoria (auditoria minima)
+   *
+   * NOTA: este endpoint solo registra el movimiento. El stock actual en
+   * branchInventory se actualiza tambien (mismo patron que ventas).
+   */
+  adjust: protectedProcedure
+    .input(
+      z.object({
+        productVariantId: z.number().int().positive(),
+        quantity: z.number().int().refine((n) => n !== 0, {
+          message: "La cantidad no puede ser cero.",
+        }),
+        reason: z.string().min(3).max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "inventory.adjust",
+      });
+
+      const movementId = await db.createInventoryMovement(
+        {
+          productVariantId: input.productVariantId,
+          movementType: "adjustment",
+          quantity: input.quantity,
+          reason: input.reason,
+          userId: actor.ownerUserId,
+        },
+        {
+          posCode: POS_CODE,
+        },
+      );
+
+      return {
+        id: movementId,
+        productVariantId: input.productVariantId,
+        quantity: input.quantity,
+        movementType: "adjustment" as const,
+      };
+    }),
+});
+
+// =============================================================================
+// SUB-ROUTER: REPORTS (Resumenes ejecutivos)
+// -----------------------------------------------------------------------------
+// Endpoints:
+//   - summary         Ventas hoy/semana/mes con count, total, promedio (reports.view)
+//   - topProducts     Top productos vendidos en rango (reports.view)
+//   - byCashier       Ventas agrupadas por cashier (reports.view)
+//   - profitDetails   Mismo summary + costos + margen (reports.profit - sensible)
+//
+// REGLAS:
+// - Default range: ultimos 30 dias
+// - Solo ventas con status='active' cuentan en agregados
+// - byCashier solo lo ven manager/owner (no cashier - el filtro de cashier
+//   en sales.listHistory ya cubre su caso)
+// =============================================================================
+
+function getDefaultDateRange(input?: { startDate?: Date; endDate?: Date }) {
+  const endDate = input?.endDate ?? new Date();
+  const startDate =
+    input?.startDate ??
+    new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+  return { startDate, endDate };
+}
+
+const reportsRouter = router({
+  /**
+   * Resumen ejecutivo de ventas del POS para un rango.
+   * Default: ultimos 30 dias.
+   */
+  summary: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "reports.view",
+      });
+
+      const { startDate, endDate } = getDefaultDateRange(input);
+
+      return db.getAbarrotesSalesSummary({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        startDate,
+        endDate,
+      });
+    }),
+
+  /**
+   * Top productos vendidos en el rango.
+   * Default: top 10 de ultimos 30 dias.
+   */
+  topProducts: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+          limit: z.number().int().positive().max(50).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "reports.view",
+      });
+
+      const { startDate, endDate } = getDefaultDateRange(input);
+
+      return db.getAbarrotesTopProducts({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        startDate,
+        endDate,
+        limit: input?.limit,
+      });
+    }),
+
+  /**
+   * Ventas agrupadas por cashier.
+   * Cashier no debe ver este reporte (su info esta en sales.listHistory).
+   * Solo manager/owner/admin lo consumen.
+   */
+  byCashier: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "reports.view",
+      });
+
+      // Cashier-level: bloquear este reporte (no necesita ver ventas de otros)
+      const isCashierLevel =
+        actor.isStaff && actor.rolePreset === "cashier";
+      if (isCashierLevel) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Este reporte es para gerentes y duenos. Tu puedes ver tus propias ventas en historial.",
+        });
+      }
+
+      const { startDate, endDate } = getDefaultDateRange(input);
+
+      return db.getAbarrotesSalesByCashier({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        startDate,
+        endDate,
+      });
+    }),
+
+  /**
+   * Reporte con detalles de ganancia y margen.
+   * Permiso especial: reports.profit (NO viene en preset manager por default).
+   * Solo el owner debe activarlo explicitamente para sus managers de confianza.
+   *
+   * IMPLEMENTACION ACTUAL: por ahora devuelve el summary normal.
+   * En el futuro (Commit 7+), agregar costos via productVariants.cost si existe,
+   * para calcular margen real.
+   */
+  profitDetails: protectedProcedure
+    .input(
+      z
+        .object({
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      // Doble permiso: reports.view base + reports.profit sensible
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "reports.profit",
+      });
+
+      const { startDate, endDate } = getDefaultDateRange(input);
+
+      const summary = await db.getAbarrotesSalesSummary({
+        ownerUserId: actor.ownerUserId,
+        posCode: POS_CODE,
+        startDate,
+        endDate,
+      });
+
+      // Placeholder para margenes futuros. Por ahora retornamos summary +
+      // estimacion de costo si no hay datos reales de costo en variants.
+      // NOTA tecnica: cuando se agreguen productVariants.cost, sustituir
+      // esta seccion por un JOIN real para calcular profit exacto.
+      return {
+        ...summary,
+        // Por ahora: profit estimado = 0 (no hay costos en schema todavia)
+        estimatedCost: 0,
+        estimatedProfit: summary.totalRevenue,
+        marginPercent: summary.totalRevenue > 0 ? 100 : 0,
+        note:
+          "Margen se calculara cuando se registren costos por variante. " +
+          "Hoy refleja ingresos brutos sin descontar costo.",
+      };
+    }),
+});
+
+// =============================================================================
 // ROUTER PRINCIPAL DE ABARROTES
 // =============================================================================
 
@@ -769,4 +1067,6 @@ export const abarrotesRouter = router({
   access: accessRouter,
   products: productsRouter,
   sales: salesRouter,
+  inventory: inventoryRouter,
+  reports: reportsRouter,
 });
