@@ -103,6 +103,10 @@ const menuItems: MenuItem[] = [
 
   // ── Verduleria ─────────────────────────────────────────────
   { icon: ShoppingCart, label: "Punto de Venta", path: "/verduleria", section: "principal", program: "verduleria" },
+
+  // ── Abarrotes ──────────────────────────────────────────────
+  { icon: ShoppingCart, label: "Punto de Venta", path: "/abarrotes-pos", section: "principal", program: "abarrotes" },
+  { icon: Boxes, label: "Productos", path: "/abarrotes-products", section: "operacion", program: "abarrotes" },
   { icon: Package, label: "Productos", path: "/verduleria/productos", section: "operacion", program: "verduleria" },
   { icon: ReceiptText, label: "Ventas", path: "/verduleria/ventas", section: "operacion", program: "verduleria" },
   { icon: Settings2, label: "Configuracion", path: "/verduleria/configuracion", section: "administracion", program: "verduleria" },
@@ -312,6 +316,9 @@ function DashboardLayoutContent({
   const isVerduleriaZone = location.startsWith("/verduleria");
 const isTarimaZone = location.startsWith("/mi-tarima");
 
+  // Detectar si estamos en Abarrotes (cualquier sub-ruta)
+  const isAbarrotesZone = location.startsWith("/abarrotes");
+
   const baseBranding = brandingQuery.data ?? {
     appTitle: "Boutique POS",
     appSubtitle: "Centro de operación",
@@ -344,6 +351,13 @@ const isTarimaZone = location.startsWith("/mi-tarima");
     ? {
         appTitle: "🎤 Mi Tarima",
         appSubtitle: "Plataforma para artistas",
+        bannerImageUrl: baseBranding.bannerImageUrl,
+        bannerAltText: baseBranding.bannerAltText,
+      }
+    : isAbarrotesZone
+    ? {
+        appTitle: "🛒 Abarrotes",
+        appSubtitle: "Punto de venta para tienda",
         bannerImageUrl: baseBranding.bannerImageUrl,
         bannerAltText: baseBranding.bannerAltText,
       }
@@ -396,6 +410,15 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       });
     }
 
+    // En zona Abarrotes: mostrar SOLO items de abarrotes + Centro
+    if (isAbarrotesZone) {
+      return allItems.filter((item) => {
+        if (item.path === "/cyberpiezas") return true;
+        if (item.path?.startsWith("/abarrotes")) return true;
+        return false;
+      });
+    }
+
     // Default (zona Boutique): ocultar items que pertenecen a otras zonas
     return allItems.filter((item) => {
       // Ocultar items de Veterinaria cuando NO estamos en su zona
@@ -405,9 +428,11 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       if (item.path?.startsWith("/verduleria")) return false;
       // Ocultar items de Tarima cuando NO estamos en su zona
       if (item.path?.startsWith("/mi-tarima")) return false;
+      // Ocultar items de Abarrotes cuando NO estamos en su zona
+      if (item.path?.startsWith("/abarrotes")) return false;
       return true;
     });
-  }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone, isTarimaZone]);
+  }, [user, isCyberpiezasZone, isVeterinariaZone, isVerduleriaZone, isTarimaZone, isAbarrotesZone]);
 
   const visibleMenuGroups = useMemo(() => {
     return visibleSections
