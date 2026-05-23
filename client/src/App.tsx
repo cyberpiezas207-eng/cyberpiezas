@@ -150,55 +150,55 @@ function Router() {
       <Route path="/login" component={Home} />
 
       <Route path="/dashboard">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>
       </Route>
 
       <Route path="/products">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <ProductsManagement />
         </ProtectedRoute>
       </Route>
 
       <Route path="/variants">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <VariantsManagement />
         </ProtectedRoute>
       </Route>
 
       <Route path="/categories">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <CategoriesManagement />
         </ProtectedRoute>
       </Route>
 
       <Route path="/inventory-reports">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <InventoryReports />
         </ProtectedRoute>
       </Route>
 
       <Route path="/branches">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <BranchesManagement />
         </ProtectedRoute>
       </Route>
 
       <Route path="/sales">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <SalesHistory />
         </ProtectedRoute>
       </Route>
 
       <Route path="/pos">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <POS />
         </ProtectedRoute>
       </Route>
 
       <Route path="/pos-settings">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <POSHardwareSettings />
         </ProtectedRoute>
       </Route>
@@ -352,7 +352,7 @@ function Router() {
       </Route>
 
       <Route path="/settings/pos-hardware">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <POSHardwareSettings />
         </ProtectedRoute>
       </Route>
@@ -364,7 +364,7 @@ function Router() {
       </Route>
 
       <Route path="/cajeros-usuarios">
-        <ProtectedRoute requiredProgram="boutique">
+        <ProtectedRoute>
           <CajerosYUsuarios />
         </ProtectedRoute>
       </Route>
