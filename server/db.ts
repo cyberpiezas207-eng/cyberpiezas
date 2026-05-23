@@ -1249,20 +1249,231 @@ export async function getVariantsWithLowStock(minimumThreshold: number = 5) {
 
 // ============ SALES ============
 
-export async function createSale(data: {
-  saleNumber: string;
-  userId: number;
-  subtotal: string;
-  discount: string;
-  tax: string;
-  total: string;
-  paymentMethod: "cash" | "card" | "transfer";
-  notes?: string;
-}) {
+/**
+ * Crea una venta nueva.
+ *
+ * Opciones POS Scope (Opcion A - backward compatible):
+ *   - posCode: marca la venta para un POS especifico (default 'legacy')
+ *   - createdByUserId: staff que creo la venta (NULL si fue el owner directo)
+ *
+ * Sin opciones, comportamiento legacy: posCode='legacy', createdByUserId=NULL, status='active'.
+ */
+export async function createSale(
+  data: {
+    saleNumber: string;
+    userId: number;
+    subtotal: string;
+    discount: string;
+    tax: string;
+    total: string;
+    paymentMethod: "cash" | "card" | "transfer";
+    notes?: string;
+  },
+  options?: {
+    posCode?: string;
+    createdByUserId?: number | null;
+  },
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(sales).values(data).$returningId();
+
+  const insertValues: Record<string, unknown> = { ...data };
+  if (options?.posCode) {
+    insertValues.posCode = options.posCode;
+  }
+  if (options?.createdByUserId !== undefined) {
+    insertValues.createdByUserId = options.createdByUserId;
+  }
+  // status='active' viene del default de la columna
+
+  const result = await db.insert(sales).values(insertValues as InsertSale).$returningId();
   return result[0];
+}
+
+/**
+ * Devuelve una venta por id, validando tenant (ownerUserId) y posCode.
+ * Usado por endpoints scoped (abarrotes.sales.getById).
+ *
+ * Si el caller es el owner real, devuelve la venta.
+ * Si no matchea ownerUserId o posCode, devuelve null (404).
+ */
+export async function getAbarrotesSaleById(
+  saleId: number,
+  ownerUserId: number,
+  options?: { posCode?: string },
+) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const conditions = [
+    eq(sales.id, saleId),
+    eq(sales.userId, ownerUserId),
+  ];
+  if (options?.posCode) {
+    conditions.push(eq(sales.posCode, options.posCode));
+  }
+
+  const result = await db
+    .select()
+    .from(sales)
+    .where(and(...conditions))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+/**
+ * Cancela una venta. Cambia status a 'cancelled', marca cancelledAt y cancelledByUserId.
+ *
+ * Reglas:
+ * - Solo ventas con status='active' pueden ser canceladas
+ * - Si status='cancelled' o 'refunded', devuelve false (idempotente)
+ * - Valida tenant: ownerUserId + posCode opcional
+ *
+ * IMPORTANTE: este helper NO valida permisos. El caller (router) debe
+ * llamar assertPosPermission antes.
+ *
+ * Retorna true si la cancelacion ocurrio, false si la venta no se encontro o
+ * ya estaba en un estado no-active.
+ */
+export async function cancelSale(args: {
+  saleId: number;
+  ownerUserId: number;
+  cancelledByUserId: number;
+  posCode?: string;
+}): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Verificar que existe y esta active
+  const existing = await getAbarrotesSaleById(args.saleId, args.ownerUserId, {
+    posCode: args.posCode,
+  });
+  if (!existing) return false;
+  if (existing.status !== "active") return false;
+
+  const conditions = [
+    eq(sales.id, args.saleId),
+    eq(sales.userId, args.ownerUserId),
+    eq(sales.status, "active"),
+  ];
+  if (args.posCode) {
+    conditions.push(eq(sales.posCode, args.posCode));
+  }
+
+  await db
+    .update(sales)
+    .set({
+      status: "cancelled",
+      cancelledAt: new Date(),
+      cancelledByUserId: args.cancelledByUserId,
+    })
+    .where(and(...conditions));
+
+  return true;
+}
+
+/**
+ * Marca una venta como devuelta (refunded). Registra timestamp, quien la
+ * refundeo y la razon.
+ *
+ * Reglas:
+ * - Solo ventas con status='active' pueden refundearse
+ * - Si ya esta cancelled o refunded, devuelve false
+ * - refundReason es obligatorio (el router lo valida con Zod)
+ * - NO mueve inventario aqui (eso lo hace saleReturns)
+ *
+ * IMPORTANTE: este helper NO valida permisos. Caller debe llamar
+ * assertPosPermission antes.
+ */
+export async function refundSale(args: {
+  saleId: number;
+  ownerUserId: number;
+  refundedByUserId: number;
+  refundReason: string;
+  posCode?: string;
+}): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await getAbarrotesSaleById(args.saleId, args.ownerUserId, {
+    posCode: args.posCode,
+  });
+  if (!existing) return false;
+  if (existing.status !== "active") return false;
+
+  const conditions = [
+    eq(sales.id, args.saleId),
+    eq(sales.userId, args.ownerUserId),
+    eq(sales.status, "active"),
+  ];
+  if (args.posCode) {
+    conditions.push(eq(sales.posCode, args.posCode));
+  }
+
+  await db
+    .update(sales)
+    .set({
+      status: "refunded",
+      refundedAt: new Date(),
+      refundedByUserId: args.refundedByUserId,
+      refundReason: args.refundReason,
+    })
+    .where(and(...conditions));
+
+  return true;
+}
+
+/**
+ * Lista ventas de un POS especifico para el owner.
+ *
+ * Filtros opcionales:
+ *   - posCode: scope del POS (recomendado pasar siempre)
+ *   - status: filtrar por estado (active, cancelled, refunded)
+ *   - createdByUserId: filtrar por staff/owner que creo la venta
+ *   - startDate, endDate: rango de fechas
+ *   - limit: max resultados (default 100)
+ *
+ * Orden: createdAt desc (mas recientes primero).
+ *
+ * IMPORTANTE: este helper NO valida permisos. Caller decide si filtra
+ * por createdByUserId (cashier que solo ve sus propias ventas, owner ve todas).
+ */
+export async function listAbarrotesSales(args: {
+  ownerUserId: number;
+  posCode?: string;
+  status?: "active" | "cancelled" | "refunded";
+  createdByUserId?: number;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(sales.userId, args.ownerUserId)];
+  if (args.posCode) {
+    conditions.push(eq(sales.posCode, args.posCode));
+  }
+  if (args.status) {
+    conditions.push(eq(sales.status, args.status));
+  }
+  if (args.createdByUserId !== undefined) {
+    conditions.push(eq(sales.createdByUserId, args.createdByUserId));
+  }
+  if (args.startDate) {
+    conditions.push(gte(sales.createdAt, args.startDate));
+  }
+  if (args.endDate) {
+    conditions.push(lte(sales.createdAt, args.endDate));
+  }
+
+  return await db
+    .select()
+    .from(sales)
+    .where(and(...conditions))
+    .orderBy(desc(sales.createdAt))
+    .limit(args.limit ?? 100);
 }
 
 export async function getSaleById(id: number) {
