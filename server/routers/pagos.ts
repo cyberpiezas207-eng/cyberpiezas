@@ -311,6 +311,19 @@ export const pagosRouter = router({
       .input(
         z.object({
           requestId: z.number(),
+          // ADMIN HUB V2.1: admin puede corregir el POS si el cliente eligio
+          // mal en el formulario. Si no se pasa, default al posCode original.
+          approvedPosCode: z
+            .enum([
+              "boutique",
+              "abarrotes",
+              "veterinaria",
+              "verduleria",
+              "tarima",
+              "taqueria",
+              "papeleria",
+            ])
+            .optional(),
           adminNotes: z.string().optional(),
         }),
       )
@@ -331,13 +344,19 @@ export const pagosRouter = router({
         // SUBSCRIPTION CORE V1: extraer posCode del notes JSON ANTES de hacer
         // cualquier update, ya que ese campo vive dentro del JSON (no es columna).
         const existingData = parseNotesData(req.notes);
-        const posCode = existingData.posCode;
-        if (!posCode) {
+        const requestedPosCode = existingData.posCode;
+        if (!requestedPosCode) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Pago sin posCode en notes - no se puede activar",
           });
         }
+
+        // ADMIN HUB V2.1: el admin puede corregir el POS al aprobar.
+        // Si no se pasa approvedPosCode, default al posCode original.
+        // posCodeCorrected = el admin escogio un POS distinto al solicitado.
+        const approvedPosCode = input.approvedPosCode ?? requestedPosCode;
+        const posCodeCorrected = approvedPosCode !== requestedPosCode;
 
         // Crear o renovar la suscripcion via Subscription Core V1.
         // Aqui se aplica la regla 9: si la sub previa esta vigente, la nueva
@@ -348,7 +367,7 @@ export const pagosRouter = router({
 
         const { subscription, wasRenewal } = await db.createOrRenewSubscription({
           userId: req.userId,
-          posCode,
+          posCode: approvedPosCode,
           planType,
           paymentRequestId: req.id,
           sourceType: "payment",
@@ -361,6 +380,11 @@ export const pagosRouter = router({
             originalPaymentMethod: existingData.paymentMethod ?? "transferencia",
             approvedByAdminId: ctx.user.id,
             approvedAtIso: new Date().toISOString(),
+            // Trazabilidad de correccion de POS al aprobar
+            requestedPosCode,
+            approvedPosCode,
+            posCodeCorrected,
+            correctedByUserId: posCodeCorrected ? ctx.user.id : null,
           },
         });
 
@@ -368,9 +392,15 @@ export const pagosRouter = router({
         const endDate = subscription.currentPeriodEnd;
 
         // Merge adminNotes en el notes JSON de la solicitud de pago
+        // ADMIN HUB V2.1: guardamos trazabilidad de correccion de POS en
+        // el ledger de pagos tambien (notes), para auditoria futura.
         const newNotesPayload = JSON.stringify({
           ...existingData,
           adminNotes: input.adminNotes ?? "",
+          requestedPosCode,
+          approvedPosCode,
+          posCodeCorrected,
+          correctedByUserId: posCodeCorrected ? ctx.user.id : null,
         });
 
         // Marcar la solicitud de pago como aprobada (bitacora inmutable).
@@ -389,7 +419,7 @@ export const pagosRouter = router({
           })
           .where(eq(transferPaymentRequests.id, input.requestId));
 
-        const posName = POS_PRICES[posCode]?.name ?? posCode;
+        const posName = POS_PRICES[approvedPosCode]?.name ?? approvedPosCode;
         try {
           await createNotification({
             userId: req.userId,
@@ -412,7 +442,25 @@ export const pagosRouter = router({
     // ANTES de hacer click en aprobar.
     // ========================================================================
     previewApproval: protectedProcedure
-      .input(z.object({ requestId: z.number().int().positive() }))
+      .input(
+        z.object({
+          requestId: z.number().int().positive(),
+          // ADMIN HUB V2.1: recalcular preview con un POS distinto al solicitado.
+          // Si el admin cambia el dropdown del modal, el preview se recalcula
+          // para reflejar lo que pasara realmente si aprueba con ese POS.
+          approvedPosCode: z
+            .enum([
+              "boutique",
+              "abarrotes",
+              "veterinaria",
+              "verduleria",
+              "tarima",
+              "taqueria",
+              "papeleria",
+            ])
+            .optional(),
+        }),
+      )
       .query(async ({ ctx, input }) => {
         await requireAdmin(ctx.user.id);
 
@@ -435,20 +483,25 @@ export const pagosRouter = router({
         }
 
         const existingData = parseNotesData(req.notes);
-        const posCode = existingData.posCode;
-        if (!posCode) {
+        const requestedPosCode = existingData.posCode;
+        if (!requestedPosCode) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Pago sin posCode en notes - no se puede calcular preview",
           });
         }
 
+        // ADMIN HUB V2.1: si el admin escogio un POS distinto, recalcular
+        // el preview con ese POS. Si no, usar el solicitado.
+        const effectivePosCode = input.approvedPosCode ?? requestedPosCode;
+        const posCodeCorrected = effectivePosCode !== requestedPosCode;
+
         const planType: "monthly" | "annual" =
           req.billingType === "monthly" ? "monthly" : "annual";
 
         const preview = await db.previewSubscriptionRenewal({
           userId: req.userId,
-          posCode,
+          posCode: effectivePosCode,
           planType,
         });
 
@@ -471,7 +524,13 @@ export const pagosRouter = router({
           scenario: preview.scenario,
           currentPeriodEnd: preview.currentPeriodEnd,
           futurePeriodEnd: preview.futurePeriodEnd,
-          posCode,
+          // Mantenemos posCode como el POS que SE VA A USAR (lo que el frontend
+          // viejo espera). Ademas exponemos requested/approved/corrected para
+          // que el nuevo modal pueda mostrar warnings de correccion.
+          posCode: effectivePosCode,
+          requestedPosCode,
+          approvedPosCode: effectivePosCode,
+          posCodeCorrected,
           planType,
           message,
         };
