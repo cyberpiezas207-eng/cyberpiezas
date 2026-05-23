@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useLocation } from "wouter";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   AlertCircle,
   AlertTriangle,
@@ -24,6 +24,7 @@ import {
   Minus,
   RefreshCw,
   Tag,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -131,9 +132,19 @@ function pctChange(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-function DashboardContent() {
+export default function Dashboard() {
+  // ========================================================================
+  // HOOKS - todos agrupados arriba para respetar Rules of Hooks de React
+  // ========================================================================
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [noMovementDays, setNoMovementDays] = useState(30);
+
+  // SUBSCRIPTION CORE V1: validar acceso via fuente canonica (subscriptions)
+  // con fallback a userProgramAccess legacy. Patron consistente con
+  // Veterinaria, Abarrotes y Verduleria.
+  const { data: access, isLoading: isLoadingAccess } =
+    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "boutique" });
 
   const todayStats = trpc.dashboard.todayStats.useQuery();
   const planUsage = trpc.dashboard.planUsage.useQuery();
@@ -148,6 +159,50 @@ function DashboardContent() {
   const productsWithoutMovement = trpc.dashboard.productsWithoutMovement.useQuery({ days: noMovementDays });
   const periodComparison = trpc.dashboard.periodComparison.useQuery();
   const returnsOfMonth = trpc.dashboard.returnsOfMonth.useQuery();
+
+  // ========================================================================
+  // GUARD DE ACCESO (despues de todos los hooks, antes de computed)
+  // ------------------------------------------------------------------------
+  // Antes el guard era externo (ProtectedRoute requiredProgram="boutique" en
+  // App.tsx) y bloqueaba con pantalla pelona sin sidebar.
+  //
+  // Ahora: el Dashboard valida internamente y si NO hay acceso, muestra
+  // AccessDeniedScreen embedded dentro del DashboardLayout. Patron unificado
+  // con Veterinaria, Abarrotes y Verduleria.
+  // ========================================================================
+  if (isLoadingAccess) {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+            <p className="text-sm text-slate-400">Validando tu suscripcion...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (access && !access.hasAccess) {
+    return (
+      <DashboardLayout>
+        <AccessDeniedScreen
+          posCode="boutique"
+          description="El sistema Boutique te da inventario por variantes (talla, color), control de cajeros, ventas con devoluciones y reportes ejecutivos."
+          benefits={[
+            "Inventario por variantes (talla, color)",
+            "Punto de venta con devoluciones",
+            "Control de cajeros y permisos",
+            "Reportes ejecutivos y graficas",
+            "$300 al mes o $3,000 al ano",
+          ]}
+          onViewPlans={() => navigate("/pricing?posCode=boutique")}
+          onBack={() => navigate("/sistemas")}
+          mode="embedded"
+        />
+      </DashboardLayout>
+    );
+  }
 
   const totalRevenue = Number.parseFloat(todayStats.data?.totalRevenue || "0");
   const totalSales = todayStats.data?.totalSales || 0;
@@ -705,55 +760,4 @@ function DashboardContent() {
       </div>
     </DashboardLayout>
   );
-}
-
-
-// ============================================================================
-// SUBSCRIPTION CORE V1 - Guard de acceso para Boutique
-// Patron wrapper: el componente original (DashboardContent) queda intacto
-// con todos sus hooks existentes incluyendo useAuth. Este wrapper hace la
-// validacion ANTES de cualquier render del POS.
-//
-// IMPORTANTE: Dashboard.tsx ya usaba useAuth para feature flags por rol,
-// pero eso NO era proteccion real de suscripcion. Ahora hasAccess es la
-// puerta principal y useAuth sigue funcionando dentro del Content.
-// ============================================================================
-
-export default function Dashboard() {
-  const [, navigateTo] = useLocation();
-  const { data: access, isLoading: accessLoading } =
-    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "boutique" });
-
-  // Mientras carga el estado de acceso: loading amigable
-  if (accessLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-slate-50">
-        <div className="w-12 h-12 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin mb-4" />
-        <p className="text-slate-500 text-sm font-medium">Verificando tu acceso...</p>
-      </div>
-    );
-  }
-
-  // Sin acceso activo: pantalla amigable con CTAs a planes
-  // V1.6 refactor: usa componente compartido AccessDeniedScreen
-  if (access && !access.hasAccess) {
-    return (
-      <AccessDeniedScreen
-        posCode="boutique"
-        description="Para usar Boutique necesitas estar suscrito. Olvidate de la libreta: inventario por talla y color, reportes diarios."
-        benefits={[
-          "Variantes por talla y color",
-          "Multiples sucursales",
-          "Reportes en tiempo real",
-          "$300/mes o $3,000/ano",
-        ]}
-        onViewPlans={() => navigateTo("/pricing?posCode=boutique")}
-        onBack={() => navigateTo("/sistemas")}
-        mode="standalone"
-      />
-    );
-  }
-
-  // Acceso confirmado: renderiza el Dashboard normal (componente original intacto)
-  return <DashboardContent />;
 }
