@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import { toast } from "sonner";
 import {
   Stethoscope,
@@ -40,6 +39,8 @@ import {
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
+import AccessDeniedScreen from "@/components/AccessDeniedScreen";
+import { Loader2 } from "lucide-react";
 
 type TabKey = "pos" | "pets" | "customers" | "appointments" | "products" | "services" | "settings";
 
@@ -72,10 +73,56 @@ function formatMoney(amount: string | number) {
   return "$" + n.toFixed(2);
 }
 
-function VeterinariaPOSContent() {
+export default function VeterinariaPOS() {
   const params = useParams() as { tab?: string };
+  const [, navigate] = useLocation();
   const activeTab = tabFromUrl(params?.tab);
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+
+  // ========================================================================
+  // SUBSCRIPTION CORE V1: Guard interno de acceso
+  // ------------------------------------------------------------------------
+  // Antes el guard era externo (ProtectedRoute en App.tsx) y bloqueaba con
+  // pantalla pelona sin layout. Ahora el POS valida internamente y muestra
+  // AccessDeniedScreen embedded dentro del DashboardLayout, con sidebar
+  // visible. Patron unificado con Verduleria y Boutique (Dashboard.tsx).
+  // ========================================================================
+  const { data: access, isLoading: isLoadingAccess } =
+    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "veterinaria" });
+
+  if (isLoadingAccess) {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            <p className="text-sm text-slate-400">Validando tu suscripcion...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (access && !access.hasAccess) {
+    return (
+      <DashboardLayout>
+        <AccessDeniedScreen
+          posCode="veterinaria"
+          description="El sistema de Veterinaria te da expediente clinico, vacunas, citas y un punto de venta especializado para tu clinica."
+          benefits={[
+            "Expediente clinico completo por mascota",
+            "Control de vacunas y proximas dosis",
+            "Agenda de citas y consultas",
+            "Punto de venta de productos y servicios",
+            "$300 al mes o $3,000 al ano",
+          ]}
+          onViewPlans={() => navigate("/pricing?posCode=veterinaria")}
+          onBack={() => navigate("/sistemas")}
+          mode="embedded"
+        />
+      </DashboardLayout>
+    );
+  }
 
   // Headers contextuales por pestaña
   const headers: Record<TabKey, { title: string; subtitle: string; icon: any }> = {
@@ -2711,58 +2758,4 @@ function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; o
       </div>
     </>
   );
-}
-
-
-// ============================================================================
-// SUBSCRIPTION CORE V1 - Guard de acceso para Veterinaria
-// Patron wrapper: el componente original (VeterinariaPOSContent) queda intacto
-// con sus 2713 lineas y todos sus hooks (useParams, queries, mutations).
-// Este wrapper hace la validacion ANTES de cualquier render del POS.
-//
-// IMPORTANTE: VeterinariaPOS.tsx esta marcado como REFACTOR URGENTE (5x el
-// limite de 500 lineas). El patron wrapper permite cerrar el agujero de
-// seguridad sin tocar la estructura interna del componente original.
-// El refactor de las 2713 lineas internas es una tarea aparte.
-//
-// Nota: useLocation ya estaba importado de wouter (linea 2), no se duplica.
-// ============================================================================
-
-export default function VeterinariaPOS() {
-  const [, navigateTo] = useLocation();
-  const { data: access, isLoading: accessLoading } =
-    trpc.pagos.subscriptions.hasAccess.useQuery({ posCode: "veterinaria" });
-
-  // Mientras carga el estado de acceso: loading amigable
-  if (accessLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-slate-50">
-        <div className="w-12 h-12 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-4" />
-        <p className="text-slate-500 text-sm font-medium">Verificando tu acceso...</p>
-      </div>
-    );
-  }
-
-  // Sin acceso activo: pantalla amigable con CTAs a planes
-  // V1.6 refactor: usa componente compartido AccessDeniedScreen
-  if (access && !access.hasAccess) {
-    return (
-      <AccessDeniedScreen
-        posCode="veterinaria"
-        description="Para usar Veterinaria necesitas estar suscrito. Expedientes, citas, vacunacion y ventas, todo en un solo lugar."
-        benefits={[
-          "Expedientes de mascotas y duenos",
-          "Citas con recordatorios automaticos",
-          "Vacunacion con alertas de refuerzo",
-          "$300/mes o $3,000/ano",
-        ]}
-        onViewPlans={() => navigateTo("/pricing?posCode=veterinaria")}
-        onBack={() => navigateTo("/sistemas")}
-        mode="standalone"
-      />
-    );
-  }
-
-  // Acceso confirmado: renderiza Veterinaria normal (componente original intacto)
-  return <VeterinariaPOSContent />;
 }
