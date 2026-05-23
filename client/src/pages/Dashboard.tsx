@@ -1,4 +1,4 @@
-import DashboardLayout from "@/components/DashboardLayout";
+import BoutiqueShell from "@/layouts/BoutiqueShell";
 import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -167,25 +167,25 @@ export default function Dashboard() {
   // App.tsx) y bloqueaba con pantalla pelona sin sidebar.
   //
   // Ahora: el Dashboard valida internamente y si NO hay acceso, muestra
-  // AccessDeniedScreen embedded dentro del DashboardLayout. Patron unificado
+  // AccessDeniedScreen embedded dentro del BoutiqueShell. Patron unificado
   // con Veterinaria, Abarrotes y Verduleria.
   // ========================================================================
   if (isLoadingAccess) {
     return (
-      <DashboardLayout>
+      <BoutiqueShell>
         <div className="flex min-h-[60vh] items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
             <p className="text-sm text-slate-400">Validando tu suscripcion...</p>
           </div>
         </div>
-      </DashboardLayout>
+      </BoutiqueShell>
     );
   }
 
   if (access && !access.hasAccess) {
     return (
-      <DashboardLayout>
+      <BoutiqueShell>
         <AccessDeniedScreen
           posCode="boutique"
           description="El sistema Boutique te da inventario por variantes (talla, color), control de cajeros, ventas con devoluciones y reportes ejecutivos."
@@ -200,7 +200,7 @@ export default function Dashboard() {
           onBack={() => navigate("/sistemas")}
           mode="embedded"
         />
-      </DashboardLayout>
+      </BoutiqueShell>
     );
   }
 
@@ -215,7 +215,7 @@ export default function Dashboard() {
   const monthRevPct = cmp ? pctChange(cmp.thisMonthRevenue, cmp.lastMonthRevenue) : 0;
 
   return (
-    <DashboardLayout>
+    <BoutiqueShell>
       <div className="space-y-6">
         {/* Hero Section - Estilo Apple */}
         <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 md:p-10 shadow-2xl shadow-slate-900/10">
@@ -758,6 +758,6 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
+    </BoutiqueShell>
   );
 }
