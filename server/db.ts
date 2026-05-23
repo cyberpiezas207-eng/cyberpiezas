@@ -1563,20 +1563,317 @@ export async function getSaleDetailsBySaleId(saleId: number) {
 
 // ============ INVENTORY MOVEMENTS ============
 
-export async function createInventoryMovement(data: {
-  productVariantId: number;
-  movementType: "sale" | "adjustment" | "return" | "purchase";
-  quantity: number;
-  reason?: string;
-  userId: number;
-}) {
+/**
+ * Crea un movimiento de inventario.
+ *
+ * Opciones POS Scope (Opcion A - backward compatible):
+ *   - posCode: marca el movimiento para un POS especifico (default 'legacy')
+ *
+ * Sin opciones, comportamiento legacy: posCode='legacy'.
+ */
+export async function createInventoryMovement(
+  data: {
+    productVariantId: number;
+    movementType: "sale" | "adjustment" | "return" | "purchase";
+    quantity: number;
+    reason?: string;
+    userId: number;
+  },
+  options?: {
+    posCode?: string;
+  },
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  const insertValues: Record<string, unknown> = { ...data };
+  if (options?.posCode) {
+    insertValues.posCode = options.posCode;
+  }
+
   const result = await db
     .insert(inventoryMovements)
-    .values(data)
+    .values(insertValues as InsertInventoryMovement)
     .$returningId();
   return result[0];
+}
+
+/**
+ * Lista movimientos de inventario de un POS para el owner.
+ *
+ * Filtros opcionales:
+ *   - posCode: scope del POS (recomendado siempre pasar)
+ *   - movementType: filtrar por tipo
+ *   - productVariantId: filtrar por variante especifica
+ *   - startDate, endDate: rango de fechas
+ *   - limit: max resultados (default 100)
+ *
+ * Orden: createdAt desc.
+ *
+ * IMPORTANTE: filtra por userId del movimiento = ownerUserId. Esto requiere
+ * que el movimiento haya sido creado con userId=ownerUserId (lo cual hace
+ * el endpoint abarrotes.inventory.adjust automaticamente).
+ */
+export async function listAbarrotesInventoryMovements(args: {
+  ownerUserId: number;
+  posCode?: string;
+  movementType?: "sale" | "adjustment" | "return" | "purchase";
+  productVariantId?: number;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(inventoryMovements.userId, args.ownerUserId)];
+  if (args.posCode) {
+    conditions.push(eq(inventoryMovements.posCode, args.posCode));
+  }
+  if (args.movementType) {
+    conditions.push(eq(inventoryMovements.movementType, args.movementType));
+  }
+  if (args.productVariantId !== undefined) {
+    conditions.push(eq(inventoryMovements.productVariantId, args.productVariantId));
+  }
+  if (args.startDate) {
+    conditions.push(gte(inventoryMovements.createdAt, args.startDate));
+  }
+  if (args.endDate) {
+    conditions.push(lte(inventoryMovements.createdAt, args.endDate));
+  }
+
+  return await db
+    .select()
+    .from(inventoryMovements)
+    .where(and(...conditions))
+    .orderBy(desc(inventoryMovements.createdAt))
+    .limit(args.limit ?? 100);
+}
+
+// ============================================================================
+// ABARROTES REPORTS (Commit 3c)
+// ============================================================================
+
+/**
+ * Resumen ejecutivo de ventas para un POS y owner.
+ *
+ * Devuelve agregados:
+ *   - totalSales: cantidad de ventas (status='active')
+ *   - totalRevenue: suma de totales
+ *   - averageTicket: promedio por venta
+ *   - cancelledCount: ventas canceladas
+ *   - refundedCount: ventas devueltas
+ *   - byPaymentMethod: { cash, card, transfer }
+ *
+ * Filtros: rango de fechas (startDate, endDate).
+ *
+ * IMPORTANTE: no incluye costos/margen. Eso es reports.profit (otro helper).
+ */
+export async function getAbarrotesSalesSummary(args: {
+  ownerUserId: number;
+  posCode: string;
+  startDate: Date;
+  endDate: Date;
+}) {
+  const db = await getDb();
+  if (!db) {
+    return {
+      totalSales: 0,
+      totalRevenue: 0,
+      averageTicket: 0,
+      cancelledCount: 0,
+      refundedCount: 0,
+      byPaymentMethod: { cash: 0, card: 0, transfer: 0 },
+    };
+  }
+
+  const allSales = await db
+    .select()
+    .from(sales)
+    .where(
+      and(
+        eq(sales.userId, args.ownerUserId),
+        eq(sales.posCode, args.posCode),
+        gte(sales.createdAt, args.startDate),
+        lte(sales.createdAt, args.endDate),
+      ),
+    );
+
+  const active = allSales.filter((s) => s.status === "active");
+  const cancelled = allSales.filter((s) => s.status === "cancelled");
+  const refunded = allSales.filter((s) => s.status === "refunded");
+
+  const totalRevenue = active.reduce(
+    (sum, s) => sum + Number(s.total),
+    0,
+  );
+  const averageTicket =
+    active.length > 0 ? totalRevenue / active.length : 0;
+
+  const byPaymentMethod = {
+    cash: active
+      .filter((s) => s.paymentMethod === "cash")
+      .reduce((sum, s) => sum + Number(s.total), 0),
+    card: active
+      .filter((s) => s.paymentMethod === "card")
+      .reduce((sum, s) => sum + Number(s.total), 0),
+    transfer: active
+      .filter((s) => s.paymentMethod === "transfer")
+      .reduce((sum, s) => sum + Number(s.total), 0),
+  };
+
+  return {
+    totalSales: active.length,
+    totalRevenue,
+    averageTicket,
+    cancelledCount: cancelled.length,
+    refundedCount: refunded.length,
+    byPaymentMethod,
+  };
+}
+
+/**
+ * Top productos vendidos en un POS especifico para el owner.
+ *
+ * Hace JOIN sales -> saleDetails para agregar quantity por producto.
+ * Solo cuenta ventas con status='active'.
+ *
+ * Devuelve top N (default 10) ordenado por quantity desc.
+ */
+export async function getAbarrotesTopProducts(args: {
+  ownerUserId: number;
+  posCode: string;
+  startDate: Date;
+  endDate: Date;
+  limit?: number;
+}): Promise<
+  Array<{
+    productVariantId: number;
+    productName: string;
+    totalQuantity: number;
+    totalRevenue: number;
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({
+      productVariantId: saleDetails.productVariantId,
+      productName: saleDetails.productName,
+      totalQuantity: sql<number>`SUM(${saleDetails.quantity})`,
+      totalRevenue: sql<number>`SUM(${saleDetails.lineTotal})`,
+    })
+    .from(saleDetails)
+    .innerJoin(sales, eq(saleDetails.saleId, sales.id))
+    .where(
+      and(
+        eq(sales.userId, args.ownerUserId),
+        eq(sales.posCode, args.posCode),
+        eq(sales.status, "active"),
+        gte(sales.createdAt, args.startDate),
+        lte(sales.createdAt, args.endDate),
+      ),
+    )
+    .groupBy(saleDetails.productVariantId, saleDetails.productName)
+    .orderBy(sql`SUM(${saleDetails.quantity}) DESC`)
+    .limit(args.limit ?? 10);
+
+  return rows.map((r) => ({
+    productVariantId: r.productVariantId,
+    productName: r.productName,
+    totalQuantity: Number(r.totalQuantity),
+    totalRevenue: Number(r.totalRevenue),
+  }));
+}
+
+/**
+ * Ventas agrupadas por cashier (createdByUserId) para un POS.
+ *
+ * Util para que el owner vea desempeno de su equipo.
+ * Solo cuenta ventas con status='active'.
+ *
+ * Si createdByUserId es NULL (venta legacy o creada directamente por owner),
+ * se agrupa como ownerUserId.
+ */
+export async function getAbarrotesSalesByCashier(args: {
+  ownerUserId: number;
+  posCode: string;
+  startDate: Date;
+  endDate: Date;
+}): Promise<
+  Array<{
+    cashierUserId: number;
+    cashierName: string;
+    totalSales: number;
+    totalRevenue: number;
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Subquery: ventas active del POS en el rango
+  const salesData = await db
+    .select({
+      createdByUserId: sales.createdByUserId,
+      total: sales.total,
+    })
+    .from(sales)
+    .where(
+      and(
+        eq(sales.userId, args.ownerUserId),
+        eq(sales.posCode, args.posCode),
+        eq(sales.status, "active"),
+        gte(sales.createdAt, args.startDate),
+        lte(sales.createdAt, args.endDate),
+      ),
+    );
+
+  // Agrupar en memoria por cashier
+  const grouped = new Map<
+    number,
+    { totalSales: number; totalRevenue: number }
+  >();
+
+  for (const sale of salesData) {
+    // Si no hay createdByUserId, atribuir al owner
+    const cashierId = sale.createdByUserId ?? args.ownerUserId;
+    const existing = grouped.get(cashierId) ?? {
+      totalSales: 0,
+      totalRevenue: 0,
+    };
+    existing.totalSales += 1;
+    existing.totalRevenue += Number(sale.total);
+    grouped.set(cashierId, existing);
+  }
+
+  // Enriquecer con nombres
+  const result: Array<{
+    cashierUserId: number;
+    cashierName: string;
+    totalSales: number;
+    totalRevenue: number;
+  }> = [];
+
+  for (const [cashierId, stats] of grouped.entries()) {
+    const userRows = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, cashierId))
+      .limit(1);
+
+    const name = userRows[0]?.name ?? userRows[0]?.email ?? `User ${cashierId}`;
+
+    result.push({
+      cashierUserId: cashierId,
+      cashierName: name,
+      totalSales: stats.totalSales,
+      totalRevenue: stats.totalRevenue,
+    });
+  }
+
+  return result.sort((a, b) => b.totalRevenue - a.totalRevenue);
 }
 
 export async function getInventoryMovementsByVariantId(variantId: number) {
