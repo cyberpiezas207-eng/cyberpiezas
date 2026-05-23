@@ -57,10 +57,34 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
 /**
  * Verifica que el usuario tenga acceso activo al programa "veterinaria".
  * Si no, lanza FORBIDDEN.
+ *
+ * SUBSCRIPTION CORE V1 (hotfix Ana Karen):
+ * Antes usaba db.userHasProgramAccess (legacy puro, lee solo de userProgramAccess).
+ * Ahora usa db.getSubscriptionState que valida hibridamente con 3 niveles:
+ *   1. subscriptions table (fuente canonica nueva)
+ *   2. userProgramAccess (legacy enum)
+ *   3. transferPaymentRequests aprobados vigentes
+ *
+ * Cualquiera de los 3 que de OK desbloquea el acceso. Esto resuelve el caso
+ * donde un cliente paga (crea subscription) pero userProgramAccess no se actualiza.
+ *
+ * Admin global tiene bypass: pasa siempre.
  */
 async function ensureVetAccess(userId: number) {
-  const hasAccess = await db.userHasProgramAccess(userId, "veterinaria" as any);
-  if (!hasAccess) {
+  // Admin global: acceso total sin checks
+  const user = await db.getUserById(userId);
+  if (user?.role === "admin") return;
+
+  // Resto de usuarios: validar via subscription state (hibrido)
+  // getSubscriptionState consulta 3 niveles:
+  //   1. subscriptions (canonica)
+  //   2. userProgramAccess (legacy)
+  //   3. transferPaymentRequests aprobados vigentes
+  const state = await db.getSubscriptionState({
+    userId,
+    posCode: "veterinaria",
+  });
+  if (!state.hasAccess) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "No tienes acceso al modulo Veterinaria. Contacta al administrador.",
