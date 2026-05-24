@@ -43,7 +43,7 @@ import VetDashboardTab from "@/pages/VetDashboardTab";
 import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import { Loader2 } from "lucide-react";
 
-type TabKey = "pos" | "pets" | "customers" | "appointments" | "products" | "services" | "settings";
+type TabKey = "dashboard" | "pos" | "pets" | "customers" | "appointments" | "products" | "services" | "settings";
 
 // Mapa de URL param a TabKey
 const tabFromUrl = (urlTab: string | undefined): TabKey => {
@@ -130,6 +130,7 @@ export default function VeterinariaPOS() {
 
   // Headers contextuales por pestaña
   const headers: Record<TabKey, { title: string; subtitle: string; icon: any }> = {
+    dashboard: { title: "Resumen", subtitle: "Vista general del desempeno de tu clinica", icon: Stethoscope },
     pos: { title: "Punto de Venta", subtitle: "Vende productos y servicios de tu clinica", icon: ShoppingCart },
     pets: { title: "Mascotas", subtitle: "Registro y expediente clinico de mascotas", icon: PawPrint },
     customers: { title: "Clientes", subtitle: "Duenos de las mascotas que atiendes", icon: UserCircle },
