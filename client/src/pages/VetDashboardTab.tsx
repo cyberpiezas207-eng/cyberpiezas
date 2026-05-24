@@ -16,7 +16,7 @@
 
 import { useMemo } from "react";
 import { useLocation } from "wouter";
-import { trpc } from "@/utils/trpc";
+import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Stethoscope,
