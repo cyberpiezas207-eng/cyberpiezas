@@ -885,3 +885,4 @@ const VETERINARIA_SHELL_STYLES = `
   border-color: rgba(45,59,45,0.08) !important;
 }
 `;
+
