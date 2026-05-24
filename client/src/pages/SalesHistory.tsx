@@ -291,7 +291,8 @@ TOTAL:           $${parseFloat(sale.total).toFixed(2)}
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 p-1">
+      <div className="bq-pos-theme space-y-6 p-1">
+        <style>{BQ_POS_THEME_OVERRIDES}</style>
 
         {/* ===== HEADER ===== */}
         <div className="rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 p-6">
@@ -808,3 +809,127 @@ TOTAL:           $${parseFloat(sale.total).toFixed(2)}
     </DashboardLayout>
   );
 }
+
+// =============================================================================
+// BQ_POS_THEME_OVERRIDES - mismo conjunto que POS.tsx
+// Mantiene la paleta magenta + crema + negro de Atelier en todo el flujo.
+// =============================================================================
+
+const BQ_POS_THEME_OVERRIDES = `
+.bq-pos-theme {
+  background: transparent !important;
+}
+
+/* FONDOS DARK SLATE - convertir a blancos/cremas */
+.bq-pos-theme [class*="bg-gradient-to-br"][class*="from-slate"],
+.bq-pos-theme [class*="bg-gradient-to-r"][class*="from-slate"],
+.bq-pos-theme [class*="bg-gradient-to-bl"][class*="from-slate"] {
+  background: #FAF7F2 !important;
+}
+.bq-pos-theme [class*="bg-slate-9"] {
+  background-color: #FFFFFF !important;
+}
+.bq-pos-theme [class*="bg-slate-8"] {
+  background-color: #FFFFFF !important;
+}
+.bq-pos-theme [class*="bg-slate-7"] {
+  background-color: #FAF7F2 !important;
+}
+.bq-pos-theme [class*="bg-slate-6"] {
+  background-color: #FAF7F2 !important;
+}
+
+/* FONDOS PURPLE - convertir a magenta Atelier */
+.bq-pos-theme [class*="bg-purple-6"] {
+  background-color: #E91E63 !important;
+  color: white !important;
+}
+.bq-pos-theme [class*="bg-purple-7"] {
+  background-color: #C2185B !important;
+  color: white !important;
+}
+.bq-pos-theme [class*="bg-purple-5"][class*="\\/15"],
+.bq-pos-theme [class*="bg-purple-9"] {
+  background-color: #FBEAF0 !important;
+}
+.bq-pos-theme [class*="bg-purple-6"] *,
+.bq-pos-theme [class*="bg-purple-7"] * {
+  color: white !important;
+}
+
+/* BORDES SLATE - suaves */
+.bq-pos-theme [class*="border-slate-7"],
+.bq-pos-theme [class*="border-slate-6"],
+.bq-pos-theme [class*="border-slate-5"] {
+  border-color: rgba(0,0,0,0.1) !important;
+}
+
+/* BORDES PURPLE - magenta */
+.bq-pos-theme [class*="border-purple-4"],
+.bq-pos-theme [class*="border-purple-5"] {
+  border-color: #E91E63 !important;
+}
+
+/* TEXTOS SLATE -> oscuros / muted */
+.bq-pos-theme [class*="text-slate-2"],
+.bq-pos-theme [class*="text-slate-3"] {
+  color: #1A1A1A !important;
+}
+.bq-pos-theme [class*="text-slate-4"],
+.bq-pos-theme [class*="text-slate-5"],
+.bq-pos-theme [class*="text-slate-6"] {
+  color: #6B6B6B !important;
+}
+
+/* TEXT-WHITE: oscuro por default, blanco dentro de elementos magenta */
+.bq-pos-theme .text-white {
+  color: #1A1A1A !important;
+}
+.bq-pos-theme [class*="bg-purple"] .text-white,
+.bq-pos-theme [class*="bg-purple"].text-white,
+.bq-pos-theme [class*="bg-purple"] {
+  color: white !important;
+}
+
+/* TEXT PURPLE - magenta accents */
+.bq-pos-theme [class*="text-purple-3"],
+.bq-pos-theme [class*="text-purple-4"] {
+  color: #E91E63 !important;
+}
+
+/* RING / FOCUS - magenta */
+.bq-pos-theme [class*="ring-purple"],
+.bq-pos-theme [class*="focus:ring-purple"],
+.bq-pos-theme [class*="focus-visible:ring-purple"] {
+  --tw-ring-color: #E91E63 !important;
+}
+
+/* INPUTS dentro del POS theme - fondo blanco */
+.bq-pos-theme input,
+.bq-pos-theme textarea,
+.bq-pos-theme select {
+  background-color: white !important;
+  color: #1A1A1A !important;
+  border-color: rgba(0,0,0,0.1) !important;
+}
+.bq-pos-theme input::placeholder,
+.bq-pos-theme textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* HOVER STATES - mantener suaves */
+.bq-pos-theme [class*="hover:bg-slate-7"]:hover,
+.bq-pos-theme [class*="hover:bg-slate-8"]:hover {
+  background-color: #F5F0E8 !important;
+}
+.bq-pos-theme [class*="hover:bg-purple-7"]:hover {
+  background-color: #C2185B !important;
+}
+
+/* DIVIDERS / SEPARATORS */
+.bq-pos-theme hr,
+.bq-pos-theme [class*="divide-slate"] > * + * {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+`;
+
