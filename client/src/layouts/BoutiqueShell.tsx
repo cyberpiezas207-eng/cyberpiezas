@@ -850,4 +850,39 @@ const BOUTIQUE_SHELL_STYLES = `
 .bq-pos-theme [class*="divide-slate"] > * + * {
   border-color: rgba(0,0,0,0.08) !important;
 }
+
+/* =========================================================================
+   FIX TEXTOS MUTED / FOREGROUND (Shadcn UI)
+   --------------------------------------------------------------------------
+   Forza contraste legible para textos que usan tokens semanticos de Shadcn
+   (text-muted-foreground, text-foreground, etc.).
+   ========================================================================= */
+.bq-pos-theme .text-muted-foreground,
+.bq-pos-theme [class*="text-muted-foreground"],
+.bq-pos-theme [class*="text-foreground/"],
+.bq-pos-theme [data-slot="card-description"] {
+  color: #6B6B6B !important;
+  opacity: 1 !important;
+}
+.bq-pos-theme .text-foreground,
+.bq-pos-theme [data-slot="card-title"] {
+  color: #1A1A1A !important;
+}
+.bq-pos-theme [class*="text-card-foreground"] {
+  color: #1A1A1A !important;
+}
+
+/* Headings genericos dentro del POS - asegurar contraste */
+.bq-pos-theme h1,
+.bq-pos-theme h2,
+.bq-pos-theme h3,
+.bq-pos-theme h4 {
+  color: #1A1A1A !important;
+}
+
+/* Botones outline / ghost que pueden tener texto claro */
+.bq-pos-theme button[class*="variant-outline"],
+.bq-pos-theme button[class*="variant-ghost"] {
+  color: #1A1A1A !important;
+}
 `;
