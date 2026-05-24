@@ -14,27 +14,12 @@ import {
 } from "../../drizzle/schema";
 import * as db from "../db";
 import { createNotification } from "./notifications";
+import { storagePut } from "../storage";
 
 // =============================================================================
 // MOBILITY ROUTER
 // -----------------------------------------------------------------------------
 // Cableado completo del cuarto "Mobility" del edificio CyberPiezas.
-//
-// Filosofía operativa (referencia rápida):
-//   - Whitelist explícita controla quién puede crear perfil de Mobility.
-//   - Verificación humana INE + selfie ANTES de poder ofrecer viajes.
-//   - Reseñas son texto cualitativo, sin estrellas, sin números.
-//   - Comunicación previa al viaje pasa por WhatsApp (no hay chat in-app).
-//   - El dinero entre conductor y pasajero pasa FUERA de la plataforma.
-//
-// Estructura de sub-routers:
-//   - whitelist     → admin gestiona invitaciones al piloto cerrado
-//   - profile       → perfil del usuario dentro de Mobility
-//   - verification  → flujo de verificación INE + selfie
-//   - rides         → viajes publicados por conductores
-//   - bookings      → solicitudes de pasajeros a viajes
-//   - reviews       → descripciones cualitativas post-viaje
-//   - reports       → reportes de moderación
 // =============================================================================
 
 async function getDbOrThrow() {
@@ -42,10 +27,6 @@ async function getDbOrThrow() {
   if (!conn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB no disponible" });
   return conn;
 }
-
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 async function requireAdmin(userId: number) {
   const conn = await getDbOrThrow();
@@ -72,7 +53,7 @@ async function requireMobilityProfile(userId: number) {
   if (!profile.isActive) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Tu cuenta de Mobility está inactiva. Escribe a moderacion@cyberpiezas.com.",
+      message: "Tu cuenta de Mobility esta inactiva. Escribe a moderacion@cyberpiezas.com.",
     });
   }
   return profile;
@@ -83,24 +64,24 @@ async function requireVerifiedDriver(userId: number) {
   if (profile.role !== "driver_verified" && profile.role !== "both") {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message:
-        "Para publicar viajes necesitas completar la verificación de identidad (INE + selfie).",
+      message: "Para publicar viajes necesitas completar la verificacion de identidad (INE + selfie).",
     });
   }
   return profile;
 }
 
-// =============================================================================
-// ROUTER
-// =============================================================================
+function decodeBase64Image(input: string): Buffer | null {
+  if (!input) return null;
+  const normalized = input.includes(",") ? input.split(",").pop() ?? "" : input;
+  try {
+    return Buffer.from(normalized, "base64");
+  } catch {
+    return null;
+  }
+}
 
 export const mobilityRouter = router({
-  // =========================================================================
-  // WHITELIST (admin gestiona el piloto cerrado)
-  // =========================================================================
   whitelist: router({
-    // Verificar si un email está invitado. PÚBLICO porque se llama
-    // antes del registro (durante el flujo de signup a Mobility).
     checkEmail: publicProcedure
       .input(z.object({ email: z.string().email() }))
       .query(async ({ input }) => {
@@ -131,8 +112,6 @@ export const mobilityRouter = router({
         await requireAdmin(ctx.user.id);
         const conn = await getDbOrThrow();
         const emailLower = input.email.toLowerCase();
-
-        // Si ya existe, evitar duplicado.
         const existing = await conn
           .select()
           .from(mobilityWhitelist)
@@ -141,10 +120,9 @@ export const mobilityRouter = router({
         if (existing[0]) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Este email ya está en la whitelist.",
+            message: "Este email ya esta en la whitelist.",
           });
         }
-
         await conn.insert(mobilityWhitelist).values({
           email: emailLower,
           phone: input.phone,
@@ -177,12 +155,7 @@ export const mobilityRouter = router({
       }),
   }),
 
-  // =========================================================================
-  // PROFILE (perfil del usuario dentro de Mobility)
-  // =========================================================================
   profile: router({
-    // Crear el perfil de mobility para el usuario logueado.
-    // Verifica que su email esté en la whitelist activa.
     create: protectedProcedure
       .input(
         z.object({
@@ -193,8 +166,6 @@ export const mobilityRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const conn = await getDbOrThrow();
-
-        // Verificar que el usuario no tenga ya un perfil.
         const existing = await conn
           .select()
           .from(mobilityProfiles)
@@ -206,8 +177,6 @@ export const mobilityRouter = router({
             message: "Ya tienes un perfil de Mobility.",
           });
         }
-
-        // Verificar whitelist por email del usuario.
         const userRows = await conn
           .select()
           .from(users)
@@ -236,13 +205,10 @@ export const mobilityRouter = router({
         if (!whitelistEntry) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message:
-              "Mobility está en piloto cerrado por invitación. Si crees que deberías tener acceso, escríbenos.",
+            message: "Mobility esta en piloto cerrado por invitacion. Si crees que deberias tener acceso, escribenos.",
           });
         }
-
-        // Crear perfil
-        const result = await conn.insert(mobilityProfiles).values({
+        await conn.insert(mobilityProfiles).values({
           userId: ctx.user.id,
           displayName: input.displayName,
           bio: input.bio,
@@ -251,8 +217,6 @@ export const mobilityRouter = router({
           phoneVerified: false,
           isActive: true,
         });
-
-        // Marcar invitación como usada
         await conn
           .update(mobilityWhitelist)
           .set({
@@ -260,11 +224,9 @@ export const mobilityRouter = router({
             usedByUserId: ctx.user.id,
           })
           .where(eq(mobilityWhitelist.id, whitelistEntry.id));
-
         return { success: true };
       }),
 
-    // Obtener mi propio perfil completo
     getMine: protectedProcedure.query(async ({ ctx }) => {
       const conn = await getDbOrThrow();
       const rows = await conn
@@ -275,7 +237,6 @@ export const mobilityRouter = router({
       return rows[0] ?? null;
     }),
 
-    // Actualizar mi propio perfil
     update: protectedProcedure
       .input(
         z.object({
@@ -301,7 +262,6 @@ export const mobilityRouter = router({
         return { success: true };
       }),
 
-    // Ver perfil PÚBLICO de otro usuario (info limitada, sin INE ni datos sensibles)
     getPublic: protectedProcedure
       .input(z.object({ userId: z.number() }))
       .query(async ({ input }) => {
@@ -323,23 +283,18 @@ export const mobilityRouter = router({
       }),
   }),
 
-  // =========================================================================
-  // VERIFICATION (INE + selfie con INE junto a la cara)
-  // =========================================================================
   verification: router({
-    // Usuario sube sus dos URLs (las imágenes ya subieron a storage externo).
     submit: protectedProcedure
       .input(
         z.object({
-          ineFrontUrl: z.string().url().max(500),
-          selfieWithIneUrl: z.string().url().max(500),
+          ineFrontImage: z.string().min(20),
+          selfieWithIneImage: z.string().min(20),
         }),
       )
       .mutation(async ({ ctx, input }) => {
         await requireMobilityProfile(ctx.user.id);
         const conn = await getDbOrThrow();
 
-        // Si ya tiene una verificación pendiente, no permitir otra.
         const pending = await conn
           .select()
           .from(mobilityVerifications)
@@ -353,18 +308,54 @@ export const mobilityRouter = router({
         if (pending[0]) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Ya tienes una verificación pendiente. Espera la revisión.",
+            message: "Ya tienes una verificacion pendiente. Espera la revision.",
+          });
+        }
+
+        const ineBuffer = decodeBase64Image(input.ineFrontImage);
+        const selfieBuffer = decodeBase64Image(input.selfieWithIneImage);
+        if (!ineBuffer || !selfieBuffer) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Las imagenes no son validas.",
+          });
+        }
+
+        const MAX_BYTES = 10 * 1024 * 1024;
+        if (ineBuffer.length > MAX_BYTES || selfieBuffer.length > MAX_BYTES) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Las imagenes son demasiado grandes. Maximo 10MB cada una.",
+          });
+        }
+
+        let ineUpload, selfieUpload;
+        try {
+          ineUpload = await storagePut(
+            "mobility-verifications/user_" + ctx.user.id + "/ine.jpg",
+            ineBuffer,
+            "image/jpeg",
+          );
+          selfieUpload = await storagePut(
+            "mobility-verifications/user_" + ctx.user.id + "/selfie.jpg",
+            selfieBuffer,
+            "image/jpeg",
+          );
+        } catch (err) {
+          console.error("Storage error:", err);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "No pudimos guardar las imagenes. Intenta de nuevo en un momento.",
           });
         }
 
         await conn.insert(mobilityVerifications).values({
           userId: ctx.user.id,
-          ineFrontUrl: input.ineFrontUrl,
-          selfieWithIneUrl: input.selfieWithIneUrl,
+          ineFrontUrl: ineUpload.url,
+          selfieWithIneUrl: selfieUpload.url,
           status: "pending",
         });
 
-        // Actualizar perfil a "driver_pending" si todavía no es driver verified.
         const profileRows = await conn
           .select()
           .from(mobilityProfiles)
@@ -381,7 +372,6 @@ export const mobilityRouter = router({
         return { success: true };
       }),
 
-    // Usuario consulta el estado de su última verificación.
     getMine: protectedProcedure.query(async ({ ctx }) => {
       const conn = await getDbOrThrow();
       const rows = await conn
@@ -392,8 +382,6 @@ export const mobilityRouter = router({
         .limit(1);
       const v = rows[0];
       if (!v) return null;
-      // No regresamos las URLs al usuario por seguridad/privacidad.
-      // Solo estado y motivo si fue rechazado.
       return {
         id: v.id,
         status: v.status,
@@ -403,7 +391,6 @@ export const mobilityRouter = router({
       };
     }),
 
-    // Admin lista las verificaciones pendientes.
     listPending: protectedProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx.user.id);
       const conn = await getDbOrThrow();
@@ -415,8 +402,6 @@ export const mobilityRouter = router({
       return rows;
     }),
 
-    // Admin aprueba o rechaza. Si aprueba, actualiza el perfil del usuario
-    // a "driver_verified" (o "both" si ya era something else).
     review: protectedProcedure
       .input(
         z.object({
@@ -428,7 +413,6 @@ export const mobilityRouter = router({
       .mutation(async ({ ctx, input }) => {
         await requireAdmin(ctx.user.id);
         const conn = await getDbOrThrow();
-
         const vRows = await conn
           .select()
           .from(mobilityVerifications)
@@ -439,17 +423,15 @@ export const mobilityRouter = router({
         if (verification.status !== "pending") {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Esta verificación ya fue revisada.",
+            message: "Esta verificacion ya fue revisada.",
           });
         }
         if (input.decision === "rejected" && !input.rejectionReason) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Si rechazas, debes incluir motivo (mensaje al usuario).",
+            message: "Si rechazas, debes incluir motivo.",
           });
         }
-
-        // Marcar verificación
         await conn
           .update(mobilityVerifications)
           .set({
@@ -459,30 +441,25 @@ export const mobilityRouter = router({
             rejectionReason: input.decision === "rejected" ? input.rejectionReason : null,
           })
           .where(eq(mobilityVerifications.id, input.verificationId));
-
-        // Si aprobado, ajustar rol del perfil
         if (input.decision === "approved") {
           await conn
             .update(mobilityProfiles)
             .set({ role: "driver_verified" })
             .where(eq(mobilityProfiles.userId, verification.userId));
         } else {
-          // Si rechazado, regresar a passenger (no quedan en estado pending colgado)
           await conn
             .update(mobilityProfiles)
             .set({ role: "passenger" })
             .where(eq(mobilityProfiles.userId, verification.userId));
         }
-
-        // Notificar al usuario
         try {
           await createNotification({
             userId: verification.userId,
             type: "subscription_change",
             title:
               input.decision === "approved"
-                ? "Verificación aprobada"
-                : "Verificación rechazada",
+                ? "Verificacion aprobada"
+                : "Verificacion rechazada",
             message:
               input.decision === "approved"
                 ? "Ya puedes publicar viajes en Mobility."
@@ -492,16 +469,11 @@ export const mobilityRouter = router({
         } catch (e) {
           console.error("Notif fail:", e);
         }
-
         return { success: true };
       }),
   }),
 
-  // =========================================================================
-  // RIDES (viajes publicados por conductores)
-  // =========================================================================
   rides: router({
-    // Publicar un viaje. Solo conductores verificados.
     create: protectedProcedure
       .input(
         z.object({
@@ -511,7 +483,7 @@ export const mobilityRouter = router({
           destinationText: z.string().min(3).max(200),
           destinationLat: z.number().optional(),
           destinationLng: z.number().optional(),
-          departureAt: z.string(), // ISO date string
+          departureAt: z.string(),
           seatsTotal: z.number().int().min(1).max(8),
           suggestedCostPerSeat: z.number().nonnegative().optional(),
           notes: z.string().max(500).optional(),
@@ -520,21 +492,19 @@ export const mobilityRouter = router({
       .mutation(async ({ ctx, input }) => {
         await requireVerifiedDriver(ctx.user.id);
         const conn = await getDbOrThrow();
-
         const departureDate = new Date(input.departureAt);
         if (isNaN(departureDate.getTime())) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Fecha de salida inválida.",
+            message: "Fecha de salida invalida.",
           });
         }
         if (departureDate.getTime() < Date.now() - 60 * 1000) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "La fecha de salida ya pasó.",
+            message: "La fecha de salida ya paso.",
           });
         }
-
         await conn.insert(mobilityRides).values({
           driverId: ctx.user.id,
           originText: input.originText,
@@ -553,11 +523,9 @@ export const mobilityRouter = router({
           notes: input.notes,
           status: "published",
         });
-
         return { success: true };
       }),
 
-    // Lista pública de viajes activos (que aún no salieron).
     listPublished: protectedProcedure
       .input(
         z
@@ -568,7 +536,6 @@ export const mobilityRouter = router({
           .optional(),
       )
       .query(async ({ input }) => {
-        await requireMobilityProfile; // Solo usuarios con perfil de Mobility ven viajes.
         const conn = await getDbOrThrow();
         const rows = await conn
           .select()
@@ -584,7 +551,6 @@ export const mobilityRouter = router({
         return rows;
       }),
 
-    // Detalle de un viaje específico.
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -597,7 +563,6 @@ export const mobilityRouter = router({
         return rows[0] ?? null;
       }),
 
-    // Mis viajes como conductor.
     listMine: protectedProcedure.query(async ({ ctx }) => {
       const conn = await getDbOrThrow();
       const rows = await conn
@@ -608,7 +573,6 @@ export const mobilityRouter = router({
       return rows;
     }),
 
-    // Cancelar un viaje (solo el conductor).
     cancel: protectedProcedure
       .input(z.object({ rideId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -629,13 +593,10 @@ export const mobilityRouter = router({
             message: "Este viaje ya no se puede cancelar.",
           });
         }
-
         await conn
           .update(mobilityRides)
           .set({ status: "cancelled" })
           .where(eq(mobilityRides.id, input.rideId));
-
-        // Marcar bookings aprobados/solicitados como cancelados por el conductor.
         const bookings = await conn
           .select()
           .from(mobilityRideBookings)
@@ -653,24 +614,21 @@ export const mobilityRouter = router({
             .update(mobilityRideBookings)
             .set({ status: "cancelled_by_driver" })
             .where(eq(mobilityRideBookings.id, b.id));
-          // Notificar al pasajero
           try {
             await createNotification({
               userId: b.passengerId,
               type: "subscription_change",
               title: "Viaje cancelado",
-              message: "El conductor canceló el viaje al que ibas. Disculpa las molestias.",
+              message: "El conductor cancelo el viaje al que ibas. Disculpa las molestias.",
               relatedId: input.rideId,
             });
           } catch (e) {
             console.error("Notif fail:", e);
           }
         }
-
         return { success: true };
       }),
 
-    // Marcar viaje como completado.
     markCompleted: protectedProcedure
       .input(z.object({ rideId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -689,8 +647,6 @@ export const mobilityRouter = router({
           .update(mobilityRides)
           .set({ status: "completed" })
           .where(eq(mobilityRides.id, input.rideId));
-
-        // Marcar bookings aprobados como completados (para que puedan hacer reviews)
         await conn
           .update(mobilityRideBookings)
           .set({ status: "completed" })
@@ -700,16 +656,11 @@ export const mobilityRouter = router({
               eq(mobilityRideBookings.status, "approved"),
             ),
           );
-
         return { success: true };
       }),
   }),
 
-  // =========================================================================
-  // BOOKINGS (solicitudes de pasajeros a viajes)
-  // =========================================================================
   bookings: router({
-    // Pasajero solicita un lugar.
     request: protectedProcedure
       .input(
         z.object({
@@ -720,7 +671,6 @@ export const mobilityRouter = router({
       .mutation(async ({ ctx, input }) => {
         await requireMobilityProfile(ctx.user.id);
         const conn = await getDbOrThrow();
-
         const rideRows = await conn
           .select()
           .from(mobilityRides)
@@ -728,7 +678,6 @@ export const mobilityRouter = router({
           .limit(1);
         const ride = rideRows[0];
         if (!ride) throw new TRPCError({ code: "NOT_FOUND" });
-
         if (ride.driverId === ctx.user.id) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -747,8 +696,6 @@ export const mobilityRouter = router({
             message: "Ya no hay lugares disponibles.",
           });
         }
-
-        // El unique constraint en (rideId, passengerId) previene duplicados a nivel DB.
         try {
           await conn.insert(mobilityRideBookings).values({
             rideId: input.rideId,
@@ -762,29 +709,26 @@ export const mobilityRouter = router({
             message: "Ya solicitaste un lugar en este viaje.",
           });
         }
-
-        // Notificar al conductor
         try {
           await createNotification({
             userId: ride.driverId,
             type: "subscription_change",
             title: "Nueva solicitud de viaje",
-            message: "Alguien quiere un lugar en tu viaje del " + ride.departureAt.toLocaleDateString("es-MX") + ".",
+            message:
+              "Alguien quiere un lugar en tu viaje del " +
+              ride.departureAt.toLocaleDateString("es-MX") + ".",
             relatedId: ride.id,
           });
         } catch (e) {
           console.error("Notif fail:", e);
         }
-
         return { success: true };
       }),
 
-    // Conductor ve solicitudes de su viaje.
     listForRide: protectedProcedure
       .input(z.object({ rideId: z.number() }))
       .query(async ({ ctx, input }) => {
         const conn = await getDbOrThrow();
-        // Verificar que el conductor sea dueño del viaje.
         const rideRows = await conn
           .select()
           .from(mobilityRides)
@@ -803,7 +747,6 @@ export const mobilityRouter = router({
         return rows;
       }),
 
-    // Mis solicitudes como pasajero.
     listMine: protectedProcedure.query(async ({ ctx }) => {
       const conn = await getDbOrThrow();
       const rows = await conn
@@ -814,11 +757,6 @@ export const mobilityRouter = router({
       return rows;
     }),
 
-    // Conductor decide (aprobar o rechazar).
-    // Al aprobar: ambas partes deben recibir el WhatsApp del otro
-    // (este intercambio se hace en el cliente, leyendo los users
-    // — la columna phone está en users si la añades; por ahora
-    // se asume que el cliente lo expone una vez aprobada).
     decide: protectedProcedure
       .input(
         z.object({
@@ -836,8 +774,6 @@ export const mobilityRouter = router({
           .limit(1);
         const booking = bRows[0];
         if (!booking) throw new TRPCError({ code: "NOT_FOUND" });
-
-        // Verificar que el conductor sea dueño del viaje
         const rideRows = await conn
           .select()
           .from(mobilityRides)
@@ -853,7 +789,6 @@ export const mobilityRouter = router({
             message: "Esta solicitud ya fue decidida.",
           });
         }
-
         await conn
           .update(mobilityRideBookings)
           .set({
@@ -862,8 +797,6 @@ export const mobilityRouter = router({
             decidedAt: new Date(),
           })
           .where(eq(mobilityRideBookings.id, input.bookingId));
-
-        // Si aprobó, decrementar lugares disponibles
         if (input.decision === "approved") {
           const newSeats = ride.seatsAvailable - 1;
           await conn
@@ -874,8 +807,6 @@ export const mobilityRouter = router({
             })
             .where(eq(mobilityRides.id, ride.id));
         }
-
-        // Notificar al pasajero
         try {
           await createNotification({
             userId: booking.passengerId,
@@ -886,8 +817,8 @@ export const mobilityRouter = router({
                 : "Solicitud rechazada",
             message:
               input.decision === "approved"
-                ? "El conductor aprobó tu lugar. Ya pueden coordinarse."
-                : input.note ?? "El conductor no aprobó tu solicitud.",
+                ? "El conductor aprobo tu lugar. Ya pueden coordinarse."
+                : input.note ?? "El conductor no aprobo tu solicitud.",
             relatedId: ride.id,
           });
         } catch (e) {
@@ -896,7 +827,6 @@ export const mobilityRouter = router({
         return { success: true };
       }),
 
-    // Pasajero cancela su solicitud.
     cancelByPassenger: protectedProcedure
       .input(z.object({ bookingId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -917,14 +847,11 @@ export const mobilityRouter = router({
             message: "Esta solicitud ya no se puede cancelar.",
           });
         }
-
         const previousStatus = booking.status;
         await conn
           .update(mobilityRideBookings)
           .set({ status: "cancelled_by_passenger" })
           .where(eq(mobilityRideBookings.id, input.bookingId));
-
-        // Si estaba aprobado, devolver el lugar al ride
         if (previousStatus === "approved") {
           const rideRows = await conn
             .select()
@@ -940,13 +867,12 @@ export const mobilityRouter = router({
                 status: "published",
               })
               .where(eq(mobilityRides.id, ride.id));
-            // Notificar al conductor
             try {
               await createNotification({
                 userId: ride.driverId,
                 type: "subscription_change",
-                title: "Pasajero canceló",
-                message: "Un pasajero canceló su lugar. El lugar está disponible de nuevo.",
+                title: "Pasajero cancelo",
+                message: "Un pasajero cancelo su lugar. El lugar esta disponible de nuevo.",
                 relatedId: ride.id,
               });
             } catch (e) {
@@ -958,12 +884,7 @@ export const mobilityRouter = router({
       }),
   }),
 
-  // =========================================================================
-  // REVIEWS (descripciones cualitativas post-viaje — NO ESTRELLAS)
-  // =========================================================================
   reviews: router({
-    // Crear reseña. Solo si participaste en el viaje (como conductor o pasajero
-    // con booking 'completed').
     create: protectedProcedure
       .input(
         z.object({
@@ -974,14 +895,12 @@ export const mobilityRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const conn = await getDbOrThrow();
-
         if (input.subjectUserId === ctx.user.id) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "No puedes reseñarte a ti mismo.",
+            message: "No puedes resenarte a ti mismo.",
           });
         }
-
         const rideRows = await conn
           .select()
           .from(mobilityRides)
@@ -992,14 +911,11 @@ export const mobilityRouter = router({
         if (ride.status !== "completed") {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Solo puedes reseñar viajes completados.",
+            message: "Solo puedes resenar viajes completados.",
           });
         }
-
-        // Determinar dirección y validar relación
         let direction: "passenger_to_driver" | "driver_to_passenger";
         if (ctx.user.id === ride.driverId && input.subjectUserId !== ride.driverId) {
-          // Conductor reseñando a un pasajero: validar que pasajero estuvo en el viaje
           const passengerBooking = await conn
             .select()
             .from(mobilityRideBookings)
@@ -1019,7 +935,6 @@ export const mobilityRouter = router({
           }
           direction = "driver_to_passenger";
         } else if (ctx.user.id !== ride.driverId && input.subjectUserId === ride.driverId) {
-          // Pasajero reseñando al conductor: validar que pasajero estuvo en el viaje
           const myBooking = await conn
             .select()
             .from(mobilityRideBookings)
@@ -1041,10 +956,9 @@ export const mobilityRouter = router({
         } else {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Combinación de autor/sujeto inválida para este viaje.",
+            message: "Combinacion de autor/sujeto invalida para este viaje.",
           });
         }
-
         await conn.insert(mobilityReviews).values({
           rideId: input.rideId,
           authorId: ctx.user.id,
@@ -1053,11 +967,9 @@ export const mobilityRouter = router({
           content: input.content,
           isVisible: true,
         });
-
         return { success: true };
       }),
 
-    // Listar reseñas visibles de un usuario.
     listForUser: protectedProcedure
       .input(z.object({ userId: z.number(), limit: z.number().int().min(1).max(50).default(20) }))
       .query(async ({ input }) => {
@@ -1076,7 +988,6 @@ export const mobilityRouter = router({
         return rows;
       }),
 
-    // Admin oculta una reseña (moderación).
     hide: protectedProcedure
       .input(z.object({ reviewId: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -1090,9 +1001,6 @@ export const mobilityRouter = router({
       }),
   }),
 
-  // =========================================================================
-  // REPORTS (moderación)
-  // =========================================================================
   reports: router({
     create: protectedProcedure
       .input(
@@ -1129,10 +1037,6 @@ export const mobilityRouter = router({
           description: input.description,
           status: "open",
         });
-
-        // Avisar al admin (notificación interna). El admin va a revisar
-        // su panel; el aviso es por si revisa notifications también.
-        // Buscamos un admin para notificar (en piloto solo hay uno: David).
         const adminRows = await conn
           .select()
           .from(users)
@@ -1145,7 +1049,7 @@ export const mobilityRouter = router({
               userId: admin.id,
               type: "subscription_change",
               title: "Nuevo reporte en Mobility",
-              message: "Categoría: " + input.category,
+              message: "Categoria: " + input.category,
             });
           } catch (e) {
             console.error("Notif fail:", e);
@@ -1154,7 +1058,6 @@ export const mobilityRouter = router({
         return { success: true };
       }),
 
-    // Mis reportes (los que yo hice).
     listMine: protectedProcedure.query(async ({ ctx }) => {
       const conn = await getDbOrThrow();
       const rows = await conn
@@ -1165,7 +1068,6 @@ export const mobilityRouter = router({
       return rows;
     }),
 
-    // Admin ve reportes abiertos.
     listOpen: protectedProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx.user.id);
       const conn = await getDbOrThrow();
@@ -1182,7 +1084,6 @@ export const mobilityRouter = router({
       return rows;
     }),
 
-    // Admin resuelve un reporte.
     resolve: protectedProcedure
       .input(
         z.object({
