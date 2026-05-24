@@ -19,32 +19,9 @@ import {
   Phone,
   Send,
   Flag,
-  Info,
   StopCircle,
+  ExternalLink,
 } from "lucide-react";
-
-/**
- * ============================================================================
- * MOBILITY VIAJE — detalle de un viaje
- * ============================================================================
- *
- * Vistas según contexto:
- *
- *   - CONDUCTOR (dueño del viaje):
- *       - Resumen del viaje
- *       - Lista de solicitudes con botones aprobar/rechazar
- *       - Botones: cancelar viaje, marcar completado
- *       - WhatsApp visible de cada pasajero aprobado
- *
- *   - PASAJERO (no es dueño):
- *       - Resumen del viaje
- *       - Estado de su solicitud (si ya solicitó)
- *       - Si NO ha solicitado: formulario para solicitar
- *       - Si está aprobado: WhatsApp del conductor visible
- *       - Botón: reportar usuario / cancelar mi solicitud
- *
- * ============================================================================
- */
 
 const MOBILITY_ACCENT = "from-blue-500 via-cyan-500 to-blue-600";
 const MOBILITY_GLOW = "shadow-blue-500/30";
@@ -99,10 +76,6 @@ export default function MobilityViaje() {
   );
 }
 
-// =============================================================================
-// LOADING / ERROR
-// =============================================================================
-
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
@@ -129,11 +102,8 @@ function ErrorScreen({ message }: { message: string }) {
   );
 }
 
-// =============================================================================
-// RIDE SUMMARY
-// =============================================================================
-
 function RideSummary({ ride }: { ride: any }) {
+  const [, setLocation] = useLocation();
   const departureDate = new Date(ride.departureAt);
   const dateStr = departureDate.toLocaleDateString("es-MX", {
     weekday: "long",
@@ -157,21 +127,23 @@ function RideSummary({ ride }: { ride: any }) {
       <div className={"absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-30 bg-gradient-to-br " + MOBILITY_ACCENT} />
 
       <div className="relative">
-        {/* Status */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
           <StatusBadge status={ride.status} />
           {driverProfileQuery.data && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <button
+              onClick={() => setLocation("/mobility/perfil/" + ride.driverId)}
+              className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors group"
+            >
               <span>Conductor:</span>
-              <span className="text-white font-medium">{driverProfileQuery.data.displayName}</span>
+              <span className="text-white font-medium group-hover:underline">{driverProfileQuery.data.displayName}</span>
               {(driverProfileQuery.data.role === "driver_verified" || driverProfileQuery.data.role === "both") && (
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               )}
-            </div>
+              <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
           )}
         </div>
 
-        {/* Fecha */}
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-5">
           <Calendar className="w-4 h-4 text-blue-400" />
           <span className="text-white font-medium capitalize">{dateStr}</span>
@@ -180,7 +152,6 @@ function RideSummary({ ride }: { ride: any }) {
           <span className="text-white font-medium">{timeStr}</span>
         </div>
 
-        {/* Ruta */}
         <div className="space-y-3 mb-6">
           <div className="flex items-start gap-3">
             <div className="w-3 h-3 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
@@ -199,7 +170,6 @@ function RideSummary({ ride }: { ride: any }) {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl">
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
@@ -220,7 +190,6 @@ function RideSummary({ ride }: { ride: any }) {
           </div>
         </div>
 
-        {/* Notas */}
         {ride.notes && (
           <div className="mt-5 px-4 py-3 bg-white/5 border border-white/10 rounded-xl">
             <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1.5">
@@ -251,10 +220,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// =============================================================================
-// PASSENGER ACTIONS
-// =============================================================================
-
 function PassengerActions({ ride, onRefetch }: { ride: any; onRefetch: () => void }) {
   const myBookingQuery = trpc.mobility.bookings.getMineForRide.useQuery({ rideId: ride.id });
 
@@ -268,7 +233,6 @@ function PassengerActions({ ride, onRefetch }: { ride: any; onRefetch: () => voi
 
   const myBooking = myBookingQuery.data;
 
-  // No ha solicitado todavía
   if (!myBooking) {
     if (ride.status !== "published") {
       return (
@@ -287,7 +251,6 @@ function PassengerActions({ ride, onRefetch }: { ride: any; onRefetch: () => voi
     return <RequestSeatForm ride={ride} onSuccess={() => { onRefetch(); myBookingQuery.refetch(); }} />;
   }
 
-  // Ya hay booking
   return <MyBookingStatus ride={ride} booking={myBooking} onRefetch={() => myBookingQuery.refetch()} />;
 }
 
@@ -507,10 +470,6 @@ function MyBookingStatus({
   return null;
 }
 
-// =============================================================================
-// DRIVER ACTIONS
-// =============================================================================
-
 function DriverActions({ ride, onRefetch }: { ride: any; onRefetch: () => void }) {
   const bookingsQuery = trpc.mobility.bookings.listForRide.useQuery({ rideId: ride.id });
 
@@ -539,7 +498,6 @@ function DriverActions({ ride, onRefetch }: { ride: any; onRefetch: () => void }
 
   return (
     <div className="space-y-5">
-      {/* Solicitudes pendientes */}
       <section>
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">
           Solicitudes nuevas {requested.length > 0 && <span className="text-blue-400">({requested.length})</span>}
@@ -561,7 +519,6 @@ function DriverActions({ ride, onRefetch }: { ride: any; onRefetch: () => void }
         )}
       </section>
 
-      {/* Pasajeros confirmados */}
       {approved.length > 0 && (
         <section>
           <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">
@@ -575,7 +532,6 @@ function DriverActions({ ride, onRefetch }: { ride: any; onRefetch: () => void }
         </section>
       )}
 
-      {/* Acciones del viaje */}
       {(canManage || canComplete) && (
         <section>
           <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">
@@ -620,6 +576,7 @@ function BookingCard({
   rideId?: number;
   onDecided: () => void;
 }) {
+  const [, setLocation] = useLocation();
   const [responseNote, setResponseNote] = useState("");
   const [showResponse, setShowResponse] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -640,9 +597,6 @@ function BookingCard({
     });
   };
   const handleReject = () => {
-    if (!responseNote.trim()) {
-      alert("Es buena práctica dejar un mensaje breve al rechazar (opcional pero recomendado).");
-    }
     decideMutation.mutate({
       bookingId: booking.id,
       decision: "rejected",
@@ -655,19 +609,22 @@ function BookingCard({
   return (
     <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => setLocation("/mobility/perfil/" + booking.passengerId)}
+          className="flex items-center gap-3 group"
+        >
           <div className={"w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br " + MOBILITY_ACCENT}>
             <span className="text-sm font-bold text-white">
               {passenger?.displayName?.[0]?.toUpperCase() ?? "?"}
             </span>
           </div>
-          <div>
-            <p className="text-sm font-bold text-white">{passenger?.displayName ?? "Pasajero"}</p>
+          <div className="text-left">
+            <p className="text-sm font-bold text-white group-hover:underline">{passenger?.displayName ?? "Pasajero"}</p>
             {passenger?.baseCity && (
               <p className="text-xs text-slate-400">{passenger.baseCity}</p>
             )}
           </div>
-        </div>
+        </button>
         {variant === "approved" && (
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-2 py-0.5">
             Aprobado
@@ -744,10 +701,6 @@ function BookingCard({
   );
 }
 
-// =============================================================================
-// CONTACT INFO BUTTON (revela WhatsApp solo si autorizado)
-// =============================================================================
-
 function ContactInfoButton({
   otherUserId,
   rideId,
@@ -820,10 +773,6 @@ function ContactInfoButton({
     </a>
   );
 }
-
-// =============================================================================
-// REPORT MODAL
-// =============================================================================
 
 function ReportModal({
   subjectUserId,
