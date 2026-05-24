@@ -64,7 +64,8 @@ const MENU_SECTIONS: Array<{ title: string; items: MenuItem[] }> = [
   {
     title: "Principal",
     items: [
-      { id: "pos", label: "Punto de venta", icon: Stethoscope, path: "/veterinaria-pos" },
+      { id: "inicio", label: "Inicio", icon: Stethoscope, path: "/veterinaria-pos" },
+      { id: "caja", label: "Caja registradora", icon: Syringe, path: "/veterinaria-pos/caja" },
       { id: "sistemas", label: "Centro Cyberpiezas", icon: Building, path: "/sistemas" },
     ],
   },
@@ -81,9 +82,10 @@ const MENU_SECTIONS: Array<{ title: string; items: MenuItem[] }> = [
   {
     title: "Administracion",
     items: [
-      { id: "notifications", label: "Notificaciones", icon: Bell, path: "/notifications" },
+      { id: "notifications", label: "Notificaciones", icon: Bell, path: "/vet-notificaciones" },
       { id: "config", label: "Configuracion clinica", icon: Settings, path: "/vet-configuracion" },
       { id: "cajeros", label: "Cajeros y usuarios", icon: Users, path: "/vet-cajeros" },
+      { id: "mis-subs", label: "Mis suscripciones", icon: Users, path: "/vet-mis-suscripciones" },
       { id: "suscripcion", label: "Mi suscripcion", icon: Crown, path: "/vet-suscripcion" },
     ],
   },
@@ -99,10 +101,10 @@ type BottomTab = {
 };
 
 const BOTTOM_TABS: BottomTab[] = [
-  { id: "pos", label: "Inicio", icon: Stethoscope, path: "/veterinaria-pos" },
+  { id: "inicio", label: "Inicio", icon: Stethoscope, path: "/veterinaria-pos" },
   { id: "mascotas", label: "Mascotas", icon: PawPrint, path: "/veterinaria-pos/mascotas" },
-  { id: "citas-main", label: "Nueva cita", icon: Plus, path: "/veterinaria-pos/citas", isMain: true },
-  { id: "productos", label: "Productos", icon: Package, path: "/veterinaria-pos/productos" },
+  { id: "caja-main", label: "Cobrar", icon: Plus, path: "/veterinaria-pos/caja", isMain: true },
+  { id: "citas", label: "Citas", icon: Calendar, path: "/veterinaria-pos/citas" },
   { id: "more", label: "Mas", icon: Menu, path: null },
 ];
 
@@ -207,7 +209,7 @@ export default function VeterinariaShell({ children }: { children: ReactNode }) 
           <button
             className="vt-icon-btn"
             aria-label="Notificaciones"
-            onClick={() => navigate("/notifications")}
+            onClick={() => navigate("/vet-notificaciones")}
           >
             <Bell size={18} />
             <span className="vt-badge" aria-hidden="true" />
@@ -220,11 +222,11 @@ export default function VeterinariaShell({ children }: { children: ReactNode }) 
         <aside className="vt-sidebar" aria-label="Navegacion lateral">
           <button
             className="vt-cta"
-            onClick={() => navigate("/veterinaria-pos/citas")}
-            aria-label="Crear nueva cita"
+            onClick={() => navigate("/veterinaria-pos/caja")}
+            aria-label="Ir a la caja registradora"
           >
             <Plus size={18} />
-            <span>Nueva cita</span>
+            <span>Cobrar</span>
           </button>
 
           <div className="vt-menu-scroll">
@@ -884,5 +886,39 @@ const VETERINARIA_SHELL_STYLES = `
 .vt-pos-theme [class*="divide-slate"] > * + * {
   border-color: rgba(45,59,45,0.08) !important;
 }
-`;
 
+/* =========================================================================
+   FIX TEXTOS MUTED / FOREGROUND (Shadcn UI)
+   --------------------------------------------------------------------------
+   Forza contraste legible para textos que usan tokens semanticos de Shadcn
+   (text-muted-foreground, text-foreground, etc.) que NO son slate-* y por
+   tanto no caian en las reglas anteriores.
+   ========================================================================= */
+.vt-pos-theme .text-muted-foreground,
+.vt-pos-theme [class*="text-muted-foreground"],
+.vt-pos-theme [class*="text-foreground/"],
+.vt-pos-theme [data-slot="card-description"] {
+  color: #6B7A6B !important;
+  opacity: 1 !important;
+}
+.vt-pos-theme .text-foreground,
+.vt-pos-theme [data-slot="card-title"] {
+  color: #2D3B2D !important;
+}
+.vt-pos-theme [class*="text-card-foreground"] {
+  color: #2D3B2D !important;
+}
+
+/* Headings genericos dentro del POS - asegurar contraste */
+.vt-pos-theme h1,
+.vt-pos-theme h2,
+.vt-pos-theme h3,
+.vt-pos-theme h4 {
+  color: #2D3B2D !important;
+}
+
+/* Botones outline / ghost que pueden tener texto claro */
+.vt-pos-theme button[class*="variant-outline"],
+.vt-pos-theme button[class*="variant-ghost"] {
+  color: #2D3B2D !important;
+}`;
