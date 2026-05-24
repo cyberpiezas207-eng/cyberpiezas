@@ -52,6 +52,7 @@ import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
 import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
+import MobilityHome from "@/pages/mobility/MobilityHome";
 import { Donations } from "@/pages/Donations";
 import { CamerasStore } from "@/pages/CamerasStore";
 import { SubscriptionsDashboard } from "@/pages/SubscriptionsDashboard";
@@ -112,6 +113,7 @@ function Router() {
           <CELINE />
         </ProtectedRoute>
       </Route>
+      <Route path="/mobility" component={MobilityHome} />
       <Route path="/donations" component={Donations} />
       <Route path="/suscripcion" component={SubscriptionPage} />
       <Route path="/tienda/:slug" component={PublicStore} />
