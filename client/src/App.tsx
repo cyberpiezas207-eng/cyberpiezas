@@ -1,5 +1,4 @@
 import { useAuth } from "./_core/hooks/useAuth";
-import { useRouter } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -55,7 +54,6 @@ import CELINE from "@/pages/CELINE";
 import MobilityHome from "@/pages/mobility/MobilityHome";
 import MobilityVerificacion from "@/pages/mobility/MobilityVerificacion";
 import MobilityPublicar from "@/pages/mobility/MobilityPublicar";
-import MobilityViaje from "@/pages/mobility/MobilityViaje";
 import { Donations } from "@/pages/Donations";
 import { CamerasStore } from "@/pages/CamerasStore";
 import { SubscriptionsDashboard } from "@/pages/SubscriptionsDashboard";
@@ -72,6 +70,12 @@ import SubscribersManagement from "@/pages/SubscribersManagement";
 import { Route, Switch, useLocation } from "wouter";
 import { useEffect } from "react";
 
+// =====================================================================
+// REDIRECT a dominio oficial: si alguien entra por *.railway.app
+// se le redirige automaticamente a cyberpiezas.com preservando path,
+// query y hash. Esto se ejecuta al cargar el modulo (antes de renderizar)
+// para que no haya flash visual. Solo afecta produccion (no localhost).
+// =====================================================================
 if (typeof window !== "undefined") {
   const host = window.location.hostname;
   const isRailwayDomain = host.endsWith(".railway.app") || host.endsWith(".up.railway.app");
@@ -92,6 +96,7 @@ function Router() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    // Redirect unauthenticated users to home page
     if (!isAuthenticated && window.location.pathname === "/") {
       navigate("/home");
     }
@@ -118,11 +123,6 @@ function Router() {
       <Route path="/mobility/publicar">
         <ProtectedRoute>
           <MobilityPublicar />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/mobility/viaje/:id">
-        <ProtectedRoute>
-          <MobilityViaje />
         </ProtectedRoute>
       </Route>
       <Route path="/donations" component={Donations} />
@@ -152,12 +152,12 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/verduleria" component={VerduleriaPOS} />
-       <Route path="/tarima/:slug" component={TarimaPublic} />
-   <Route path="/mi-tarima">
-     <ProtectedRoute>
-       <MiTarima />
-     </ProtectedRoute>
-   </Route>
+      <Route path="/tarima/:slug" component={TarimaPublic} />
+      <Route path="/mi-tarima">
+        <ProtectedRoute>
+          <MiTarima />
+        </ProtectedRoute>
+      </Route>
 
       <Route path="/home" component={Home} />
       <Route path="/login" component={Home} />
@@ -231,6 +231,19 @@ function Router() {
       <Route path="/notifications">
         <ProtectedRoute requiredRole="admin">
           <NotificationsCenter />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Rutas paralelas Veterinaria: misma page, distinto prefijo para */}
+      {/* que DashboardLayout aplique VeterinariaShell (sage) */}
+      <Route path="/vet-notificaciones">
+        <ProtectedRoute requiredRole="admin">
+          <NotificationsCenter />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/vet-mis-suscripciones">
+        <ProtectedRoute>
+          <MisSuscripciones />
         </ProtectedRoute>
       </Route>
 
@@ -358,7 +371,8 @@ function Router() {
         <ReferralPanel />
       </Route>
 
-      <Route path="/subscribers">
+      {/* Panel de admin para gestionar suscriptores en general */}
+      <Route path="/subscribers-management">
         <ProtectedRoute requiredRole="admin">
           <SubscribersManagement />
         </ProtectedRoute>
@@ -383,6 +397,7 @@ function Router() {
       </Route>
 
       <Route path="/gestion-acceso">
+        {/* MOVIDO AL PANEL CYBERPIEZAS: solo accesible para el admin */}
         <ProtectedRoute requiredRole="admin">
           <GestionAccesoSuscriptor />
         </ProtectedRoute>
