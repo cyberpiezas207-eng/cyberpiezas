@@ -54,6 +54,7 @@ import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
 import MobilityHome from "@/pages/mobility/MobilityHome";
 import MobilityVerificacion from "@/pages/mobility/MobilityVerificacion";
+import MobilityPublicar from "@/pages/mobility/MobilityPublicar";
 import { Donations } from "@/pages/Donations";
 import { CamerasStore } from "@/pages/CamerasStore";
 import { SubscriptionsDashboard } from "@/pages/SubscriptionsDashboard";
@@ -70,9 +71,6 @@ import SubscribersManagement from "@/pages/SubscribersManagement";
 import { Route, Switch, useLocation } from "wouter";
 import { useEffect } from "react";
 
-// =====================================================================
-// REDIRECT a dominio oficial
-// =====================================================================
 if (typeof window !== "undefined") {
   const host = window.location.hostname;
   const isRailwayDomain = host.endsWith(".railway.app") || host.endsWith(".up.railway.app");
@@ -114,6 +112,11 @@ function Router() {
       <Route path="/mobility/verificacion">
         <ProtectedRoute>
           <MobilityVerificacion />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/mobility/publicar">
+        <ProtectedRoute>
+          <MobilityPublicar />
         </ProtectedRoute>
       </Route>
       <Route path="/donations" component={Donations} />
