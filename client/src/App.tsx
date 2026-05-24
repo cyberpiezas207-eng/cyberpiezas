@@ -56,6 +56,7 @@ import MobilityVerificacion from "@/pages/mobility/MobilityVerificacion";
 import MobilityPublicar from "@/pages/mobility/MobilityPublicar";
 import MobilityViaje from "@/pages/mobility/MobilityViaje";
 import MobilityAdmin from "@/pages/mobility/MobilityAdmin";
+import MobilityPerfil from "@/pages/mobility/MobilityPerfil";
 import { Donations } from "@/pages/Donations";
 import { CamerasStore } from "@/pages/CamerasStore";
 import { SubscriptionsDashboard } from "@/pages/SubscriptionsDashboard";
@@ -130,6 +131,11 @@ function Router() {
       <Route path="/mobility/viaje/:id">
         <ProtectedRoute>
           <MobilityViaje />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/mobility/perfil/:userId">
+        <ProtectedRoute>
+          <MobilityPerfil />
         </ProtectedRoute>
       </Route>
       <Route path="/mobility/admin">
