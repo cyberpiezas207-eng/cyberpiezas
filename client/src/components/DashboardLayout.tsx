@@ -59,6 +59,7 @@ import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import BoutiqueShell from "@/layouts/BoutiqueShell";
+import VeterinariaShell from "@/layouts/VeterinariaShell";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { NotificationBell } from "./NotificationBell";
 import { BugReportButton } from "./BugReportButton";
@@ -243,15 +244,24 @@ export default function DashboardLayout({
   }
 
   // =====================================================================
-  // BOUTIQUE ZONE DETECTION
+  // VETERINARIA ZONE DETECTION (Sage Garden theme)
   // ---------------------------------------------------------------------
-  // Si el usuario esta navegando en rutas Boutique (que son las "globales"
-  // sin prefijo), delegamos al BoutiqueShell magenta independiente.
-  //
-  // Las zonas con prefijo propio (Veterinaria, Verduleria, Tarima, Abarrotes)
-  // siguen usando este DashboardLayout viejo.
-  //
-  // /admin-cyberpiezas tambien sigue con este layout (es admin global).
+  // Rutas /veterinaria-pos y /vet-* usan el shell propio de Veterinaria
+  // con paleta verde sage + naranja tierra (acogedor, calido).
+  // =====================================================================
+  const isVeterinariaZone =
+    location.startsWith("/veterinaria-pos") ||
+    location.startsWith("/vet-");
+
+  if (isVeterinariaZone) {
+    return <VeterinariaShell>{children}</VeterinariaShell>;
+  }
+
+  // =====================================================================
+  // BOUTIQUE ZONE DETECTION (Atelier theme)
+  // ---------------------------------------------------------------------
+  // Rutas globales sin prefijo (default zone) usan BoutiqueShell magenta.
+  // /admin-cyberpiezas y rutas de otros POS siguen con este layout viejo.
   // =====================================================================
   const isBoutiqueZone =
     !location.startsWith("/veterinaria-pos") &&
