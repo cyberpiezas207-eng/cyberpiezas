@@ -13,48 +13,12 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
-  Send,
-  Heart,
   Loader2,
-  CheckCircle2,
-  XCircle,
+  Phone,
 } from "lucide-react";
-
-/**
- * ============================================================================
- * MOBILITY HOME — pantalla principal del cuarto Mobility
- * ============================================================================
- *
- * Tres estados auto-detectados según el perfil del usuario:
- *
- *   1. SIN PERFIL → bienvenida al piloto cerrado + formulario para crear
- *      perfil (valida whitelist en el backend).
- *
- *   2. CON PERFIL como pasajero o driver_pending → ve la lista de viajes
- *      disponibles y puede solicitar lugar. Si quiere ofrecer viajes,
- *      ve botón para verificarse.
- *
- *   3. CON PERFIL como driver_verified o both → además de lo anterior,
- *      tiene sección propia con sus viajes publicados y botón para
- *      publicar nuevo.
- *
- * NO tiene NavBar compartido — sigue el patrón interno del repo
- * (cada página resuelve su propio layout).
- *
- * Color identificador del cuarto: AZUL (#3b82f6).
- * ============================================================================
- */
-
-// =============================================================================
-// CONSTANTES VISUALES
-// =============================================================================
 
 const MOBILITY_ACCENT = "from-blue-500 via-cyan-500 to-blue-600";
 const MOBILITY_GLOW = "shadow-blue-500/30";
-
-// =============================================================================
-// COMPONENTE PRINCIPAL
-// =============================================================================
 
 export default function MobilityHome() {
   const { user } = useAuth() as any;
@@ -62,7 +26,6 @@ export default function MobilityHome() {
     enabled: !!user,
   });
 
-  // No autenticado
   if (!user) {
     return <UnauthenticatedView />;
   }
@@ -75,16 +38,13 @@ export default function MobilityHome() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
-      {/* Orbes decorativos azules — identidad de Mobility */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-        {/* HEADER común */}
         <Header />
 
-        {/* CONTENIDO según estado */}
         {!profile ? (
           <CreateProfileSection onSuccess={() => profileQuery.refetch()} />
         ) : (
@@ -96,10 +56,6 @@ export default function MobilityHome() {
     </div>
   );
 }
-
-// =============================================================================
-// HEADER (común a todos los estados)
-// =============================================================================
 
 function Header() {
   return (
@@ -120,15 +76,11 @@ function Header() {
 
       <p className="text-base lg:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
         Conecta con personas que ya recorren tu mismo camino. Sin algoritmos opacos,
-        sin estrellas, sin pagos por la plataforma. La confianza la construyen las personas.
+        sin estrellas, sin pagos por la plataforma.
       </p>
     </header>
   );
 }
-
-// =============================================================================
-// USUARIO NO AUTENTICADO
-// =============================================================================
 
 function UnauthenticatedView() {
   const [, setLocation] = useLocation();
@@ -143,7 +95,7 @@ function UnauthenticatedView() {
         </div>
         <h2 className="text-2xl font-bold text-white mb-3">Mobility está en piloto cerrado</h2>
         <p className="text-sm text-slate-400 leading-relaxed mb-6">
-          Para entrar necesitas una invitación y haber iniciado sesión. Si crees que deberías tener acceso, escríbenos.
+          Para entrar necesitas una invitación y haber iniciado sesión.
         </p>
         <button
           onClick={() => setLocation("/login")}
@@ -156,10 +108,6 @@ function UnauthenticatedView() {
   );
 }
 
-// =============================================================================
-// LOADING STATE
-// =============================================================================
-
 function LoadingState() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
@@ -171,12 +119,9 @@ function LoadingState() {
   );
 }
 
-// =============================================================================
-// CREAR PERFIL (estado: usuario sin perfil de Mobility)
-// =============================================================================
-
 function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
   const [displayName, setDisplayName] = useState("");
+  const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [baseCity, setBaseCity] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -193,8 +138,13 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
       setError("El nombre que mostrarás debe tener al menos 2 caracteres.");
       return;
     }
+    if (phone.trim().length < 8) {
+      setError("El teléfono no parece estar completo. Debe ser tu WhatsApp.");
+      return;
+    }
     createMutation.mutate({
       displayName: displayName.trim(),
+      phone: phone.trim(),
       bio: bio.trim() || undefined,
       baseCity: baseCity.trim() || undefined,
     });
@@ -202,7 +152,6 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <section className="max-w-2xl mx-auto">
-      {/* Cómo funciona */}
       <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-7 mb-6">
         <div className="flex items-start gap-4 mb-5">
           <div className={"w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br " + MOBILITY_ACCENT + " shadow-lg " + MOBILITY_GLOW}>
@@ -212,7 +161,7 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
             <h2 className="text-xl font-bold text-white mb-1">Bienvenido al piloto</h2>
             <p className="text-sm text-slate-400 leading-relaxed">
               Mobility funciona por invitación durante el piloto. Si tu correo está
-              en la lista, podrás crear tu perfil. Si no, te avisaremos cuando se abra.
+              en la lista, podrás crear tu perfil.
             </p>
           </div>
         </div>
@@ -220,20 +169,19 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
         <div className="space-y-3 text-sm text-slate-300">
           <div className="flex items-start gap-3">
             <span className="text-blue-400 font-bold">1.</span>
-            <span>Creas tu perfil con un nombre y datos mínimos.</span>
+            <span>Creas tu perfil con nombre y WhatsApp.</span>
           </div>
           <div className="flex items-start gap-3">
             <span className="text-blue-400 font-bold">2.</span>
-            <span>Si quieres ofrecer viajes como conductor, verificas tu identidad (INE + foto contigo).</span>
+            <span>Si quieres ofrecer viajes, verificas tu identidad (INE + selfie).</span>
           </div>
           <div className="flex items-start gap-3">
             <span className="text-blue-400 font-bold">3.</span>
-            <span>El dinero entre conductor y pasajero pasa por fuera (efectivo o transferencia). La plataforma no cobra comisiones.</span>
+            <span>El dinero entre conductor y pasajero pasa por fuera. CyberPiezas no cobra comisiones.</span>
           </div>
         </div>
       </div>
 
-      {/* Formulario */}
       <form
         onSubmit={handleSubmit}
         className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-7"
@@ -255,6 +203,24 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
             />
             <p className="text-xs text-slate-500 mt-1.5">
               Puede ser distinto de tu nombre legal. Es lo que verán otros usuarios.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Phone className="w-3 h-3" /> WhatsApp para coordinar viajes
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+52 777 123 4567"
+              maxLength={32}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-11 text-white placeholder:text-slate-500 focus:border-blue-400 focus:outline-none transition-colors"
+            />
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Tu WhatsApp NO es visible para otros usuarios. Solo se entrega
+              cuando hay una reserva aprobada entre tú y otra persona.
             </p>
           </div>
 
@@ -296,14 +262,8 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
 
         <button
           type="submit"
-          disabled={createMutation.isPending || displayName.trim().length < 2}
-          className={
-            "mt-6 w-full bg-gradient-to-r " +
-            MOBILITY_ACCENT +
-            " hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full h-11 font-semibold transition-opacity shadow-lg " +
-            MOBILITY_GLOW +
-            " flex items-center justify-center gap-2"
-          }
+          disabled={createMutation.isPending || displayName.trim().length < 2 || phone.trim().length < 8}
+          className={"mt-6 w-full bg-gradient-to-r " + MOBILITY_ACCENT + " hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full h-11 font-semibold transition-opacity shadow-lg " + MOBILITY_GLOW + " flex items-center justify-center gap-2"}
         >
           {createMutation.isPending ? (
             <>
@@ -324,37 +284,20 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-// =============================================================================
-// VISTA CON PERFIL (pasajero o conductor)
-// =============================================================================
-
 function ProfileView({ profile }: { profile: any }) {
   const isDriverVerified = profile.role === "driver_verified" || profile.role === "both";
   const isDriverPending = profile.role === "driver_pending";
 
   return (
     <>
-      {/* Resumen del perfil */}
       <ProfileSummary profile={profile} />
-
-      {/* Banner de verificación pendiente (si aplica) */}
       {isDriverPending && <PendingVerificationBanner />}
-
-      {/* Si es conductor verificado: sección de SUS viajes */}
       {isDriverVerified && <DriverRidesSection />}
-
-      {/* Sección común: viajes disponibles para todos */}
       <AvailableRidesSection />
-
-      {/* Si NO es conductor verificado, CTA para verificarse */}
       {!isDriverVerified && !isDriverPending && <BecomeDriverCTA />}
     </>
   );
 }
-
-// =============================================================================
-// PROFILE SUMMARY (header con info del perfil del usuario)
-// =============================================================================
 
 function ProfileSummary({ profile }: { profile: any }) {
   const isVerified = profile.role === "driver_verified" || profile.role === "both";
@@ -387,10 +330,6 @@ function ProfileSummary({ profile }: { profile: any }) {
   );
 }
 
-// =============================================================================
-// BANNER de verificación pendiente
-// =============================================================================
-
 function PendingVerificationBanner() {
   return (
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 mb-6 flex items-start gap-3">
@@ -407,10 +346,6 @@ function PendingVerificationBanner() {
     </div>
   );
 }
-
-// =============================================================================
-// DRIVER RIDES SECTION (sus viajes publicados + botón para publicar)
-// =============================================================================
 
 function DriverRidesSection() {
   const [, setLocation] = useLocation();
@@ -457,10 +392,6 @@ function DriverRidesSection() {
   );
 }
 
-// =============================================================================
-// AVAILABLE RIDES SECTION (lista de viajes disponibles)
-// =============================================================================
-
 function AvailableRidesSection() {
   const ridesQuery = trpc.mobility.rides.listPublished.useQuery({ limit: 20 });
 
@@ -499,10 +430,6 @@ function AvailableRidesSection() {
   );
 }
 
-// =============================================================================
-// BECOME DRIVER CTA (banner para invitar a verificarse)
-// =============================================================================
-
 function BecomeDriverCTA() {
   const [, setLocation] = useLocation();
   return (
@@ -517,7 +444,7 @@ function BecomeDriverCTA() {
               ¿Quieres ofrecer viajes?
             </h3>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Para ser conductor verificas tu identidad con INE + selfie sosteniéndola.
+              Para ser conductor verificas tu identidad con INE + selfie.
               Una persona del equipo revisa manualmente. Toma máximo 24 horas.
             </p>
           </div>
@@ -532,10 +459,6 @@ function BecomeDriverCTA() {
     </section>
   );
 }
-
-// =============================================================================
-// RIDE CARD (componente reutilizable de tarjeta de viaje)
-// =============================================================================
 
 function RideCard({ ride, variant }: { ride: any; variant: "passenger" | "driver" }) {
   const [, setLocation] = useLocation();
@@ -559,7 +482,6 @@ function RideCard({ ride, variant }: { ride: any; variant: "passenger" | "driver
       <div className={"absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-20 group-hover:opacity-30 transition-opacity bg-gradient-to-br " + MOBILITY_ACCENT} />
 
       <div className="relative">
-        {/* Header: fecha + estado */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <Calendar className="w-3.5 h-3.5" />
@@ -575,7 +497,6 @@ function RideCard({ ride, variant }: { ride: any; variant: "passenger" | "driver
           )}
         </div>
 
-        {/* Ruta */}
         <div className="space-y-1.5 mb-4">
           <div className="flex items-start gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
@@ -587,7 +508,6 @@ function RideCard({ ride, variant }: { ride: any; variant: "passenger" | "driver
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-white/10">
           <div className="flex items-center gap-3 text-xs text-slate-400">
             <span className="inline-flex items-center gap-1">
@@ -606,10 +526,6 @@ function RideCard({ ride, variant }: { ride: any; variant: "passenger" | "driver
     </button>
   );
 }
-
-// =============================================================================
-// FOOTER (mensaje cultural breve)
-// =============================================================================
 
 function Footer() {
   return (
