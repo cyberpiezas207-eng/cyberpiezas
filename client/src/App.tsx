@@ -53,6 +53,7 @@ import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
 import MobilityHome from "@/pages/mobility/MobilityHome";
+import MobilityVerificacion from "@/pages/mobility/MobilityVerificacion";
 import { Donations } from "@/pages/Donations";
 import { CamerasStore } from "@/pages/CamerasStore";
 import { SubscriptionsDashboard } from "@/pages/SubscriptionsDashboard";
@@ -70,10 +71,7 @@ import { Route, Switch, useLocation } from "wouter";
 import { useEffect } from "react";
 
 // =====================================================================
-// REDIRECT a dominio oficial: si alguien entra por *.railway.app
-// se le redirige automaticamente a cyberpiezas.com preservando path,
-// query y hash. Esto se ejecuta al cargar el modulo (antes de renderizar)
-// para que no haya flash visual. Solo afecta produccion (no localhost).
+// REDIRECT a dominio oficial
 // =====================================================================
 if (typeof window !== "undefined") {
   const host = window.location.hostname;
@@ -95,7 +93,6 @@ function Router() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    // Redirect unauthenticated users to home page
     if (!isAuthenticated && window.location.pathname === "/") {
       navigate("/home");
     }
@@ -114,6 +111,11 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/mobility" component={MobilityHome} />
+      <Route path="/mobility/verificacion">
+        <ProtectedRoute>
+          <MobilityVerificacion />
+        </ProtectedRoute>
+      </Route>
       <Route path="/donations" component={Donations} />
       <Route path="/suscripcion" component={SubscriptionPage} />
       <Route path="/tienda/:slug" component={PublicStore} />
@@ -372,7 +374,6 @@ function Router() {
       </Route>
 
       <Route path="/gestion-acceso">
-        {/* MOVIDO AL PANEL CYBERPIEZAS: solo accesible para el admin */}
         <ProtectedRoute requiredRole="admin">
           <GestionAccesoSuscriptor />
         </ProtectedRoute>
