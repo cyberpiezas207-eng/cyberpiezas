@@ -35,6 +35,12 @@ import {
   UserCircle,
   User,
   XCircle,
+  CreditCard,
+  Banknote,
+  ArrowRightLeft,
+  HandCoins,
+  Percent,
+  StickyNote,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -416,11 +422,22 @@ function POSTab() {
   const servicesQuery = trpc.veterinaria.services.list.useQuery({});
   const statsQuery = trpc.veterinaria.sales.stats.useQuery();
   const settingsQuery = trpc.veterinaria.settings.get.useQuery();
+  // B1: queries para asociar cliente y mascota a la venta
+  const customersQuery = trpc.customers.list.useQuery();
+  const petsListQuery = trpc.veterinaria.pets.list.useQuery({});
 
   const [cart, setCart] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [lastSale, setLastSale] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  // B1: estados para ticket mixto clinico
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+  const [discount, setDiscount] = useState<string>("0");
+  const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "tarjeta" | "transferencia" | "credito" | "otro">("efectivo");
+  const [paymentStatus, setPaymentStatus] = useState<"pagado" | "pendiente" | "parcial" | "cancelado">("pagado");
+  const [amountPaid, setAmountPaid] = useState<string>("");
+  const [saleNotes, setSaleNotes] = useState<string>("");
 
   const createSale = trpc.veterinaria.sales.create.useMutation({
     onSuccess: (data) => {
@@ -434,6 +451,14 @@ function POSTab() {
       setShowReceipt(true);
       toast.success("Venta registrada correctamente");
       setCart([]);
+      // B1: limpiar selectores y opciones de pago para siguiente venta
+      setSelectedCustomerId(null);
+      setSelectedPetId(null);
+      setDiscount("0");
+      setPaymentMethod("efectivo");
+      setPaymentStatus("pagado");
+      setAmountPaid("");
+      setSaleNotes("");
       utils.veterinaria.sales.stats.invalidate();
       utils.veterinaria.products.list.invalidate();
     },
@@ -452,6 +477,43 @@ function POSTab() {
   const cartTotal = cart.reduce((acc, item) => {
     return acc + parseFloat(item.unitPrice) * parseFloat(item.quantity);
   }, 0);
+
+  // B1: derivados para descuento y filtrado de clientes/mascotas
+  const discountNum = parseFloat(discount || "0") || 0;
+  const cartTotalAfterDiscount = Math.max(0, cartTotal - discountNum);
+
+  const customers: any[] = (customersQuery.data as any[]) ?? [];
+  const petsList: any[] = (petsListQuery.data as any[]) ?? [];
+
+  // Mascotas del cliente seleccionado (o todas si no hay cliente)
+  const customerPets = selectedCustomerId
+    ? petsList.filter((row: any) => {
+        const pet = row.pet ?? row;
+        return pet.customerId === selectedCustomerId;
+      })
+    : petsList;
+
+  // Auto-asignar dueno cuando se selecciona mascota sin cliente previo
+  const handleSelectPet = (petIdRaw: string) => {
+    const pid = petIdRaw ? parseInt(petIdRaw) : null;
+    setSelectedPetId(pid);
+    if (pid && !selectedCustomerId) {
+      const found = petsList.find((row: any) => (row.pet?.id ?? row.id) === pid);
+      const ownerId = found?.pet?.customerId ?? found?.customerId ?? null;
+      if (ownerId) setSelectedCustomerId(ownerId);
+    }
+  };
+
+  // Si cambia cliente, limpiar mascota si no le pertenece
+  const handleSelectCustomer = (cidRaw: string) => {
+    const cid = cidRaw ? parseInt(cidRaw) : null;
+    setSelectedCustomerId(cid);
+    if (selectedPetId) {
+      const currentPet = petsList.find((row: any) => (row.pet?.id ?? row.id) === selectedPetId);
+      const currentOwner = currentPet?.pet?.customerId ?? currentPet?.customerId ?? null;
+      if (currentOwner !== cid) setSelectedPetId(null);
+    }
+  };
 
   const addProduct = (product: any) => {
     const existing = cart.find((c) => c.itemType === "product" && c.productId === product.id);
@@ -501,10 +563,37 @@ function POSTab() {
       toast.error("Agrega items al carrito");
       return;
     }
+
+    // B1: validar anticipo si el pago es parcial
+    if (paymentStatus === "parcial") {
+      const paid = parseFloat(amountPaid || "0") || 0;
+      if (paid <= 0) {
+        toast.error("Indica cuanto pago el cliente como anticipo");
+        return;
+      }
+      if (paid >= cartTotalAfterDiscount) {
+        toast.error("El anticipo es mayor o igual al total. Marca como 'Pagado'.");
+        return;
+      }
+    }
+
+    // B1: armar notas finales (combina nota libre + info de anticipo si aplica)
+    let finalNotes = saleNotes.trim();
+    if (paymentStatus === "parcial" && amountPaid) {
+      const paid = parseFloat(amountPaid).toFixed(2);
+      const total = cartTotalAfterDiscount.toFixed(2);
+      const anticipoTxt = "Anticipo recibido: $" + paid + " de $" + total;
+      finalNotes = finalNotes ? finalNotes + " | " + anticipoTxt : anticipoTxt;
+    }
+
     createSale.mutate({
+      customerId: selectedCustomerId ?? undefined,
+      petId: selectedPetId ?? undefined,
+      discount: (discountNum || 0).toFixed(2),
+      paymentMethod,
+      paymentStatus,
+      notes: finalNotes || undefined,
       items: cart,
-      paymentMethod: "efectivo",
-      paymentStatus: "pagado",
     });
   };
 
@@ -697,10 +786,192 @@ function POSTab() {
                     </Button>
                   </div>
                 ))}
-                <div className="border-t border-slate-600 pt-3 mt-2">
-                  <div className="flex justify-between items-baseline mb-3">
+                {/* ====================================================== */}
+                {/* B1: Panel de detalles de venta - ticket mixto clinico   */}
+                {/* Permite asociar cliente+mascota, aplicar descuento,     */}
+                {/* elegir metodo de pago y manejar anticipos (parcial).    */}
+                {/* ====================================================== */}
+                <div className="space-y-3 border-t border-slate-600 pt-3 mt-1">
+                  {/* Asociar a cliente y mascota */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <UserCircle className="w-3.5 h-3.5" />
+                      Cliente y mascota
+                    </div>
+                    <select
+                      value={selectedCustomerId ?? ""}
+                      onChange={(e) => handleSelectCustomer(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-slate-900/85 border border-slate-600 rounded-lg text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="">Sin cliente asignado</option>
+                      {customers.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name ?? c.fullName ?? ("Cliente #" + c.id)}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedPetId ?? ""}
+                      onChange={(e) => handleSelectPet(e.target.value)}
+                      className="w-full h-9 px-2.5 bg-slate-900/85 border border-slate-600 rounded-lg text-white text-sm focus:border-emerald-500 focus:outline-none disabled:opacity-50"
+                      disabled={customerPets.length === 0}
+                    >
+                      <option value="">
+                        {selectedCustomerId && customerPets.length === 0
+                          ? "Este cliente no tiene mascotas"
+                          : "Sin mascota asignada"}
+                      </option>
+                      {customerPets.map((row: any) => {
+                        const pet = row.pet ?? row;
+                        return (
+                          <option key={pet.id} value={pet.id}>
+                            {pet.name}{pet.species ? " - " + pet.species : ""}{pet.breed ? " (" + pet.breed + ")" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Descuento */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <Percent className="w-3.5 h-3.5" />
+                      Descuento
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      className="h-9 bg-slate-900/85 border-slate-600 text-white text-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Metodo de pago - chips */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      Metodo de pago
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {([
+                        { val: "efectivo", label: "Efectivo", Icon: Banknote },
+                        { val: "tarjeta", label: "Tarjeta", Icon: CreditCard },
+                        { val: "transferencia", label: "Transfer.", Icon: ArrowRightLeft },
+                        { val: "credito", label: "Credito", Icon: HandCoins },
+                        { val: "otro", label: "Otro", Icon: DollarSign },
+                      ] as const).map(({ val, label, Icon }) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setPaymentMethod(val)}
+                          className={
+                            "flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-[10px] font-bold transition-all " +
+                            (paymentMethod === val
+                              ? "bg-emerald-500/20 border-emerald-400 text-emerald-200 shadow-md shadow-emerald-500/20"
+                              : "bg-slate-900/85 border-slate-600 text-slate-400 hover:border-slate-500")
+                          }
+                        >
+                          <Icon className="w-4 h-4" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Estado de pago */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Estado del pago
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {([
+                        { val: "pagado", label: "Pagado", color: "emerald" },
+                        { val: "parcial", label: "Anticipo", color: "amber" },
+                        { val: "pendiente", label: "Por cobrar", color: "rose" },
+                      ] as const).map(({ val, label, color }) => {
+                        const active = paymentStatus === val;
+                        const activeCls =
+                          color === "emerald" ? "bg-emerald-500/20 border-emerald-400 text-emerald-200" :
+                          color === "amber" ? "bg-amber-500/20 border-amber-400 text-amber-200" :
+                          "bg-rose-500/20 border-rose-400 text-rose-200";
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setPaymentStatus(val)}
+                            className={
+                              "py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all " +
+                              (active ? activeCls : "bg-slate-900/85 border-slate-600 text-slate-400 hover:border-slate-500")
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Anticipo recibido - solo visible si pago es parcial */}
+                  {paymentStatus === "parcial" && (
+                    <div className="space-y-1.5 bg-amber-500/5 border border-amber-500/30 rounded-lg p-2.5">
+                      <label className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                        Anticipo recibido ($)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={amountPaid}
+                        onChange={(e) => setAmountPaid(e.target.value)}
+                        className="h-9 bg-slate-900/85 border-amber-600/50 text-white text-sm"
+                        placeholder="0.00"
+                      />
+                      {amountPaid && parseFloat(amountPaid) > 0 && parseFloat(amountPaid) < cartTotalAfterDiscount && (
+                        <p className="text-xs text-amber-300/90 font-medium">
+                          Queda por cobrar: <strong>{formatMoney(cartTotalAfterDiscount - parseFloat(amountPaid))}</strong>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Nota libre opcional */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <StickyNote className="w-3.5 h-3.5" />
+                      Nota (opcional)
+                    </label>
+                    <Input
+                      type="text"
+                      value={saleNotes}
+                      onChange={(e) => setSaleNotes(e.target.value)}
+                      className="h-9 bg-slate-900/85 border-slate-600 text-white text-sm"
+                      placeholder="Ej: Cobrar resto el viernes"
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
+
+                {/* Resumen de totales con desglose */}
+                <div className="border-t border-slate-600 pt-3 mt-2 space-y-1">
+                  {discountNum > 0 && (
+                    <>
+                      <div className="flex justify-between text-xs text-slate-300">
+                        <span>Subtotal</span>
+                        <span>{formatMoney(cartTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-amber-300">
+                        <span>Descuento</span>
+                        <span>- {formatMoney(discountNum)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-baseline mb-3 pt-1">
                     <span className="text-sm text-slate-100 font-medium uppercase tracking-wider">Total</span>
-                    <span className="text-2xl text-emerald-300 font-bold tracking-tight">{formatMoney(cartTotal)}</span>
+                    <span className="text-2xl text-emerald-300 font-bold tracking-tight">{formatMoney(cartTotalAfterDiscount)}</span>
                   </div>
                 </div>
                 <Button
