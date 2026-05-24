@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { useAuth } from "../_core/hooks/useAuth";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Home, Wallet, Crown, Settings } from "lucide-react";
 
 interface POSSystem {
   id: string;
@@ -140,6 +140,75 @@ export default function SystemsPanel() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      {/* ============================================================ */}
+      {/* TOPBAR fija: identidad CyberPiezas + rutas de escape rapidas. */}
+      {/* Se queda visible al hacer scroll para evitar dead-end UX.    */}
+      {/* En mobile: solo iconos. En desktop: iconos + texto.          */}
+      {/* ============================================================ */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-950/70 border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-2">
+          {/* Logo / marca CyberPiezas */}
+          <button
+            onClick={() => setLocation("/sistemas")}
+            className="flex items-center gap-2 group flex-shrink-0"
+            title="Inicio de sistemas"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-fuchsia-500/30 group-hover:scale-105 transition-transform">
+              CP
+            </div>
+            <span className="text-white font-bold tracking-tight text-sm hidden sm:inline">
+              CyberPiezas
+            </span>
+          </button>
+
+          {/* Navegacion rapida: rutas de escape mas usadas */}
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => setLocation("/home")}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
+              title="Inicio publico"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Inicio</span>
+            </button>
+            <button
+              onClick={() => setLocation("/subscription")}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
+              title="Mi suscripcion"
+            >
+              <Crown className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Mi plan</span>
+            </button>
+            <button
+              onClick={() => setLocation("/mis-ingresos")}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
+              title="Mis ingresos"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Ingresos</span>
+            </button>
+            {/* Boton admin: solo visible para administradores globales */}
+            {(user as any)?.role === "admin" && (
+              <button
+                onClick={() => setLocation("/admin-cyberpiezas")}
+                className="px-2.5 py-1.5 text-xs font-medium text-fuchsia-300 hover:text-fuchsia-200 hover:bg-fuchsia-500/10 rounded-lg transition-colors flex items-center gap-1.5 border border-fuchsia-500/20"
+                title="Panel de administracion"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Admin</span>
+              </button>
+            )}
+            {/* Avatar con inicial del nombre */}
+            <div
+              className="ml-1.5 w-8 h-8 rounded-full bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex-shrink-0"
+              title={user?.name ?? "Usuario"}
+            >
+              {firstName ? firstName[0].toUpperCase() : "?"}
+            </div>
+          </nav>
+        </div>
+      </header>
+
       {/* Orbes decorativos de fondo */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/3 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
