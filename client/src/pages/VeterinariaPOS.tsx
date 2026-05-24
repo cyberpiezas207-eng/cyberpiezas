@@ -39,6 +39,7 @@ import {
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DashboardLayout from "@/components/DashboardLayout";
+import VetDashboardTab from "@/pages/VetDashboardTab";
 import AccessDeniedScreen from "@/components/AccessDeniedScreen";
 import { Loader2 } from "lucide-react";
 
@@ -53,7 +54,10 @@ const tabFromUrl = (urlTab: string | undefined): TabKey => {
     case "productos": return "products";
     case "servicios": return "services";
     case "configuracion": return "settings";
-    default: return "pos";
+    case "caja": return "pos";
+    case "dashboard": return "dashboard";
+    case "inicio": return "dashboard";
+    default: return "dashboard";
   }
 };
 
@@ -155,6 +159,7 @@ export default function VeterinariaPOS() {
           <PetDetailView petId={selectedPetId} onBack={() => setSelectedPetId(null)} />
         ) : (
           <>
+            {activeTab === "dashboard" && <VetDashboardTab />}
             {activeTab === "pos" && <POSTab />}
             {activeTab === "pets" && <PetsTab onSelectPet={setSelectedPetId} />}
             {activeTab === "customers" && <CustomersTab />}
