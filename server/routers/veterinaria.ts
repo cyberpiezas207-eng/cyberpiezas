@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, asc, gte, lte, ne, like, or, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, ne, like, or, sql, inArray } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { router, protectedProcedure } from "../_core/trpc";
@@ -534,6 +534,9 @@ export const veterinariaRouter = router({
           paymentMethod: z.enum(["efectivo", "tarjeta", "transferencia", "credito", "otro"]).default("efectivo"),
           paymentStatus: z.enum(["pagado", "pendiente", "parcial", "cancelado"]).default("pagado"),
           notes: z.string().optional(),
+          // B2: campos para ticket mixto clinico
+          attendedByCashierId: z.number().int().positive().optional(),
+          amountPaid: z.string().optional(),
           items: z.array(
             z.object({
               itemType: z.enum(["product", "service"]),
@@ -560,6 +563,47 @@ export const veterinariaRouter = router({
         const discount = parseFloat(input.discount);
         const total = subtotal - discount;
 
+        // B2: validar coherencia de amountPaid segun paymentStatus
+        let finalAmountPaid: string | undefined = undefined;
+        if (input.paymentStatus === "parcial") {
+          if (!input.amountPaid) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Para pago parcial debes indicar el monto del anticipo (amountPaid)",
+            });
+          }
+          const paid = parseFloat(input.amountPaid);
+          if (isNaN(paid) || paid <= 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "El anticipo debe ser un monto positivo",
+            });
+          }
+          if (paid >= total) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "El anticipo no puede ser mayor o igual al total. Marca como 'pagado' si cobraste todo.",
+            });
+          }
+          finalAmountPaid = paid.toFixed(2);
+        } else if (input.paymentStatus === "pagado") {
+          // En pago completo, amountPaid = total (registro explicito)
+          finalAmountPaid = total.toFixed(2);
+        }
+        // Para pendiente y cancelado dejamos amountPaid como NULL.
+
+        // B2: validar que el cashier (si se envia) pertenezca a la clinica del owner
+        if (input.attendedByCashierId) {
+          const cashierList = await db.listVetCashiers(ctx.user.id, { status: "all" });
+          const valid = cashierList.some((c) => c.id === input.attendedByCashierId);
+          if (!valid) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "El cajero seleccionado no pertenece a tu clinica",
+            });
+          }
+        }
+
         // Crear venta
         const saleResult = await conn.insert(vetSales).values({
           ownerId: ctx.user.id,
@@ -571,6 +615,9 @@ export const veterinariaRouter = router({
           paymentMethod: input.paymentMethod,
           paymentStatus: input.paymentStatus,
           notes: input.notes,
+          // B2: nuevos campos
+          attendedByCashierId: input.attendedByCashierId,
+          amountPaid: finalAmountPaid,
         });
         const saleId = (saleResult as any).insertId as number;
 
@@ -718,6 +765,138 @@ export const veterinariaRouter = router({
         totalSales,
       };
     }),
+
+    // ────────────────────────────────────────────────────────────────────────
+    // B2: CUENTAS POR COBRAR
+    // ────────────────────────────────────────────────────────────────────────
+    /**
+     * Lista ventas con saldo pendiente (parcial o pendiente).
+     * Util para que Ana Karen vea su lista de "por cobrar".
+     */
+    listPending: protectedProcedure.query(async ({ ctx }) => {
+      await ensureVetAccess(ctx.user.id);
+      const conn = await getDbOrThrow();
+
+      const rows = await conn
+        .select({
+          sale: vetSales,
+          customer: customers,
+          pet: pets,
+        })
+        .from(vetSales)
+        .leftJoin(customers, eq(vetSales.customerId, customers.id))
+        .leftJoin(pets, eq(vetSales.petId, pets.id))
+        .where(
+          and(
+            eq(vetSales.ownerId, ctx.user.id),
+            // Solo ventas con saldo: parcial o pendiente
+            inArray(vetSales.paymentStatus, ["parcial", "pendiente"] as const),
+          ),
+        )
+        .orderBy(desc(vetSales.createdAt));
+
+      // Enriquecer con saldo pendiente calculado
+      return rows.map((row) => {
+        const total = parseFloat(row.sale.total);
+        const paid = row.sale.amountPaid ? parseFloat(row.sale.amountPaid) : 0;
+        const balance = Math.max(0, total - paid);
+        return {
+          ...row,
+          balance: balance.toFixed(2),
+        };
+      });
+    }),
+
+    /**
+     * Registra un pago adicional sobre una venta con saldo pendiente.
+     * - Si el nuevo amountPaid >= total => paymentStatus pasa a "pagado".
+     * - Si el nuevo amountPaid < total => paymentStatus se queda en "parcial".
+     */
+    updatePayment: protectedProcedure
+      .input(
+        z.object({
+          saleId: z.number().int().positive(),
+          additionalAmount: z.string().refine((v) => {
+            const n = parseFloat(v);
+            return !isNaN(n) && n > 0;
+          }, "El monto adicional debe ser positivo"),
+          paymentMethod: z.enum(["efectivo", "tarjeta", "transferencia", "credito", "otro"]).optional(),
+          notes: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        // Cargar la venta y validar ownership
+        const rows = await conn
+          .select()
+          .from(vetSales)
+          .where(and(eq(vetSales.id, input.saleId), eq(vetSales.ownerId, ctx.user.id)));
+        const sale = rows[0];
+        if (!sale) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Venta no encontrada" });
+        }
+
+        // Solo se puede cobrar adicional sobre ventas con saldo
+        if (sale.paymentStatus !== "parcial" && sale.paymentStatus !== "pendiente") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Esta venta no tiene saldo pendiente (estado: " + sale.paymentStatus + ")",
+          });
+        }
+
+        const total = parseFloat(sale.total);
+        const previouslyPaid = sale.amountPaid ? parseFloat(sale.amountPaid) : 0;
+        const newPaid = previouslyPaid + parseFloat(input.additionalAmount);
+
+        if (newPaid > total + 0.01) {
+          // +0.01 tolera redondeo decimal
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "El pago adicional excede el saldo pendiente (saldo: $" + (total - previouslyPaid).toFixed(2) + ")",
+          });
+        }
+
+        // Determinar nuevo paymentStatus
+        const newStatus: "pagado" | "parcial" = newPaid >= total - 0.01 ? "pagado" : "parcial";
+
+        // Construir notas acumuladas (no sobreescribir)
+        const paidStamp = "Pago adicional " + new Date().toISOString().slice(0, 10) +
+          ": $" + parseFloat(input.additionalAmount).toFixed(2) +
+          (input.paymentMethod ? " (" + input.paymentMethod + ")" : "") +
+          (input.notes ? " - " + input.notes : "");
+        const combinedNotes = sale.notes ? sale.notes + " | " + paidStamp : paidStamp;
+
+        await conn
+          .update(vetSales)
+          .set({
+            amountPaid: newPaid.toFixed(2),
+            paymentStatus: newStatus,
+            // Si se especifico nuevo metodo de pago, actualizarlo
+            paymentMethod: input.paymentMethod ?? sale.paymentMethod,
+            notes: combinedNotes,
+          })
+          .where(eq(vetSales.id, input.saleId));
+
+        // Notificar si quedo saldada
+        if (newStatus === "pagado") {
+          try {
+            await createNotification({
+              userId: ctx.user.id,
+              type: "sale",
+              title: "Venta saldada",
+              message: "Cuenta por cobrar #" + sale.id + " saldada por $" + total.toFixed(2),
+              relatedId: sale.id,
+            });
+          } catch (e) {
+            console.error("Failed to create paid-off notification:", e);
+          }
+        }
+
+        const updated = await conn.select().from(vetSales).where(eq(vetSales.id, input.saleId));
+        return updated[0];
+      }),
   }),
 
   // ────────────────────────────────────────────────────────────────────────
