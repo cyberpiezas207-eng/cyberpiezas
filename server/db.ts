@@ -340,6 +340,41 @@ export async function runStartupMigrations(): Promise<void> {
     "ALTER TABLE `vetSales` ADD COLUMN `attendedByCashierId` int NULL DEFAULT NULL",
     "CREATE INDEX `idx_vetsales_cashier` ON `vetSales` (`attendedByCashierId`)",
     "CREATE INDEX `idx_vetsales_paymentstatus` ON `vetSales` (`paymentStatus`)",
+    // ========================================================================
+    // P1 - Portal de Duenos de Mascotas (Vet Owner Portal MVP)
+    // - petOwnerPortalTokens: tokens privados por cliente final
+    // - portalAccessLog: bitacora de accesos para seguridad y soporte
+    // ========================================================================
+    "CREATE TABLE IF NOT EXISTS `petOwnerPortalTokens` (" +
+      "`id` int AUTO_INCREMENT NOT NULL, " +
+      "`clinicUserId` int NOT NULL, " +
+      "`customerId` int NOT NULL, " +
+      "`tokenHash` varchar(128) NOT NULL, " +
+      "`status` enum('active','revoked','expired') NOT NULL DEFAULT 'active', " +
+      "`expiresAt` timestamp NOT NULL, " +
+      "`lastAccessAt` timestamp NULL DEFAULT NULL, " +
+      "`accessCount` int NOT NULL DEFAULT 0, " +
+      "`internalNotes` varchar(255) NULL DEFAULT NULL, " +
+      "`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
+      "PRIMARY KEY (`id`), " +
+      "UNIQUE KEY `uniq_portal_token_hash` (`tokenHash`)" +
+      ")",
+    "CREATE INDEX `idx_portaltoken_clinic` ON `petOwnerPortalTokens` (`clinicUserId`)",
+    "CREATE INDEX `idx_portaltoken_customer` ON `petOwnerPortalTokens` (`customerId`)",
+    "CREATE INDEX `idx_portaltoken_status` ON `petOwnerPortalTokens` (`status`)",
+    "CREATE TABLE IF NOT EXISTS `portalAccessLog` (" +
+      "`id` int AUTO_INCREMENT NOT NULL, " +
+      "`tokenId` int NULL DEFAULT NULL, " +
+      "`customerId` int NULL DEFAULT NULL, " +
+      "`ipHash` varchar(64) NULL DEFAULT NULL, " +
+      "`userAgent` varchar(255) NULL DEFAULT NULL, " +
+      "`eventType` enum('view','denied','rate_limited') NOT NULL, " +
+      "`accessedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "PRIMARY KEY (`id`)" +
+      ")",
+    "CREATE INDEX `idx_portallog_token` ON `portalAccessLog` (`tokenId`)",
+    "CREATE INDEX `idx_portallog_iphash_time` ON `portalAccessLog` (`ipHash`, `accessedAt`)",
   ];
   for (const migration of migrations) {
     try {
