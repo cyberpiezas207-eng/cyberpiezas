@@ -46,6 +46,16 @@ export const mobilityProfiles = mysqlTable("mobility_profiles", {
   phoneVerified: boolean("phoneVerified").default(false).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
 
+  // ============================================================================
+  // TRAZABILIDAD LEGAL: aceptación de Términos y Aviso de Privacidad
+  // ============================================================================
+  // Cuándo y qué versión aceptó el usuario. Imprescindible para LFPDPPP
+  // y para defender legalmente que el consentimiento fue informado.
+  termsAcceptedAt: timestamp("termsAcceptedAt"),
+  termsVersion: varchar("termsVersion", { length: 20 }),
+  privacyAcceptedAt: timestamp("privacyAcceptedAt"),
+  privacyVersion: varchar("privacyVersion", { length: 20 }),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
