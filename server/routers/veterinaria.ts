@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, and, desc, asc, gte, lte, ne, like, or, sql, inArray } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
 import {
   pets,
   vetProducts,
@@ -43,6 +43,67 @@ function generatePortalToken(): { plainToken: string; tokenHash: string } {
 
 function hashPortalToken(plainToken: string): string {
   return createHash("sha256").update(plainToken).digest("hex");
+}
+
+// ============================================================================
+// P3 - Helpers para acceso publico al portal (sin auth de usuario)
+// ----------------------------------------------------------------------------
+// Para Ley Federal de Proteccion de Datos MX: nunca guardamos IP plana,
+// solo su hash SHA-256 (irreversible). Permite detectar abuso sin violar
+// privacidad del visitante.
+// ============================================================================
+function hashIp(ip: string | undefined): string | null {
+  if (!ip || typeof ip !== "string") return null;
+  return createHash("sha256").update(ip).digest("hex").slice(0, 64);
+}
+
+function extractIpFromCtx(ctx: any): string | undefined {
+  try {
+    const fwd = ctx?.req?.headers?.["x-forwarded-for"];
+    if (typeof fwd === "string") return fwd.split(",")[0].trim();
+    if (Array.isArray(fwd) && fwd.length > 0) return String(fwd[0]).trim();
+    const real = ctx?.req?.headers?.["x-real-ip"];
+    if (typeof real === "string") return real.trim();
+    return ctx?.req?.socket?.remoteAddress;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractUserAgent(ctx: any): string | undefined {
+  try {
+    const ua = ctx?.req?.headers?.["user-agent"];
+    return typeof ua === "string" ? ua.slice(0, 255) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Loggea evento de acceso al portal. Defensivo: si falla, no rompe la respuesta.
+ */
+async function logPortalAccess(
+  conn: any,
+  params: {
+    tokenId?: number | null;
+    customerId?: number | null;
+    ipHash: string | null;
+    userAgent: string | null | undefined;
+    eventType: "view" | "denied" | "rate_limited";
+  },
+) {
+  try {
+    await conn.insert(portalAccessLog).values({
+      tokenId: params.tokenId ?? null,
+      customerId: params.customerId ?? null,
+      ipHash: params.ipHash,
+      userAgent: params.userAgent ?? null,
+      eventType: params.eventType,
+    });
+  } catch (err) {
+    console.error("Portal access log insert failed:", err);
+    // Silencioso: no afectar al usuario final
+  }
 }
 
 // ============================================================================
@@ -1719,5 +1780,276 @@ export const veterinariaRouter = router({
         usedAtLeastOnce,
       };
     }),
+  }),
+
+  // ==========================================================================
+  // P3 - PORTAL DE DUENOS DE MASCOTAS (vista publica por token)
+  // --------------------------------------------------------------------------
+  // Endpoint que la Sra. Perez (dueno final) consume desde su celular
+  // cuando entra a cyberpiezas.com/mi-mascota/:token
+  //
+  // SIN autenticacion de usuario. El token ES la credencial.
+  //
+  // Decisiones de seguridad:
+  //  - Rate limit: max 30 requests por IP hasheada en 60 segundos
+  //  - Token recibido se hashea ANTES de buscar en BD
+  //  - Token revocado o expirado: 403, sin pistas adicionales
+  //  - Datos retornados: solo lo NO sensible (sin diagnosticos, notas, costos)
+  //  - Cada acceso queda en portalAccessLog para auditoria
+  // ==========================================================================
+  publicView: router({
+    /**
+     * Lee el portal del dueno con base en el token. Endpoint principal.
+     */
+    getByToken: publicProcedure
+      .input(
+        z.object({
+          token: z.string().min(20).max(128),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        const conn = await getDbOrThrow();
+        const ipHash = hashIp(extractIpFromCtx(ctx));
+        const userAgent = extractUserAgent(ctx);
+
+        // ───────────────────────────────────────────────────────────────────
+        // 1. Rate limiting por IP (max 30 requests / 60 segundos)
+        // ───────────────────────────────────────────────────────────────────
+        if (ipHash) {
+          const sixtySecondsAgo = new Date(Date.now() - 60_000);
+          const recentRequests = await conn
+            .select({ id: portalAccessLog.id })
+            .from(portalAccessLog)
+            .where(
+              and(
+                eq(portalAccessLog.ipHash, ipHash),
+                gte(portalAccessLog.accessedAt, sixtySecondsAgo),
+              ),
+            )
+            .limit(31);
+
+          if (recentRequests.length >= 30) {
+            await logPortalAccess(conn, {
+              ipHash,
+              userAgent,
+              eventType: "rate_limited",
+            });
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: "Demasiados intentos. Intenta de nuevo en un minuto.",
+            });
+          }
+        }
+
+        // ───────────────────────────────────────────────────────────────────
+        // 2. Hashear token recibido y buscar
+        // ───────────────────────────────────────────────────────────────────
+        const tokenHash = hashPortalToken(input.token);
+        const tokenRows = await conn
+          .select()
+          .from(petOwnerPortalTokens)
+          .where(eq(petOwnerPortalTokens.tokenHash, tokenHash))
+          .limit(1);
+        const tokenRow = tokenRows[0];
+
+        // 3. Token no existe -> 404 (sin revelar si fue typo o link falso)
+        if (!tokenRow) {
+          await logPortalAccess(conn, {
+            ipHash,
+            userAgent,
+            eventType: "denied",
+          });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Link no valido. Verifica con tu veterinaria que te enviaron el link correcto.",
+          });
+        }
+
+        // 4. Token revocado -> 403
+        if (tokenRow.status === "revoked") {
+          await logPortalAccess(conn, {
+            tokenId: tokenRow.id,
+            customerId: tokenRow.customerId,
+            ipHash,
+            userAgent,
+            eventType: "denied",
+          });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Este link fue desactivado. Solicita uno nuevo a tu veterinaria.",
+          });
+        }
+
+        // 5. Token expirado -> auto-marcar 'expired' y 403
+        if (tokenRow.expiresAt < new Date()) {
+          if (tokenRow.status === "active") {
+            await conn
+              .update(petOwnerPortalTokens)
+              .set({ status: "expired" })
+              .where(eq(petOwnerPortalTokens.id, tokenRow.id));
+          }
+          await logPortalAccess(conn, {
+            tokenId: tokenRow.id,
+            customerId: tokenRow.customerId,
+            ipHash,
+            userAgent,
+            eventType: "denied",
+          });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Este link ya expiro. Solicita uno nuevo a tu veterinaria.",
+          });
+        }
+
+        // ───────────────────────────────────────────────────────────────────
+        // 6. TODO VALIDO: actualizar contador, loggear y cargar datos
+        // ───────────────────────────────────────────────────────────────────
+        await conn
+          .update(petOwnerPortalTokens)
+          .set({
+            lastAccessAt: new Date(),
+            accessCount: sql`${petOwnerPortalTokens.accessCount} + 1`,
+          })
+          .where(eq(petOwnerPortalTokens.id, tokenRow.id));
+
+        await logPortalAccess(conn, {
+          tokenId: tokenRow.id,
+          customerId: tokenRow.customerId,
+          ipHash,
+          userAgent,
+          eventType: "view",
+        });
+
+        // ───────────────────────────────────────────────────────────────────
+        // 7. Cargar cliente (info minima)
+        // ───────────────────────────────────────────────────────────────────
+        const customerRows = await conn
+          .select({
+            id: customers.id,
+            name: customers.name,
+          })
+          .from(customers)
+          .where(eq(customers.id, tokenRow.customerId))
+          .limit(1);
+        const customer = customerRows[0];
+
+        // 8. Cargar mascotas (campos NO sensibles)
+        const petsRows = await conn
+          .select({
+            id: pets.id,
+            name: pets.name,
+            species: pets.species,
+            breed: pets.breed,
+            color: pets.color,
+            sex: pets.sex,
+            sterilized: pets.sterilized,
+            birthDate: pets.birthDate,
+            weight: pets.weight,
+            photoUrl: pets.photoUrl,
+            // EXCLUIDOS (sensibles/internos):
+            // microchip, allergies, chronicConditions, notes
+          })
+          .from(pets)
+          .where(
+            and(
+              eq(pets.customerId, tokenRow.customerId),
+              eq(pets.isActive, true),
+            ),
+          )
+          .orderBy(asc(pets.name));
+        const petIds = petsRows.map((p) => p.id);
+
+        // 9. Cargar vacunas
+        const vaccinations = petIds.length > 0
+          ? await conn
+              .select({
+                id: vetVaccinations.id,
+                petId: vetVaccinations.petId,
+                vaccineName: vetVaccinations.vaccineName,
+                brand: vetVaccinations.brand,
+                appliedDate: vetVaccinations.appliedDate,
+                nextDoseDate: vetVaccinations.nextDoseDate,
+                // EXCLUIDOS: batchNumber, notes (uso interno)
+              })
+              .from(vetVaccinations)
+              .where(inArray(vetVaccinations.petId, petIds))
+              .orderBy(desc(vetVaccinations.appliedDate))
+          : [];
+
+        // 10. Cargar citas (solo futuras, hasta 20)
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const appointments = petIds.length > 0
+          ? await conn
+              .select({
+                id: vetAppointments.id,
+                petId: vetAppointments.petId,
+                appointmentAt: vetAppointments.appointmentAt,
+                durationMinutes: vetAppointments.durationMinutes,
+                reason: vetAppointments.reason,
+                status: vetAppointments.status,
+                // EXCLUIDO: notes (interno)
+              })
+              .from(vetAppointments)
+              .where(
+                and(
+                  inArray(vetAppointments.petId, petIds),
+                  gte(vetAppointments.appointmentAt, startOfToday),
+                  ne(vetAppointments.status, "cancelada"),
+                ),
+              )
+              .orderBy(asc(vetAppointments.appointmentAt))
+              .limit(20)
+          : [];
+
+        // 11. Cargar visitas recientes (max 10, SOLO motivo y fecha)
+        //     NUNCA exponer symptoms/diagnosis/treatment/notes al dueno
+        const visits = petIds.length > 0
+          ? await conn
+              .select({
+                id: vetVisits.id,
+                petId: vetVisits.petId,
+                visitDate: vetVisits.visitDate,
+                reason: vetVisits.reason,
+                nextVisitDate: vetVisits.nextVisitDate,
+                nextVisitReason: vetVisits.nextVisitReason,
+                // EXCLUIDOS DELIBERADAMENTE:
+                // symptoms, diagnosis, treatment, prescribedMedications,
+                // recommendations, notes, weight, temperature, saleId
+              })
+              .from(vetVisits)
+              .where(inArray(vetVisits.petId, petIds))
+              .orderBy(desc(vetVisits.visitDate))
+              .limit(10)
+          : [];
+
+        // 12. Cargar info publica de la clinica (branding)
+        const clinicRows = await conn
+          .select({
+            clinicName: vetClinicSettings.clinicName,
+            doctorName: vetClinicSettings.doctorName,
+            phone: vetClinicSettings.phone,
+            email: vetClinicSettings.email,
+            address: vetClinicSettings.address,
+            // EXCLUIDO: professionalLicense, university (no critico para portal)
+          })
+          .from(vetClinicSettings)
+          .where(eq(vetClinicSettings.ownerId, tokenRow.clinicUserId))
+          .limit(1);
+        const clinic = clinicRows[0] ?? null;
+
+        return {
+          clinic,
+          customer,
+          pets: petsRows,
+          vaccinations,
+          appointments,
+          visits,
+          meta: {
+            tokenExpiresAt: tokenRow.expiresAt,
+            lastAccessAt: tokenRow.lastAccessAt,
+          },
+        };
+      }),
   }),
 });
