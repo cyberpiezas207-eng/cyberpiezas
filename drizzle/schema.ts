@@ -1506,4 +1506,61 @@ export const posStaffPermissions = mysqlTable("posStaffPermissions", {
 
 export type PosStaffPermission = typeof posStaffPermissions.$inferSelect;
 export type InsertPosStaffPermission = typeof posStaffPermissions.$inferInsert;
+
+// ============================================================================
+// P1 - PORTAL DE DUENOS DE MASCOTAS (Vet Owner Portal MVP)
+// ----------------------------------------------------------------------------
+// Tabla de tokens privados: cada cliente (customer) de la clinica puede tener
+// un token activo que da acceso de solo lectura a sus mascotas, vacunas,
+// citas e historial resumido via /mi-mascota/:token.
+//
+// Reglas:
+//  - tokenHash guarda SHA-256 del token plano (nunca el plano)
+//  - status active|revoked|expired controla acceso
+//  - expiresAt default 1 ano desde createdAt (no NULL, mas seguro)
+//  - lastAccessAt se actualiza en cada lectura para detectar uso
+//  - clinicUserId = el owner (Ana Karen) dueno del schema multi-tenant
+//  - customerId = el cliente final cuyo acceso autoriza
+// ============================================================================
+export const petOwnerPortalTokens = mysqlTable("petOwnerPortalTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  clinicUserId: int("clinicUserId").notNull().references(() => users.id),
+  customerId: int("customerId").notNull().references(() => customers.id),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull().unique(),
+  status: mysqlEnum("status", ["active", "revoked", "expired"]).default("active").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  lastAccessAt: timestamp("lastAccessAt"),
+  accessCount: int("accessCount").default(0).notNull(),
+  // notas internas (no se exponen al dueno final)
+  internalNotes: varchar("internalNotes", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PetOwnerPortalToken = typeof petOwnerPortalTokens.$inferSelect;
+export type InsertPetOwnerPortalToken = typeof petOwnerPortalTokens.$inferInsert;
+
+// ============================================================================
+// P1 - PORTAL ACCESS LOG
+// ----------------------------------------------------------------------------
+// Bitacora de cada lectura exitosa o intento. Util para:
+//  - Detectar abuso (mismo token desde 50 IPs distintas)
+//  - Rate limit por IP/token
+//  - Dar visibilidad a Ana Karen ("tu cliente entro X veces este mes")
+// NO es para espiar contenido. Solo metadata.
+// ============================================================================
+export const portalAccessLog = mysqlTable("portalAccessLog", {
+  id: int("id").autoincrement().primaryKey(),
+  tokenId: int("tokenId").references(() => petOwnerPortalTokens.id),
+  customerId: int("customerId").references(() => customers.id),
+  ipHash: varchar("ipHash", { length: 64 }),
+  userAgent: varchar("userAgent", { length: 255 }),
+  // 'view' = lectura ok | 'denied' = token invalido o expirado | 'rate_limited'
+  eventType: mysqlEnum("eventType", ["view", "denied", "rate_limited"]).notNull(),
+  accessedAt: timestamp("accessedAt").defaultNow().notNull(),
+});
+
+export type PortalAccessLog = typeof portalAccessLog.$inferSelect;
+export type InsertPortalAccessLog = typeof portalAccessLog.$inferInsert;
+
 export * from "./mobility-schema";
