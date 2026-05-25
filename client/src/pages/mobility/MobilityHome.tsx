@@ -21,6 +21,14 @@ import {
   ExternalLink,
   ArrowLeft,
   Home,
+  Search,
+  Handshake,
+  X,
+  Check,
+  Heart,
+  MessageCircle,
+  Compass,
+  Coffee,
 } from "lucide-react";
 
 const MOBILITY_ACCENT = "from-blue-500 via-cyan-500 to-blue-600";
@@ -57,9 +65,9 @@ export default function MobilityHome() {
         <Header />
 
         {!profile ? (
-          <CreateProfileSection onSuccess={() => profileQuery.refetch()} />
+          <UnregisteredFlow onSuccess={() => profileQuery.refetch()} />
         ) : (
-          <ProfileView profile={profile} />
+          <RegisteredFlow profile={profile} />
         )}
 
         <Footer />
@@ -69,7 +77,7 @@ export default function MobilityHome() {
 }
 
 // =============================================================================
-// HEADER NAV DEL EDIFICIO — Logo CyberPiezas + breadcrumb a Mobility
+// HEADER NAV DEL EDIFICIO
 // =============================================================================
 
 function BuildingNav() {
@@ -133,8 +141,10 @@ function UnauthenticatedView() {
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative flex items-center justify-center px-4 py-20">
-        <div className="max-w-md w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        <Header />
+
+        <div className="max-w-md w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8 mx-auto mb-10">
           <div className={"w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 bg-gradient-to-br " + MOBILITY_ACCENT + " " + MOBILITY_GLOW + " shadow-lg"}>
             🚗
           </div>
@@ -149,6 +159,15 @@ function UnauthenticatedView() {
             Iniciar sesión
           </button>
         </div>
+
+        <HowItWorksBlock />
+        <DifferentFromOthersBlock />
+        <CommonRoutesBlock />
+        <PilotStateBlock />
+        <GoodExperienceBlock />
+        <MorelosMapBlock />
+
+        <Footer />
       </div>
     </div>
   );
@@ -169,11 +188,507 @@ function LoadingState() {
 }
 
 // =============================================================================
+// FLUJOS: SIN PERFIL vs CON PERFIL
+// =============================================================================
+
+function UnregisteredFlow({ onSuccess }: { onSuccess: () => void }) {
+  return (
+    <>
+      <HowItWorksBlock />
+      <DifferentFromOthersBlock />
+      <CommonRoutesBlock />
+      <PilotStateBlock />
+      <GoodExperienceBlock />
+      <MorelosMapBlock />
+      <CreateProfileSection onSuccess={onSuccess} />
+    </>
+  );
+}
+
+function RegisteredFlow({ profile }: { profile: any }) {
+  const isDriverVerified = profile.role === "driver_verified" || profile.role === "both";
+  const isDriverPending = profile.role === "driver_pending";
+
+  return (
+    <>
+      <ProfileSummary profile={profile} />
+      {isDriverPending && <PendingVerificationBanner />}
+      {isDriverVerified && <DriverRidesSection />}
+      <AvailableRidesSection />
+      {!isDriverVerified && !isDriverPending && <BecomeDriverCTA />}
+
+      <CommonRoutesBlock />
+      <PilotStateBlock />
+      <GoodExperienceBlock />
+      <MorelosMapBlock />
+    </>
+  );
+}
+
+// =============================================================================
+// BLOQUE 1: CÓMO FUNCIONA MOBILITY (3 pasos)
+// =============================================================================
+
+function HowItWorksBlock() {
+  const steps = [
+    {
+      icon: <Search className="w-5 h-5 text-white" />,
+      title: "Encuentras personas que ya recorren rutas similares",
+      desc: "Mobility no asigna viajes. Tú buscas, tú decides, tú coordinas.",
+    },
+    {
+      icon: <Heart className="w-5 h-5 text-white" />,
+      title: "Revisas contexto humano, no estrellas",
+      desc: "Las reseñas son texto escrito por personas reales que ya viajaron juntas. Sin puntajes, sin rankings.",
+    },
+    {
+      icon: <Handshake className="w-5 h-5 text-white" />,
+      title: "Coordinan directamente entre ustedes",
+      desc: "Cuando alguien aprueba tu solicitud, se libera el WhatsApp. CyberPiezas no cobra comisión.",
+    },
+  ];
+
+  return (
+    <section className="mb-12">
+      <SectionHeader
+        eyebrow="Cómo funciona"
+        title="Mobility, en 3 pasos"
+        subtitle="Es diferente a Uber o BlaBlaCar. Te explicamos cómo."
+      />
+
+      <div className="grid md:grid-cols-3 gap-4">
+        {steps.map((step, i) => (
+          <div
+            key={i}
+            className="relative bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-6"
+          >
+            <div className="absolute -top-3 -left-3 w-9 h-9 rounded-full bg-slate-900 border-2 border-blue-500/30 flex items-center justify-center">
+              <span className="text-sm font-bold text-blue-400">{i + 1}</span>
+            </div>
+            <div className={"w-12 h-12 rounded-xl flex items-center justify-center mb-4 mt-2 bg-gradient-to-br " + MOBILITY_ACCENT + " shadow-lg " + MOBILITY_GLOW}>
+              {step.icon}
+            </div>
+            <h3 className="text-base font-bold text-white mb-2 leading-snug">
+              {step.title}
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">{step.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
+        <span className="inline-flex items-center gap-1.5">
+          <ShieldCheck className="w-3 h-3 text-emerald-400" />
+          Moderación humana
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <X className="w-3 h-3 text-rose-400" />
+          Sin pagos por plataforma
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+          Piloto cerrado
+        </span>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// BLOQUE 2: QUÉ HACE DIFERENTE A MOBILITY (NO usamos vs SÍ usamos)
+// =============================================================================
+
+function DifferentFromOthersBlock() {
+  const notUsing = [
+    "Estrellas y puntajes numéricos",
+    "Rankings ocultos por algoritmo",
+    "Algoritmos opacos que deciden por ti",
+    "Comisiones por cada viaje",
+    "Boost pagado para aparecer arriba",
+    "Gamificación artificial",
+  ];
+
+  const using = [
+    "Reseñas cualitativas con palabras reales",
+    "Moderación hecha por personas, no bots",
+    "Contexto humano antes de cada viaje",
+    "Verificación de identidad con INE",
+    "Cultura comunitaria explícita",
+    "Transparencia sobre el momento del piloto",
+  ];
+
+  return (
+    <section className="mb-12">
+      <SectionHeader
+        eyebrow="Qué nos hace diferentes"
+        title="Lo que NO hacemos / Lo que SÍ hacemos"
+        subtitle="Mobility no es Uber, no es BlaBlaCar, no es una startup buscando escala. Es infraestructura comunitaria local."
+      />
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* NO usamos */}
+        <div className="bg-rose-500/5 backdrop-blur-xl border border-rose-500/20 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center">
+              <X className="w-4 h-4 text-rose-400" />
+            </div>
+            <h3 className="text-base font-bold text-rose-200">No usamos</h3>
+          </div>
+          <ul className="space-y-2">
+            {notUsing.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                <X className="w-3.5 h-3.5 text-rose-400/70 flex-shrink-0 mt-0.5" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* SÍ usamos */}
+        <div className="bg-emerald-500/5 backdrop-blur-xl border border-emerald-500/20 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <Check className="w-4 h-4 text-emerald-400" />
+            </div>
+            <h3 className="text-base font-bold text-emerald-200">Sí usamos</h3>
+          </div>
+          <ul className="space-y-2">
+            {using.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                <Check className="w-3.5 h-3.5 text-emerald-400/70 flex-shrink-0 mt-0.5" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// BLOQUE 3: RUTAS COMUNES EN MORELOS
+// =============================================================================
+
+function CommonRoutesBlock() {
+  const routes = [
+    { from: "Cuernavaca", to: "UAEM", reason: "Estudiantes y personal académico" },
+    { from: "Jiutepec", to: "Cuernavaca Centro", reason: "Comuters diarios" },
+    { from: "Cuautla", to: "Cuernavaca", reason: "Viaje interurbano frecuente" },
+    { from: "Huitzilac", to: "Cuernavaca", reason: "Acceso desde la zona norte" },
+    { from: "Tepoztlán", to: "Cuernavaca", reason: "Movilidad turística y laboral" },
+    { from: "Yautepec", to: "Cuernavaca", reason: "Conexión zona oriente" },
+  ];
+
+  return (
+    <section className="mb-12">
+      <SectionHeader
+        eyebrow="Donde ya hay caminos"
+        title="Rutas comunes en Morelos"
+        subtitle="Estas son rutas donde probablemente ya hay personas recorriendo el mismo camino que tú. No son viajes activos: son potencial real."
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {routes.map((route, i) => (
+          <div
+            key={i}
+            className="group bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-2xl p-5 transition-all"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              <p className="text-sm text-white font-bold truncate">{route.from}</p>
+              <ArrowRight className="w-3 h-3 text-slate-500 flex-shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              <p className="text-sm text-white font-bold truncate">{route.to}</p>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed">{route.reason}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-slate-500 text-center mt-5 italic">
+        Si conoces a alguien que ya hace alguna de estas rutas, invítalo al piloto.
+      </p>
+    </section>
+  );
+}
+
+// =============================================================================
+// BLOQUE 4: ESTADO DEL PILOTO
+// =============================================================================
+
+function PilotStateBlock() {
+  return (
+    <section className="mb-12">
+      <div className="relative bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-transparent backdrop-blur-xl border border-blue-500/20 rounded-3xl p-7 lg:p-9 overflow-hidden">
+        <div className={"absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-20 bg-gradient-to-br " + MOBILITY_ACCENT} />
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+              Estado del piloto · Mayo 2026
+            </span>
+          </div>
+
+          <h2 className="text-2xl lg:text-3xl font-bold text-white mb-3 tracking-tight">
+            Estamos construyendo esto
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+              lentamente, a propósito
+            </span>
+          </h2>
+
+          <p className="text-sm lg:text-base text-slate-300 leading-relaxed max-w-3xl mb-6">
+            Mobility está en piloto cerrado. Preferimos crecer despacio para priorizar
+            confianza y comunidad antes que escala rápida. Si las primeras personas no se
+            sienten seguras, no vale la pena tener 10,000.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-1">
+                Lo que estamos probando
+              </p>
+              <p className="text-sm text-white leading-snug">
+                Si la confianza local sustituye a las estrellas como sistema de reputación.
+              </p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-1">
+                Lo que estamos aprendiendo
+              </p>
+              <p className="text-sm text-white leading-snug">
+                Cómo manejar disputas humanas sin convertir todo en cifras.
+              </p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-300 mb-1">
+                Lo que viene
+              </p>
+              <p className="text-sm text-white leading-snug">
+                Apertura gradual conforme se valide la cultura del cuarto.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// BLOQUE 5: QUÉ HACE UNA BUENA EXPERIENCIA
+// =============================================================================
+
+function GoodExperienceBlock() {
+  const examples = [
+    {
+      icon: <Clock className="w-4 h-4" />,
+      title: "Avisa retrasos temprano",
+      desc: "Si vas a llegar tarde, escribe antes de que pase. Diez minutos de aviso valen más que mil disculpas después.",
+    },
+    {
+      icon: <X className="w-4 h-4" />,
+      title: "Cancela con tiempo",
+      desc: "Cancelar está bien. Cancelar sin avisar, no. Si algo cambia, dilo en cuanto lo sepas.",
+    },
+    {
+      icon: <CheckCircle2 className="w-4 h-4" />,
+      title: "Confirma cuando llegues",
+      desc: "Un mensaje breve cierra el ciclo. Le dice al otro que todo salió bien.",
+    },
+    {
+      icon: <MessageCircle className="w-4 h-4" />,
+      title: "Agradece el viaje",
+      desc: "No tienes que escribir una novela. Un 'gracias por el aventón' construye comunidad.",
+    },
+    {
+      icon: <Heart className="w-4 h-4" />,
+      title: "Deja reseñas útiles",
+      desc: "Describe la experiencia con tus palabras. No hay estrellas que dar — hay contexto que compartir.",
+    },
+    {
+      icon: <Sparkles className="w-4 h-4" />,
+      title: "Rechaza sin agresión",
+      desc: "Si decides no aprobar a alguien, puedes hacerlo sin lastimar. Una frase amable basta.",
+    },
+  ];
+
+  return (
+    <section className="mb-12">
+      <SectionHeader
+        eyebrow="Cultura del cuarto"
+        title="Qué hace una buena experiencia en Mobility"
+        subtitle="No son reglas. Son ejemplos de cómo se convive en este cuarto. La cultura no se explica, se modela."
+      />
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {examples.map((ex, i) => (
+          <div
+            key={i}
+            className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-5"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center flex-shrink-0 text-blue-300">
+                {ex.icon}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white mb-1.5 leading-snug">{ex.title}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{ex.desc}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// BLOQUE 6: MAPA MINIMALISTA DE MORELOS
+// =============================================================================
+
+function MorelosMapBlock() {
+  return (
+    <section className="mb-12">
+      <SectionHeader
+        eyebrow="Geografía local"
+        title="Morelos, conectado por sus caminos"
+        subtitle="Las ciudades donde Mobility tiene sentido. Por ahora pequeño. Por ahora honesto."
+      />
+
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-7 lg:p-9 relative overflow-hidden">
+        <div className={"absolute -top-32 -right-32 w-80 h-80 rounded-full blur-3xl opacity-10 bg-gradient-to-br " + MOBILITY_ACCENT} />
+
+        <svg viewBox="0 0 500 350" className="w-full h-auto max-h-[420px] relative">
+          <defs>
+            <linearGradient id="mapRoute" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.1" />
+              <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1" />
+            </linearGradient>
+            <radialGradient id="cityGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* Grid sutil de fondo */}
+          <g stroke="rgba(148, 163, 184, 0.06)" strokeWidth="0.5">
+            <path d="M0 87 L500 87" />
+            <path d="M0 175 L500 175" />
+            <path d="M0 263 L500 263" />
+            <path d="M125 0 L125 350" />
+            <path d="M250 0 L250 350" />
+            <path d="M375 0 L375 350" />
+          </g>
+
+          {/* Líneas de rutas */}
+          <g stroke="url(#mapRoute)" strokeWidth="1.5" fill="none" strokeDasharray="4 3">
+            {/* Cuernavaca - UAEM (cercano) */}
+            <line x1="180" y1="180" x2="220" y2="195" />
+            {/* Cuernavaca - Jiutepec */}
+            <line x1="180" y1="180" x2="240" y2="210" />
+            {/* Cuernavaca - Cuautla */}
+            <line x1="180" y1="180" x2="380" y2="160" />
+            {/* Cuernavaca - Huitzilac */}
+            <line x1="180" y1="180" x2="160" y2="90" />
+            {/* Cuernavaca - Tepoztlán */}
+            <line x1="180" y1="180" x2="270" y2="110" />
+            {/* Cuernavaca - Yautepec */}
+            <line x1="180" y1="180" x2="330" y2="220" />
+            {/* Cuautla - Yautepec */}
+            <line x1="380" y1="160" x2="330" y2="220" />
+            {/* Tepoztlán - Yautepec */}
+            <line x1="270" y1="110" x2="330" y2="220" />
+          </g>
+
+          {/* Ciudades */}
+          <CityMarker x={180} y={180} name="Cuernavaca" main />
+          <CityMarker x={220} y={195} name="UAEM" small />
+          <CityMarker x={240} y={210} name="Jiutepec" />
+          <CityMarker x={380} y={160} name="Cuautla" />
+          <CityMarker x={160} y={90} name="Huitzilac" />
+          <CityMarker x={270} y={110} name="Tepoztlán" />
+          <CityMarker x={330} y={220} name="Yautepec" />
+
+          {/* Compás visual sutil */}
+          <g transform="translate(450, 40)" opacity="0.4">
+            <circle cx="0" cy="0" r="18" fill="none" stroke="#475569" strokeWidth="0.5" />
+            <text x="0" y="-22" textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="system-ui">N</text>
+            <path d="M0 -12 L3 0 L0 12 L-3 0 Z" fill="#3b82f6" opacity="0.5" />
+          </g>
+        </svg>
+
+        <p className="text-xs text-slate-500 text-center mt-4 italic">
+          Mapa ilustrativo de las principales conexiones donde Mobility puede operar hoy.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function CityMarker({ x, y, name, main, small }: { x: number; y: number; name: string; main?: boolean; small?: boolean }) {
+  const radius = main ? 8 : small ? 4 : 6;
+  const labelOffset = main ? 18 : 12;
+  return (
+    <g>
+      {main && (
+        <>
+          <circle cx={x} cy={y} r={radius * 2.5} fill="url(#cityGlow)" />
+          <circle cx={x} cy={y} r={radius * 1.8} fill="none" stroke="#3b82f6" strokeWidth="0.5" opacity="0.4">
+            <animate attributeName="r" values={`${radius * 1.5};${radius * 2.8};${radius * 1.5}`} dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite" />
+          </circle>
+        </>
+      )}
+      <circle cx={x} cy={y} r={radius} fill={main ? "#3b82f6" : "#06b6d4"} />
+      <circle cx={x} cy={y} r={radius / 2} fill="#fff" />
+      <text
+        x={x}
+        y={y + labelOffset + 5}
+        textAnchor="middle"
+        fill={main ? "#fff" : "#cbd5e1"}
+        fontSize={main ? "12" : "10"}
+        fontWeight={main ? "700" : "500"}
+        fontFamily="system-ui"
+      >
+        {name}
+      </text>
+    </g>
+  );
+}
+
+// =============================================================================
+// COMPONENTE AUXILIAR: Header de sección
+// =============================================================================
+
+function SectionHeader({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
+  return (
+    <div className="mb-6 text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-3">
+        <span className="w-1 h-1 rounded-full bg-blue-400" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
+          {eyebrow}
+        </span>
+      </div>
+      <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight mb-2">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
 // CREAR PERFIL CON ACEPTACIÓN DE T&C
 // =============================================================================
 
 function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
-  const [, setLocation] = useLocation();
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
@@ -215,21 +730,14 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
     displayName.trim().length >= 2 && phone.trim().length >= 8 && acceptedTerms;
 
   return (
-    <section className="max-w-2xl mx-auto">
-      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-7 mb-6">
-        <div className="flex items-start gap-4 mb-5">
-          <div className={"w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br " + MOBILITY_ACCENT + " shadow-lg " + MOBILITY_GLOW}>
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white mb-1">Bienvenido al piloto</h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Mobility funciona por invitación durante el piloto. Si tu correo está
-              en la lista, podrás crear tu perfil.
-            </p>
-          </div>
-        </div>
+    <section className="max-w-2xl mx-auto mb-12">
+      <SectionHeader
+        eyebrow="Bienvenido al piloto"
+        title="Crea tu perfil de Mobility"
+        subtitle="Si tu correo está en la lista, podrás continuar."
+      />
 
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-7 mb-6">
         <div className="space-y-3 text-sm text-slate-300">
           <div className="flex items-start gap-3">
             <span className="text-blue-400 font-bold">1.</span>
@@ -447,23 +955,8 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // =============================================================================
-// VISTA CON PERFIL EXISTENTE
+// COMPONENTES DEL USUARIO YA REGISTRADO
 // =============================================================================
-
-function ProfileView({ profile }: { profile: any }) {
-  const isDriverVerified = profile.role === "driver_verified" || profile.role === "both";
-  const isDriverPending = profile.role === "driver_pending";
-
-  return (
-    <>
-      <ProfileSummary profile={profile} />
-      {isDriverPending && <PendingVerificationBanner />}
-      {isDriverVerified && <DriverRidesSection />}
-      <AvailableRidesSection />
-      {!isDriverVerified && !isDriverPending && <BecomeDriverCTA />}
-    </>
-  );
-}
 
 function ProfileSummary({ profile }: { profile: any }) {
   const [, setLocation] = useLocation();
