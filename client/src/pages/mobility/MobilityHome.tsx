@@ -19,6 +19,8 @@ import {
   FileText,
   CheckCircle2,
   ExternalLink,
+  ArrowLeft,
+  Home,
 } from "lucide-react";
 
 const MOBILITY_ACCENT = "from-blue-500 via-cyan-500 to-blue-600";
@@ -49,6 +51,8 @@ export default function MobilityHome() {
       <div className="absolute top-1/3 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
+      <BuildingNav />
+
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <Header />
 
@@ -61,6 +65,38 @@ export default function MobilityHome() {
         <Footer />
       </div>
     </div>
+  );
+}
+
+// =============================================================================
+// HEADER NAV DEL EDIFICIO — Logo CyberPiezas + breadcrumb a Mobility
+// =============================================================================
+
+function BuildingNav() {
+  const [, setLocation] = useLocation();
+  return (
+    <nav className="relative sticky top-0 z-50 backdrop-blur-xl bg-slate-950/60 border-b border-white/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm">
+          <button
+            onClick={() => setLocation("/cyberpiezas")}
+            className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white font-bold transition-colors group"
+          >
+            <Home className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="tracking-tight">CyberPiezas</span>
+          </button>
+          <span className="text-slate-600">/</span>
+          <span className="text-white font-medium">Mobility</span>
+        </div>
+
+        <button
+          onClick={() => setLocation("/cyberpiezas")}
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full text-xs font-bold text-slate-300 hover:text-white transition-all"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Volver al edificio
+        </button>
+      </div>
+    </nav>
   );
 }
 
@@ -92,24 +128,27 @@ function Header() {
 function UnauthenticatedView() {
   const [, setLocation] = useLocation();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      <BuildingNav />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative max-w-md w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8">
-        <div className={"w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 bg-gradient-to-br " + MOBILITY_ACCENT + " " + MOBILITY_GLOW + " shadow-lg"}>
-          🚗
+      <div className="relative flex items-center justify-center px-4 py-20">
+        <div className="max-w-md w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8">
+          <div className={"w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 bg-gradient-to-br " + MOBILITY_ACCENT + " " + MOBILITY_GLOW + " shadow-lg"}>
+            🚗
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Mobility está en piloto cerrado</h2>
+          <p className="text-sm text-slate-400 leading-relaxed mb-6">
+            Para entrar necesitas una invitación y haber iniciado sesión.
+          </p>
+          <button
+            onClick={() => setLocation("/login")}
+            className="w-full bg-white hover:bg-slate-100 text-slate-900 rounded-full h-11 font-semibold transition-colors"
+          >
+            Iniciar sesión
+          </button>
         </div>
-        <h2 className="text-2xl font-bold text-white mb-3">Mobility está en piloto cerrado</h2>
-        <p className="text-sm text-slate-400 leading-relaxed mb-6">
-          Para entrar necesitas una invitación y haber iniciado sesión.
-        </p>
-        <button
-          onClick={() => setLocation("/login")}
-          className="w-full bg-white hover:bg-slate-100 text-slate-900 rounded-full h-11 font-semibold transition-colors"
-        >
-          Iniciar sesión
-        </button>
       </div>
     </div>
   );
@@ -117,10 +156,13 @@ function UnauthenticatedView() {
 
 function LoadingState() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-3" />
-        <p className="text-sm text-slate-400">Cargando tu cuarto de Mobility...</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <BuildingNav />
+      <div className="flex items-center justify-center py-32">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm text-slate-400">Cargando tu cuarto de Mobility...</p>
+        </div>
       </div>
     </div>
   );
@@ -405,7 +447,7 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // =============================================================================
-// VISTA CON PERFIL EXISTENTE (sin cambios respecto a versión anterior)
+// VISTA CON PERFIL EXISTENTE
 // =============================================================================
 
 function ProfileView({ profile }: { profile: any }) {
