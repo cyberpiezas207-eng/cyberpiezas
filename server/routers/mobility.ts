@@ -150,13 +150,15 @@ export const mobilityRouter = router({
   }),
 
   profile: router({
-    create: protectedProcedure
+   create: protectedProcedure
       .input(
         z.object({
           displayName: z.string().min(2).max(80),
           phone: z.string().min(8).max(32),
           bio: z.string().max(500).optional(),
           baseCity: z.string().max(80).optional(),
+          acceptedTermsVersion: z.string().min(1).max(20),
+          acceptedPrivacyVersion: z.string().min(1).max(20),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -203,6 +205,7 @@ export const mobilityRouter = router({
             message: "Mobility esta en piloto cerrado. Escribenos si crees que deberias tener acceso.",
           });
         }
+        const now = new Date();
         await conn.insert(mobilityProfiles).values({
           userId: ctx.user.id,
           displayName: input.displayName,
@@ -212,11 +215,15 @@ export const mobilityRouter = router({
           role: "passenger",
           phoneVerified: false,
           isActive: true,
+          termsAcceptedAt: now,
+          termsVersion: input.acceptedTermsVersion,
+          privacyAcceptedAt: now,
+          privacyVersion: input.acceptedPrivacyVersion,
         });
         await conn
           .update(mobilityWhitelist)
           .set({
-            usedAt: new Date(),
+            usedAt: now,
             usedByUserId: ctx.user.id,
           })
           .where(eq(mobilityWhitelist.id, whitelistEntry.id));
