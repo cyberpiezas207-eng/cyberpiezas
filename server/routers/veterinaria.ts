@@ -681,6 +681,57 @@ export const veterinariaRouter = router({
           console.error("Failed to create sale notification:", e);
         }
 
+        // ====================================================================
+        // B3.1: AUTO-CONECTAR CAJA CON EXPEDIENTE CLINICO
+        // Si la venta tiene mascota Y al menos un servicio (consulta, vacuna,
+        // bano, cirugia, etc.), crear automaticamente una visita en el
+        // expediente clinico vinculada a la venta.
+        //
+        // Lo que se omite (Ana Karen lo llena despues en el expediente):
+        //   - sintomas, diagnostico, tratamiento, recetas, signos vitales
+        // Lo que se llena automaticamente:
+        //   - fecha (now), motivo (nombres de servicios), saleId vinculado
+        //
+        // Esta funcion es defensiva: si falla, la venta NO se cae.
+        // ====================================================================
+        const serviceItems = input.items.filter((it) => it.itemType === "service");
+        if (input.petId && input.customerId && serviceItems.length > 0) {
+          try {
+            // Motivo = lista de nombres de servicios (max 500 chars)
+            const reasonRaw = serviceItems
+              .map((it) => it.description)
+              .join(" + ");
+            const reason = reasonRaw.length > 500 ? reasonRaw.slice(0, 497) + "..." : reasonRaw;
+
+            await conn.insert(vetVisits).values({
+              ownerId: ctx.user.id,
+              petId: input.petId,
+              customerId: input.customerId,
+              reason,
+              saleId,
+              // visitDate usa defaultNow del schema
+              // Resto de campos clinicos quedan NULL, Ana Karen los llena despues
+            });
+
+            // Notificacion suave de creacion (silenciada si falla)
+            try {
+              await createNotification({
+                userId: ctx.user.id,
+                type: "visit",
+                title: "Visita registrada en expediente",
+                message: "Se creo entrada clinica para " + reason.slice(0, 80),
+                relatedId: saleId,
+              });
+            } catch (notifErr) {
+              console.error("Failed to create visit notification:", notifErr);
+            }
+          } catch (visitErr) {
+            // Critico: si falla la creacion de visita, NO afectamos la venta.
+            // El cliente ya pago. Solo logueamos.
+            console.error("B3.1 auto-visit creation failed (venta " + saleId + "):", visitErr);
+          }
+        }
+
         const rows = await conn.select().from(vetSales).where(eq(vetSales.id, saleId));
         return rows[0];
       }),
