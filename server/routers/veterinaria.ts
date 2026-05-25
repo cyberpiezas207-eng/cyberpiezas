@@ -703,7 +703,7 @@ export const veterinariaRouter = router({
               .join(" + ");
             const reason = reasonRaw.length > 500 ? reasonRaw.slice(0, 497) + "..." : reasonRaw;
 
-            await conn.insert(vetVisits).values({
+            const visitInsert = await conn.insert(vetVisits).values({
               ownerId: ctx.user.id,
               petId: input.petId,
               customerId: input.customerId,
@@ -712,6 +712,7 @@ export const veterinariaRouter = router({
               // visitDate usa defaultNow del schema
               // Resto de campos clinicos quedan NULL, Ana Karen los llena despues
             });
+            const visitId = (visitInsert as any).insertId as number | undefined;
 
             // Notificacion suave de creacion (silenciada si falla)
             try {
@@ -724,6 +725,86 @@ export const veterinariaRouter = router({
               });
             } catch (notifErr) {
               console.error("Failed to create visit notification:", notifErr);
+            }
+
+            // ============================================================
+            // B3.2: AUTO-VACUNACION
+            // Si alguno de los servicios vendidos parece ser una vacuna
+            // (matching por nombre), crear automaticamente registro en
+            // vetVaccinations con nextDoseDate calculado.
+            //
+            // Heuristica de deteccion: nombre contiene "vacuna" o keywords
+            // de vacunas comunes en MX (rabia, multiple, triple, sextuple,
+            // moquillo, parvo, leucemia, bordetella, etc.).
+            //
+            // Intervalo de proxima dosis:
+            //   - "refuerzo" en el nombre  -> 1 ano (365 dias)
+            //   - "cachorro" o "puppy"     -> 21 dias (serie inicial)
+            //   - "antirrabica"            -> 1 ano
+            //   - default                  -> 1 ano (vacuna estandar adulto)
+            // ============================================================
+            try {
+              const isVaccine = (name: string): boolean => {
+                const n = name.toLowerCase();
+                const kws = [
+                  "vacuna", "vaccination", "rabia", "antirrabica",
+                  "multiple", "triple", "sextuple", "quintuple", "decuple",
+                  "moquillo", "parvo", "parvovirus", "leucemia", "bordetella",
+                  "leptospira", "hepatitis", "panleucopenia",
+                ];
+                return kws.some((k) => n.includes(k));
+              };
+
+              const calcNextDose = (name: string): Date => {
+                const n = name.toLowerCase();
+                const now = new Date();
+                const next = new Date(now);
+                if (n.includes("cachorro") || n.includes("puppy") || n.includes("inicial")) {
+                  // Serie cachorro: refuerzo en 21 dias
+                  next.setDate(now.getDate() + 21);
+                } else {
+                  // Default: refuerzo anual (365 dias)
+                  next.setDate(now.getDate() + 365);
+                }
+                return next;
+              };
+
+              const vaccineServices = serviceItems.filter((it) => isVaccine(it.description));
+
+              for (const v of vaccineServices) {
+                try {
+                  await conn.insert(vetVaccinations).values({
+                    ownerId: ctx.user.id,
+                    petId: input.petId,
+                    visitId: visitId ?? null,
+                    vaccineName: v.description.slice(0, 255),
+                    appliedDate: new Date(),
+                    nextDoseDate: calcNextDose(v.description),
+                    // brand, batchNumber, notes quedan NULL - Ana Karen puede llenar despues
+                  });
+                } catch (vacErr) {
+                  console.error("B3.2 single vaccine insert failed:", vacErr);
+                }
+              }
+
+              // Notificacion agrupada si se crearon vacunas
+              if (vaccineServices.length > 0) {
+                try {
+                  const namesPreview = vaccineServices.map((v) => v.description).join(", ").slice(0, 100);
+                  await createNotification({
+                    userId: ctx.user.id,
+                    type: "vaccine",
+                    title: vaccineServices.length === 1 ? "Vacuna registrada" : (vaccineServices.length + " vacunas registradas"),
+                    message: "Aplicadas: " + namesPreview + ". Proxima dosis calculada automaticamente.",
+                    relatedId: saleId,
+                  });
+                } catch (notifErr) {
+                  console.error("Failed to create vaccine notification:", notifErr);
+                }
+              }
+            } catch (vacBlockErr) {
+              // Capa exterior: si toda la deteccion falla, NO afectar la venta
+              console.error("B3.2 auto-vaccination block failed (venta " + saleId + "):", vacBlockErr);
             }
           } catch (visitErr) {
             // Critico: si falla la creacion de visita, NO afectamos la venta.
