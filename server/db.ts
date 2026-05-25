@@ -330,6 +330,16 @@ export async function runStartupMigrations(): Promise<void> {
     "ALTER TABLE `sales` ADD COLUMN `refundReason` text NULL DEFAULT NULL",
     "CREATE INDEX `idx_sales_status` ON `sales` (`status`)",
     "CREATE INDEX `idx_sales_poscode_status` ON `sales` (`posCode`, `status`)",
+    // ========================================================================
+    // B2 - Ticket Mixto Clinico nivel BD: anticipos reales y cajero atendedor
+    // - amountPaid: monto realmente cobrado (anticipo parcial vs total)
+    // - attendedByCashierId: doctor/asistente/recepcionista que atendio
+    // Ambos NULL por default = retro-compatible con ventas existentes.
+    // ========================================================================
+    "ALTER TABLE `vetSales` ADD COLUMN `amountPaid` decimal(10,2) NULL DEFAULT NULL",
+    "ALTER TABLE `vetSales` ADD COLUMN `attendedByCashierId` int NULL DEFAULT NULL",
+    "CREATE INDEX `idx_vetsales_cashier` ON `vetSales` (`attendedByCashierId`)",
+    "CREATE INDEX `idx_vetsales_paymentstatus` ON `vetSales` (`paymentStatus`)",
   ];
   for (const migration of migrations) {
     try {
