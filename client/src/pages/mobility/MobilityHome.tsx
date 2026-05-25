@@ -16,10 +16,16 @@ import {
   Loader2,
   Phone,
   History,
+  FileText,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 
 const MOBILITY_ACCENT = "from-blue-500 via-cyan-500 to-blue-600";
 const MOBILITY_GLOW = "shadow-blue-500/30";
+
+const TERMS_VERSION = "2026-05";
+const PRIVACY_VERSION = "2026-05";
 
 export default function MobilityHome() {
   const { user } = useAuth() as any;
@@ -120,11 +126,17 @@ function LoadingState() {
   );
 }
 
+// =============================================================================
+// CREAR PERFIL CON ACEPTACIÓN DE T&C
+// =============================================================================
+
 function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
+  const [, setLocation] = useLocation();
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [baseCity, setBaseCity] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = trpc.mobility.profile.create.useMutation({
@@ -143,13 +155,22 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
       setError("El teléfono no parece estar completo. Debe ser tu WhatsApp.");
       return;
     }
+    if (!acceptedTerms) {
+      setError("Necesitas aceptar los Términos y el Aviso de Privacidad para continuar.");
+      return;
+    }
     createMutation.mutate({
       displayName: displayName.trim(),
       phone: phone.trim(),
       bio: bio.trim() || undefined,
       baseCity: baseCity.trim() || undefined,
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedPrivacyVersion: PRIVACY_VERSION,
     });
   };
+
+  const isFormValid =
+    displayName.trim().length >= 2 && phone.trim().length >= 8 && acceptedTerms;
 
   return (
     <section className="max-w-2xl mx-auto">
@@ -254,6 +275,104 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
 
+        {/* VERSIÓN CORTA CÁLIDA + CHECKBOX OBLIGATORIO */}
+        <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="flex items-start gap-2 mb-4">
+            <FileText className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+            <h4 className="text-sm font-bold text-white">Antes de continuar</h4>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 mb-4 space-y-4 text-xs text-slate-300 leading-relaxed">
+            <p>
+              Queremos explicarte rápidamente cómo funciona Mobility y qué hacemos con tus datos.
+            </p>
+
+            <div>
+              <p className="font-bold text-white mb-2">Lo que hacemos con tus datos</p>
+              <ul className="space-y-1 list-disc list-inside ml-1 text-slate-400">
+                <li>Usamos tu información para operar Mobility y ayudarte a conectar con otras personas.</li>
+                <li>Verificamos identidad para reducir riesgos y evitar cuentas falsas.</li>
+                <li>Guardamos reportes y reseñas para mantener contexto comunitario.</li>
+                <li>Protegemos información sensible como INE y selfies con acceso restringido.</li>
+                <li>Respondemos solicitudes de privacidad y apelaciones por personas reales.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-bold text-white mb-2">Lo que NO hacemos</p>
+              <ul className="space-y-1 list-disc list-inside ml-1 text-slate-400">
+                <li>No vendemos tus datos.</li>
+                <li>No usamos tus documentos para entrenar IA.</li>
+                <li>No mostramos tu INE ni tu selfie a otros usuarios.</li>
+                <li>No procesamos pagos entre personas.</li>
+                <li>No usamos estrellas ni puntajes automáticos.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-bold text-white mb-2">Tus derechos</p>
+              <p className="text-slate-400">
+                Puedes pedir copia de tus datos, corregir información, solicitar eliminación
+                de tu cuenta, o preguntar cómo usamos tu información. Contacto:{" "}
+                <span className="text-emerald-300 font-mono">privacidad@cyberpiezas.com</span>
+              </p>
+            </div>
+
+            <div>
+              <p className="font-bold text-white mb-2">Si algo sale mal</p>
+              <p className="text-slate-400">
+                Puedes reportar situaciones dentro de Mobility. Las revisiones las hace una persona del equipo.
+                Si tomamos una decisión sobre tu cuenta, te explicamos qué pasó y puedes apelar una vez
+                salvo casos graves de violencia física comprobable, fraude documentado o conducta sexual hacia menores.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => window.open("/terms-mobility", "_blank")}
+                className="inline-flex items-center gap-1 text-blue-300 hover:text-blue-200 transition-colors"
+              >
+                Leer Términos completos <ExternalLink className="w-3 h-3" />
+              </button>
+              <span className="text-slate-600">·</span>
+              <button
+                type="button"
+                onClick={() => window.open("/privacidad-mobility", "_blank")}
+                className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200 transition-colors"
+              >
+                Leer Aviso de Privacidad completo <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={
+                  "w-5 h-5 rounded border-2 flex items-center justify-center transition-all " +
+                  (acceptedTerms
+                    ? "bg-gradient-to-br " + MOBILITY_ACCENT + " border-transparent"
+                    : "bg-white/5 border-white/30 group-hover:border-white/50")
+                }
+              >
+                {acceptedTerms && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </div>
+            <span className="text-sm text-slate-200 leading-snug">
+              He leído y acepto los{" "}
+              <span className="text-blue-300 font-semibold">Términos y Condiciones</span> y el{" "}
+              <span className="text-emerald-300 font-semibold">Aviso de Privacidad</span> de Mobility.
+            </span>
+          </label>
+        </div>
+
         {error && (
           <div className="mt-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
@@ -263,7 +382,7 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
 
         <button
           type="submit"
-          disabled={createMutation.isPending || displayName.trim().length < 2 || phone.trim().length < 8}
+          disabled={createMutation.isPending || !isFormValid}
           className={"mt-6 w-full bg-gradient-to-r " + MOBILITY_ACCENT + " hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full h-11 font-semibold transition-opacity shadow-lg " + MOBILITY_GLOW + " flex items-center justify-center gap-2"}
         >
           {createMutation.isPending ? (
@@ -284,6 +403,10 @@ function CreateProfileSection({ onSuccess }: { onSuccess: () => void }) {
     </section>
   );
 }
+
+// =============================================================================
+// VISTA CON PERFIL EXISTENTE (sin cambios respecto a versión anterior)
+// =============================================================================
 
 function ProfileView({ profile }: { profile: any }) {
   const isDriverVerified = profile.role === "driver_verified" || profile.role === "both";
