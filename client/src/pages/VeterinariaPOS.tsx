@@ -425,6 +425,8 @@ function POSTab() {
   // B1: queries para asociar cliente y mascota a la venta
   const customersQuery = trpc.customers.list.useQuery();
   const petsListQuery = trpc.veterinaria.pets.list.useQuery({});
+  // B2.3: query para selector de doctor (atendio la venta)
+  const cashiersQuery = trpc.veterinaria.cashiers.list.useQuery({ status: "active" });
 
   const [cart, setCart] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,6 +440,8 @@ function POSTab() {
   const [paymentStatus, setPaymentStatus] = useState<"pagado" | "pendiente" | "parcial" | "cancelado">("pagado");
   const [amountPaid, setAmountPaid] = useState<string>("");
   const [saleNotes, setSaleNotes] = useState<string>("");
+  // B2.3: doctor/cashier que atendio la venta
+  const [selectedCashierId, setSelectedCashierId] = useState<number | null>(null);
 
   const createSale = trpc.veterinaria.sales.create.useMutation({
     onSuccess: (data) => {
@@ -459,6 +463,7 @@ function POSTab() {
       setPaymentStatus("pagado");
       setAmountPaid("");
       setSaleNotes("");
+      setSelectedCashierId(null);
       utils.veterinaria.sales.stats.invalidate();
       utils.veterinaria.products.list.invalidate();
     },
@@ -484,6 +489,9 @@ function POSTab() {
 
   const customers: any[] = (customersQuery.data as any[]) ?? [];
   const petsList: any[] = (petsListQuery.data as any[]) ?? [];
+  // B2.3: doctores activos de la clinica (filtro role='doctor')
+  const allCashiers: any[] = (cashiersQuery.data as any[]) ?? [];
+  const doctors = allCashiers.filter((c: any) => c.role === "doctor");
 
   // Mascotas del cliente seleccionado (o todas si no hay cliente)
   const customerPets = selectedCustomerId
@@ -577,14 +585,16 @@ function POSTab() {
       }
     }
 
-    // B1: armar notas finales (combina nota libre + info de anticipo si aplica)
-    let finalNotes = saleNotes.trim();
-    if (paymentStatus === "parcial" && amountPaid) {
-      const paid = parseFloat(amountPaid).toFixed(2);
-      const total = cartTotalAfterDiscount.toFixed(2);
-      const anticipoTxt = "Anticipo recibido: $" + paid + " de $" + total;
-      finalNotes = finalNotes ? finalNotes + " | " + anticipoTxt : anticipoTxt;
-    }
+    // B2.3: notes ya NO concatena info de anticipo (se persiste en amountPaid real).
+    // notes queda libre para el comentario del usuario unicamente.
+    const finalNotes = saleNotes.trim() || undefined;
+
+    // B2.3: amountPaid se manda explicito al backend solo cuando es parcial.
+    // Si es pagado, backend lo iguala a total. Si pendiente/cancelado, queda NULL.
+    const finalAmountPaid =
+      paymentStatus === "parcial" && amountPaid
+        ? parseFloat(amountPaid).toFixed(2)
+        : undefined;
 
     createSale.mutate({
       customerId: selectedCustomerId ?? undefined,
@@ -592,8 +602,11 @@ function POSTab() {
       discount: (discountNum || 0).toFixed(2),
       paymentMethod,
       paymentStatus,
-      notes: finalNotes || undefined,
+      notes: finalNotes,
       items: cart,
+      // B2.3: campos nuevos del ticket mixto clinico
+      attendedByCashierId: selectedCashierId ?? undefined,
+      amountPaid: finalAmountPaid,
     });
   };
 
@@ -830,6 +843,32 @@ function POSTab() {
                         );
                       })}
                     </select>
+                  </div>
+
+                  {/* B2.3: Atendido por (doctor MVZ que llevo la consulta/venta) */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <Stethoscope className="w-3.5 h-3.5" />
+                      Atendido por
+                    </label>
+                    {doctors.length === 0 ? (
+                      <div className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-2 leading-relaxed">
+                        No tienes doctores registrados. Ve a la pestana <strong>Cajeros</strong> y agrega uno con rol <strong>doctor</strong> para asociar ventas.
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedCashierId ?? ""}
+                        onChange={(e) => setSelectedCashierId(e.target.value ? parseInt(e.target.value) : null)}
+                        className="w-full h-9 px-2.5 bg-slate-900/85 border border-slate-600 rounded-lg text-white text-sm focus:border-emerald-500 focus:outline-none"
+                      >
+                        <option value="">Sin atribuir</option>
+                        {doctors.map((d: any) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}{d.branchName ? " - " + d.branchName : ""}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   {/* Descuento */}
