@@ -1051,8 +1051,23 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
   const petsQuery = trpc.veterinaria.pets.list.useQuery({ search });
   const customersQuery = trpc.customers.list.useQuery();
 
-  const pets = petsQuery.data ?? [];
+  const allPets = petsQuery.data ?? [];
   const customers: any[] = (customersQuery.data as any[]) ?? [];
+
+  // B2.4: filtrado tambien por nombre de dueno (cliente-side, complementa search del backend)
+  const searchLower = search.trim().toLowerCase();
+  const pets = searchLower
+    ? allPets.filter((row: any) => {
+        const petName = (row.pet?.name ?? "").toLowerCase();
+        const customerName = (row.customer?.name ?? "").toLowerCase();
+        const breed = (row.pet?.breed ?? "").toLowerCase();
+        return (
+          petName.includes(searchLower) ||
+          customerName.includes(searchLower) ||
+          breed.includes(searchLower)
+        );
+      })
+    : allPets;
 
   return (
     <div className="space-y-5">
@@ -1060,11 +1075,17 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
         <div className="relative flex-1 max-w-md w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400/70" />
           <Input
-            placeholder="Buscar por nombre de mascota..."
+            placeholder="Buscar por mascota, dueno o raza..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 bg-slate-800/80 border-slate-600 text-white h-11"
           />
+          {/* B2.4: contador en tiempo real */}
+          {allPets.length > 0 && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-full px-2 py-0.5">
+              {search ? pets.length + " / " + allPets.length : allPets.length}
+            </div>
+          )}
         </div>
         <Button
           onClick={() => {
@@ -1133,6 +1154,9 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
           {pets.map((row: any) => {
             const pet = row.pet;
             const customer = row.customer;
+            // B2.4: derivar info adicional util
+            const hasMicrochip = pet.microchip && pet.microchip.trim().length > 0;
+            const hasWeight = pet.weight && parseFloat(pet.weight) > 0;
             return (
               <Card
                 key={pet.id}
@@ -1141,27 +1165,50 @@ function PetsTab({ onSelectPet }: { onSelectPet: (id: number) => void }) {
               >
                 <CardContent className="pt-6 pb-5">
                   <div className="flex items-start gap-3">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 flex items-center justify-center text-4xl group-hover:scale-105 transition-transform">
+                    {/* Emoji de especie - mas grande para mejor jerarquia */}
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-4xl group-hover:scale-105 transition-transform shadow-md shadow-emerald-500/10 flex-shrink-0">
                       {speciesEmoji[pet.species] || "🐾"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white text-base truncate">{pet.name}</h3>
-                      <p className="text-sm text-emerald-300/70 truncate font-medium capitalize">
+                      {/* Nombre - mas grande para mejor lectura */}
+                      <h3 className="font-bold text-slate-900 text-lg truncate leading-tight">{pet.name}</h3>
+                      {/* Raza/Especie - contraste fuerte sage700 */}
+                      <p className="text-sm text-emerald-700 truncate font-semibold capitalize mt-0.5">
                         {pet.breed || pet.species}
                       </p>
+                      {/* B2.4: edad calculada o color si existe */}
+                      {pet.color && (
+                        <p className="text-xs text-slate-700 truncate font-medium mt-0.5 capitalize">
+                          {pet.color}
+                        </p>
+                      )}
+                      {/* Dueno - contraste fuerte purple700 */}
                       {customer && (
-                        <div className="flex items-center gap-1.5 mt-2 text-xs">
-                          <UserCircle className="w-3 h-3 text-purple-300 flex-shrink-0" />
-                          <span className="text-purple-200 truncate font-medium">{customer.name}</span>
+                        <div className="flex items-center gap-1.5 mt-2.5 text-xs">
+                          <UserCircle className="w-3.5 h-3.5 text-purple-700 flex-shrink-0" />
+                          <span className="text-purple-800 truncate font-semibold">{customer.name}</span>
                         </div>
                       )}
+                      {/* Badges informativos */}
                       <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                        <Badge className="bg-slate-700/80 text-slate-100 text-xs capitalize border border-slate-600">
+                        <Badge className="bg-slate-100 text-slate-800 text-xs capitalize border border-slate-300 font-semibold">
                           {pet.sex}
                         </Badge>
                         {pet.sterilized && (
-                          <Badge className="bg-emerald-500/20 text-emerald-200 text-xs border border-emerald-500/60">
-                            Esterilizado
+                          <Badge className="bg-emerald-100 text-emerald-800 text-xs border border-emerald-400 font-semibold">
+                            ✂️ Esterilizado
+                          </Badge>
+                        )}
+                        {/* B2.4: peso visible (info clinica clave) */}
+                        {hasWeight && (
+                          <Badge className="bg-cyan-100 text-cyan-800 text-xs border border-cyan-400 font-semibold">
+                            ⚖️ {pet.weight} kg
+                          </Badge>
+                        )}
+                        {/* B2.4: microchip badge (con icono, sin numero por privacidad en la lista) */}
+                        {hasMicrochip && (
+                          <Badge className="bg-purple-100 text-purple-800 text-xs border border-purple-400 font-semibold" title={"Microchip: " + pet.microchip}>
+                            🔖 Chip
                           </Badge>
                         )}
                       </div>
