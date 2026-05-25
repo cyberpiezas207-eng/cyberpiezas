@@ -2584,3 +2584,4 @@ export function CyberpiezasLogo({ size = 36, variant = "dark" }: { size?: number
     </svg>
   );
 }
+ 
