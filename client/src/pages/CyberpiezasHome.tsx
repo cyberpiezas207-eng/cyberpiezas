@@ -842,10 +842,11 @@ function Houses({ setLocation }: { setLocation: (p: string) => void }) {
         {/* Two top houses: Mobility + Celine */}
         <div className="grid md:grid-cols-2 gap-4 sm:gap-5 mb-4 sm:mb-5">
           {/* MOBILITY */}
-          <a
-            href="#mobility"
+          <button
+            type="button"
             id="mobility"
-            className="group relative bg-gradient-to-br from-blue-50 via-white to-white rounded-3xl p-7 sm:p-9 border border-blue-100 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/15 hover:-translate-y-1 transition-all overflow-hidden min-h-[360px] flex flex-col"
+            onClick={() => setLocation("/mobility")}
+            className="group relative bg-gradient-to-br from-blue-50 via-white to-white rounded-3xl p-7 sm:p-9 border border-blue-100 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/15 hover:-translate-y-1 transition-all overflow-hidden min-h-[360px] flex flex-col text-left w-full cursor-pointer"
           >
             <span className="absolute top-5 right-5 w-9 h-9 rounded-full bg-blue-100 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all flex items-center justify-center">
               <ArrowUpRight className="w-4 h-4 text-blue-700" />
@@ -858,9 +859,9 @@ function Houses({ setLocation }: { setLocation: (p: string) => void }) {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-3xl font-bold tracking-tight text-slate-900">Mobility</h3>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                    Próximamente
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Activo · Piloto cerrado
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 font-medium">Viajes compartidos en Morelos</p>
@@ -915,18 +916,18 @@ function Houses({ setLocation }: { setLocation: (p: string) => void }) {
               <div className="flex gap-6">
                 <div>
                   <p className="text-xl font-bold tracking-tight text-slate-900">Piloto</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cerrado</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Activo</p>
                 </div>
                 <div>
-                  <p className="text-xl font-bold tracking-tight text-slate-900">2026</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Lanzamiento</p>
+                  <p className="text-xl font-bold tracking-tight text-slate-900">Mayo</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">2026</p>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 group-hover:gap-2.5 transition-all">
-                Lista de espera <ArrowRight className="w-4 h-4" />
+                Entrar a Mobility <ArrowRight className="w-4 h-4" />
               </span>
             </div>
-          </a>
+          </button>
 
           {/* CELINE */}
           <a
