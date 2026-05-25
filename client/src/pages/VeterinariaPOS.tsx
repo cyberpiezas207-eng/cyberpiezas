@@ -845,6 +845,10 @@ function POSTab() {
       setSelectedCashierId(null);
       utils.veterinaria.sales.stats.invalidate();
       utils.veterinaria.products.list.invalidate();
+      // C1: refrescar barra "Cuentas por cobrar" cuando se cobra anticipo nuevo
+      utils.veterinaria.sales.listPending.invalidate();
+      // C1: refrescar lista de mascotas (cambia "ultima venta" si tu schema lo expone)
+      utils.veterinaria.pets.list.invalidate();
     },
     onError: (err) => {
       toast.error(err.message || "Error al crear venta");
