@@ -921,4 +921,83 @@ const VETERINARIA_SHELL_STYLES = `
 .vt-pos-theme button[class*="variant-outline"],
 .vt-pos-theme button[class*="variant-ghost"] {
   color: #2D3B2D !important;
+}
+
+/* =========================================================================
+   FIX CONTRASTE TEXTOS PASTEL (B1 retrofit)
+   --------------------------------------------------------------------------
+   Los textos emerald/cyan/purple/rose/amber pastel quedaban casi invisibles
+   sobre fondos crema (que el shell genera de bg-slate-* originales).
+   Tambien los text-XXX-300/70 con opacidad reducida quedaban "lavados".
+   Fix: forzar opacity 1 y mapear pasteles a tonos solidos legibles (WCAG AA).
+   ========================================================================= */
+
+/* 1. Eliminar opacidad reducida en textos de color (XXX/70, XXX/80) */
+.vt-pos-theme [class*="text-emerald-"],
+.vt-pos-theme [class*="text-cyan-"],
+.vt-pos-theme [class*="text-purple-"],
+.vt-pos-theme [class*="text-rose-"],
+.vt-pos-theme [class*="text-amber-"],
+.vt-pos-theme [class*="text-fuchsia-"],
+.vt-pos-theme [class*="text-pink-"] {
+  opacity: 1 !important;
+}
+
+/* 2. Textos verde/cyan pastel (100-400) -> sage oscuro legible sobre crema */
+.vt-pos-theme [class*="text-emerald-100"],
+.vt-pos-theme [class*="text-emerald-200"],
+.vt-pos-theme [class*="text-emerald-300"],
+.vt-pos-theme [class*="text-emerald-400"],
+.vt-pos-theme [class*="text-cyan-100"],
+.vt-pos-theme [class*="text-cyan-200"],
+.vt-pos-theme [class*="text-cyan-300"],
+.vt-pos-theme [class*="text-cyan-400"] {
+  color: #466F46 !important;
+}
+
+/* 3. Textos purple pastel -> purple solido oscuro */
+.vt-pos-theme [class*="text-purple-100"],
+.vt-pos-theme [class*="text-purple-200"] {
+  color: #6B4F8A !important;
+}
+
+/* 4. Textos rose pastel -> rose solido oscuro */
+.vt-pos-theme [class*="text-rose-200"],
+.vt-pos-theme [class*="text-rose-300"],
+.vt-pos-theme [class*="text-rose-400"] {
+  color: #BE2E5A !important;
+}
+
+/* 5. Textos amber pastel -> naranja tierra (cohesion con tema sage) */
+.vt-pos-theme [class*="text-amber-100"],
+.vt-pos-theme [class*="text-amber-200"],
+.vt-pos-theme [class*="text-amber-300"] {
+  color: #B8741C !important;
+}
+
+/* 6. Textos fuchsia/pink pastel -> magenta oscuro */
+.vt-pos-theme [class*="text-fuchsia-200"],
+.vt-pos-theme [class*="text-fuchsia-300"],
+.vt-pos-theme [class*="text-pink-200"],
+.vt-pos-theme [class*="text-pink-300"] {
+  color: #B5358E !important;
+}
+
+/* 7. text-slate-100 que se quedaba casi blanco sobre crema */
+.vt-pos-theme [class*="text-slate-100"] {
+  color: #2D3B2D !important;
+}
+
+/* 8. EXCEPCION: restaurar texto claro dentro de fondos sage/sólidos
+      (algunos badges y botones tienen bg sage solido y necesitan texto blanco) */
+.vt-pos-theme [class*="bg-emerald-5"]:not([class*="/"]) *,
+.vt-pos-theme [class*="bg-emerald-6"]:not([class*="/"]) *,
+.vt-pos-theme [class*="bg-emerald-7"]:not([class*="/"]) * {
+  color: white !important;
+}
+
+/* 9. Placeholder de inputs con mejor contraste */
+.vt-pos-theme input::placeholder,
+.vt-pos-theme textarea::placeholder {
+  color: #6B7A6B !important;
 }`;
