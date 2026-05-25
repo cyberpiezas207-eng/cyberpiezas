@@ -41,6 +41,9 @@ import {
   HandCoins,
   Percent,
   StickyNote,
+  Share2,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -185,10 +188,302 @@ export default function VeterinariaPOS() {
 // CUSTOMERS TAB - Clientes (duenos de mascotas)
 // ============================================================================
 
+// ============================================================================
+// P4 - PORTAL SHARE MODAL
+// ----------------------------------------------------------------------------
+// Modal accesible desde cada card de cliente para:
+//   - Generar nuevo link privado (si no existe activo)
+//   - Ver estado del link activo (sin mostrar el plano)
+//   - Regenerar (revoca el viejo, crea uno nuevo)
+//   - Revocar (desactivar sin reemplazo)
+//
+// Importante: el token plano SOLO se muestra UNA VEZ inmediatamente despues
+// de generarlo. Despues, solo el hash queda en BD.
+// ============================================================================
+function PortalShareModal({
+  customerId,
+  customerName,
+  onClose,
+}: {
+  customerId: number;
+  customerName: string;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const tokensQuery = trpc.veterinaria.portal.listByCustomer.useQuery({ customerId });
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const generate = trpc.veterinaria.portal.generate.useMutation({
+    onSuccess: (data: any) => {
+      setGeneratedToken(data.plainToken);
+      tokensQuery.refetch();
+      utils.veterinaria.portal.listActive.invalidate();
+      utils.veterinaria.portal.stats.invalidate();
+      toast.success("Link generado correctamente");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "No se pudo generar el link");
+    },
+  });
+
+  const revoke = trpc.veterinaria.portal.revoke.useMutation({
+    onSuccess: () => {
+      tokensQuery.refetch();
+      utils.veterinaria.portal.listActive.invalidate();
+      utils.veterinaria.portal.stats.invalidate();
+      toast.success("Link revocado");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "No se pudo revocar");
+    },
+  });
+
+  const allTokens: any[] = (tokensQuery.data as any[]) ?? [];
+  const activeTokens = allTokens.filter((t) => t.status === "active");
+  const hasActive = activeTokens.length > 0;
+  const activeToken = activeTokens[0];
+
+  // Construir URL del portal solo cuando hay token generado
+  const portalUrl = generatedToken
+    ? (typeof window !== "undefined" ? window.location.origin : "https://cyberpiezas.com") +
+      "/mi-mascota/" +
+      generatedToken
+    : null;
+
+  // Mensaje precargado para WhatsApp (URL-encoded)
+  const whatsappMessage = portalUrl
+    ? "Hola " + customerName + ", aqui esta el acceso al portal de tus mascotas:\n\n" +
+      portalUrl +
+      "\n\nDesde ahi puedes ver vacunas, proximas citas y mas. Cualquier duda me dices."
+    : "";
+  const whatsappUrl = portalUrl ? "https://wa.me/?text=" + encodeURIComponent(whatsappMessage) : "#";
+
+  const handleGenerate = () => {
+    generate.mutate({ customerId });
+  };
+
+  const handleCopy = async () => {
+    if (!portalUrl) return;
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error("No se pudo copiar. Selecciona el link manualmente.");
+    }
+  };
+
+  const handleRevoke = (tokenId: number) => {
+    if (confirm("Revocar el link? El dueno no podra entrar mas con este link.")) {
+      revoke.mutate({ tokenId });
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gradient-to-br from-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl shadow-2xl shadow-emerald-500/20 max-w-md w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-700 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-emerald-300 flex-shrink-0" />
+              Portal del dueno
+            </h2>
+            <p className="text-xs text-slate-300 mt-1 truncate">{customerName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-300 hover:text-white p-1 rounded transition-colors flex-shrink-0"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {generatedToken ? (
+            // ──────────────────────────────────────────────────────────
+            // ESTADO A: Link recien generado - mostrar UNA SOLA VEZ
+            // ──────────────────────────────────────────────────────────
+            <>
+              <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-lg p-3">
+                <p className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-2">
+                  ✨ Link generado
+                </p>
+                <div className="bg-amber-500/15 border border-amber-500/40 rounded p-2 mb-3 text-xs text-amber-100 font-medium">
+                  ⚠️ Este link solo se muestra una vez. Copialo o envialo ahora.
+                </div>
+                <div className="bg-slate-950 border border-slate-700 rounded p-2.5 break-all text-xs text-emerald-100 font-mono leading-relaxed">
+                  {portalUrl}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleCopy}
+                  className={
+                    "gap-2 font-bold h-10 " +
+                    (copied
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                      : "bg-slate-700 hover:bg-slate-600 text-white")
+                  }
+                >
+                  {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copiado" : "Copiar link"}
+                </Button>
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2 px-4 py-2 rounded-lg font-bold flex items-center justify-center text-sm h-10 transition-colors"
+                >
+                  <span className="text-base">💬</span> WhatsApp
+                </a>
+              </div>
+
+              <div className="bg-slate-800/60 border border-slate-700 rounded p-2.5 text-[11px] text-slate-200 leading-relaxed">
+                <strong className="text-white">El dueno vera:</strong> mascotas, vacunas, citas y visitas resumidas.
+                <br />
+                <strong className="text-white">NO vera:</strong> diagnosticos, notas internas, costos ni notas privadas.
+              </div>
+
+              <Button
+                type="button"
+                onClick={onClose}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-10"
+              >
+                Listo
+              </Button>
+            </>
+          ) : tokensQuery.isLoading ? (
+            // ESTADO B: Cargando
+            <div className="text-center py-10">
+              <div className="inline-block w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+              <p className="text-xs text-slate-300 mt-3">Cargando estado...</p>
+            </div>
+          ) : hasActive ? (
+            // ──────────────────────────────────────────────────────────
+            // ESTADO C: Ya tiene token activo
+            // ──────────────────────────────────────────────────────────
+            <>
+              <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-lg p-3">
+                <p className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Portal activo
+                </p>
+                <p className="text-xs text-slate-100 leading-relaxed mb-3">
+                  Ya existe un link activo para este cliente. Por seguridad, no podemos
+                  volver a mostrarte el link. Si lo perdio, regenera uno nuevo
+                  (el anterior dejara de funcionar).
+                </p>
+                <div className="space-y-1 text-[11px] text-slate-200 border-t border-emerald-500/20 pt-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Ultimo acceso:</span>
+                    <span className="text-emerald-200 font-semibold">
+                      {activeToken.lastAccessAt
+                        ? new Date(activeToken.lastAccessAt).toLocaleDateString("es-MX", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "Aun sin uso"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Entradas totales:</span>
+                    <span className="text-emerald-200 font-semibold">{activeToken.accessCount ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Expira:</span>
+                    <span className="text-amber-200 font-semibold">
+                      {new Date(activeToken.expiresAt).toLocaleDateString("es-MX", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generate.isPending}
+                  className="bg-amber-500 hover:bg-amber-600 text-white gap-2 font-bold h-10"
+                >
+                  <RefreshCw className={"w-4 h-4 " + (generate.isPending ? "animate-spin" : "")} />
+                  {generate.isPending ? "Generando..." : "Regenerar"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleRevoke(activeToken.id)}
+                  disabled={revoke.isPending}
+                  variant="outline"
+                  className="bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/40 text-rose-200 gap-2 font-bold h-10"
+                >
+                  <XCircle className="w-4 h-4" />
+                  {revoke.isPending ? "..." : "Revocar"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            // ──────────────────────────────────────────────────────────
+            // ESTADO D: Sin token aun (primera generacion)
+            // ──────────────────────────────────────────────────────────
+            <>
+              <div className="text-center py-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center mb-3">
+                  <Share2 className="w-7 h-7 text-emerald-300" />
+                </div>
+                <p className="text-sm text-white font-bold mb-1">
+                  Comparte el portal con {customerName}
+                </p>
+                <p className="text-xs text-slate-200 leading-relaxed max-w-xs mx-auto">
+                  Genera un link privado para que entre desde su celular y vea las mascotas, vacunas y citas.
+                  Lo enviamos por WhatsApp.
+                </p>
+              </div>
+
+              <div className="bg-slate-800/60 border border-slate-700 rounded p-2.5 text-[11px] text-slate-200 leading-relaxed">
+                <strong className="text-emerald-200">Que vera el dueno:</strong> sus mascotas, vacunas aplicadas, proximas dosis, proximas citas, historial resumido.
+                <br />
+                <strong className="text-rose-200">Lo que NO vera:</strong> diagnosticos clinicos, notas internas, costos ni datos privados.
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generate.isPending}
+                className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold h-11 shadow-lg shadow-emerald-500/20"
+              >
+                <Share2 className="w-4 h-4" />
+                {generate.isPending ? "Generando..." : "Generar link"}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CustomersTab() {
   const utils = trpc.useUtils();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  // P4: cliente seleccionado para abrir modal del portal
+  const [portalCustomer, setPortalCustomer] = useState<{ id: number; name: string } | null>(null);
 
   const customersQuery = trpc.customers.list.useQuery();
   const customers: any[] = (customersQuery.data as any[]) ?? [];
@@ -301,10 +596,30 @@ function CustomersTab() {
                     </div>
                   )}
                 </div>
+                {/* P4: boton compartir portal del dueno */}
+                <div className="mt-3 pt-3 border-t border-slate-700/60">
+                  <Button
+                    type="button"
+                    onClick={() => setPortalCustomer({ id: c.id, name: c.name ?? "Sin nombre" })}
+                    className="w-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-200 hover:text-emerald-100 gap-2 font-semibold h-9 text-xs"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Compartir portal
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* P4: modal de portal */}
+      {portalCustomer && (
+        <PortalShareModal
+          customerId={portalCustomer.id}
+          customerName={portalCustomer.name}
+          onClose={() => setPortalCustomer(null)}
+        />
       )}
     </div>
   );
