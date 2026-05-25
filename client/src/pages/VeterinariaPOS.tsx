@@ -416,6 +416,385 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 // POS TAB - Punto de venta
 // ============================================================================
 
+// ============================================================================
+// B2.3b - CUENTAS POR COBRAR
+// Barra plegable arriba del POS que muestra ventas con saldo pendiente.
+// Usa endpoints sales.listPending y sales.updatePayment del backend B2.2.
+// ============================================================================
+
+function PendingPaymentsBar() {
+  const [expanded, setExpanded] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<any | null>(null);
+
+  const pendingQuery = trpc.veterinaria.sales.listPending.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+  });
+
+  const rows: any[] = (pendingQuery.data as any[]) ?? [];
+
+  if (rows.length === 0) {
+    // No hay nada pendiente -> no ocupa espacio
+    return null;
+  }
+
+  // Calcular total pendiente sumando todos los saldos
+  const totalPending = rows.reduce((acc: number, r: any) => {
+    return acc + parseFloat(r.balance ?? "0");
+  }, 0);
+
+  return (
+    <>
+      <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-xl overflow-hidden">
+        {/* Header siempre visible */}
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-amber-500/10 transition-colors"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/30 border border-amber-400/50 flex items-center justify-center flex-shrink-0">
+              <HandCoins className="w-5 h-5 text-amber-200" />
+            </div>
+            <div className="text-left min-w-0">
+              <p className="text-xs font-bold text-amber-200 uppercase tracking-wider">
+                Cuentas por cobrar
+              </p>
+              <p className="text-sm text-white font-semibold truncate">
+                {rows.length} {rows.length === 1 ? "cliente debe" : "clientes deben"}{" "}
+                <span className="text-amber-300 font-bold">{formatMoney(totalPending)}</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge className="bg-amber-500/25 text-amber-100 border border-amber-400/50 font-bold">
+              {expanded ? "Ocultar" : "Ver detalle"}
+            </Badge>
+          </div>
+        </button>
+
+        {/* Lista expandible */}
+        {expanded && (
+          <div className="border-t border-amber-500/30 divide-y divide-amber-500/20 max-h-72 overflow-y-auto">
+            {rows.map((row: any) => {
+              const sale = row.sale;
+              const customer = row.customer;
+              const pet = row.pet;
+              const balance = parseFloat(row.balance ?? "0");
+              const total = parseFloat(sale.total);
+              const paid = total - balance;
+              const fechaTexto = sale.createdAt
+                ? new Date(sale.createdAt).toLocaleDateString("es-MX", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "";
+              return (
+                <div
+                  key={sale.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-amber-500/5"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-white">
+                        {customer?.name ?? "Sin cliente"}
+                      </span>
+                      {pet?.name && (
+                        <span className="text-xs text-emerald-200 bg-emerald-500/20 border border-emerald-500/40 rounded-full px-2 py-0.5 font-semibold">
+                          🐾 {pet.name}
+                        </span>
+                      )}
+                      <Badge
+                        className={
+                          sale.paymentStatus === "parcial"
+                            ? "bg-amber-500/25 text-amber-100 border border-amber-400/50 text-[10px] font-bold uppercase"
+                            : "bg-rose-500/25 text-rose-100 border border-rose-400/50 text-[10px] font-bold uppercase"
+                        }
+                      >
+                        {sale.paymentStatus === "parcial" ? "Anticipo" : "Por cobrar"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs">
+                      <span className="text-slate-300">
+                        {fechaTexto} · Venta #{sale.id}
+                      </span>
+                      <span className="text-slate-200">
+                        Pagado: <strong className="text-emerald-300">{formatMoney(paid)}</strong> de{" "}
+                        <strong className="text-white">{formatMoney(total)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="text-lg font-bold text-amber-200">
+                      {formatMoney(balance)}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setSelectedSale(row)}
+                      className="h-7 px-3 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold gap-1"
+                    >
+                      <DollarSign className="w-3 h-3" />
+                      Cobrar
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal de cobro */}
+      {selectedSale && (
+        <RecordPaymentModal
+          row={selectedSale}
+          onClose={() => setSelectedSale(null)}
+          onSuccess={() => {
+            setSelectedSale(null);
+            pendingQuery.refetch();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function RecordPaymentModal({
+  row,
+  onClose,
+  onSuccess,
+}: {
+  row: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const sale = row.sale;
+  const customer = row.customer;
+  const pet = row.pet;
+  const balance = parseFloat(row.balance ?? "0");
+  const total = parseFloat(sale.total);
+  const previouslyPaid = total - balance;
+
+  // Default: cobrar el resto completo
+  const [additionalAmount, setAdditionalAmount] = useState<string>(balance.toFixed(2));
+  const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "tarjeta" | "transferencia" | "credito" | "otro">("efectivo");
+  const [notes, setNotes] = useState<string>("");
+
+  const updatePayment = trpc.veterinaria.sales.updatePayment.useMutation({
+    onSuccess: () => {
+      toast.success("Cobro registrado correctamente");
+      utils.veterinaria.sales.stats.invalidate();
+      onSuccess();
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "No se pudo registrar el cobro");
+    },
+  });
+
+  const additionalNum = parseFloat(additionalAmount || "0") || 0;
+  const newPaid = previouslyPaid + additionalNum;
+  const willBePaidOff = newPaid >= total - 0.01;
+  const exceedsBalance = additionalNum > balance + 0.01;
+
+  const handleSubmit = () => {
+    if (additionalNum <= 0) {
+      toast.error("Indica un monto positivo");
+      return;
+    }
+    if (exceedsBalance) {
+      toast.error("El monto excede el saldo pendiente de " + formatMoney(balance));
+      return;
+    }
+    updatePayment.mutate({
+      saleId: sale.id,
+      additionalAmount: additionalNum.toFixed(2),
+      paymentMethod,
+      notes: notes.trim() || undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-gradient-to-br from-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl shadow-2xl shadow-emerald-500/20 max-w-md w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-700 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <HandCoins className="w-5 h-5 text-amber-300" />
+              Registrar cobro adicional
+            </h2>
+            <p className="text-xs text-slate-300 mt-1">
+              Venta #{sale.id} · {customer?.name ?? "Sin cliente"}
+              {pet?.name && " · 🐾 " + pet.name}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-300 hover:text-white p-1 rounded transition-colors"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Resumen del estado */}
+        <div className="px-5 py-4 bg-slate-900/50 border-b border-slate-700">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider font-bold mb-1">Total venta</p>
+              <p className="text-sm text-white font-bold">{formatMoney(total)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-emerald-300 uppercase tracking-wider font-bold mb-1">Ya pagado</p>
+              <p className="text-sm text-emerald-200 font-bold">{formatMoney(previouslyPaid)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-amber-300 uppercase tracking-wider font-bold mb-1">Saldo</p>
+              <p className="text-sm text-amber-200 font-bold">{formatMoney(balance)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Monto a cobrar */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+              Monto a cobrar ahora
+            </label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={additionalAmount}
+              onChange={(e) => setAdditionalAmount(e.target.value)}
+              className="h-10 bg-slate-900 border-slate-600 text-white text-lg font-bold"
+              autoFocus
+            />
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setAdditionalAmount(balance.toFixed(2))}
+                className="text-[10px] px-2 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 rounded font-bold hover:bg-emerald-500/30"
+              >
+                Saldo completo ({formatMoney(balance)})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdditionalAmount((balance / 2).toFixed(2))}
+                className="text-[10px] px-2 py-1 bg-slate-700 border border-slate-600 text-slate-200 rounded font-bold hover:bg-slate-600"
+              >
+                Mitad ({formatMoney(balance / 2)})
+              </button>
+            </div>
+          </div>
+
+          {/* Preview de resultado */}
+          {additionalNum > 0 && !exceedsBalance && (
+            <div className={
+              "rounded-lg p-3 border " +
+              (willBePaidOff
+                ? "bg-emerald-500/15 border-emerald-500/40"
+                : "bg-amber-500/15 border-amber-500/40")
+            }>
+              <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: willBePaidOff ? "#6EE7B7" : "#FCD34D" }}>
+                {willBePaidOff ? "✅ Quedara saldada" : "🟡 Quedara como anticipo"}
+              </p>
+              <p className="text-xs text-slate-100">
+                Despues de este cobro: <strong className="text-white">{formatMoney(newPaid)}</strong> de {formatMoney(total)}
+                {!willBePaidOff && (
+                  <> · saldo restante <strong className="text-amber-200">{formatMoney(total - newPaid)}</strong></>
+                )}
+              </p>
+            </div>
+          )}
+
+          {exceedsBalance && (
+            <div className="rounded-lg p-3 border bg-rose-500/15 border-rose-500/40">
+              <p className="text-xs text-rose-200 font-bold">
+                ⚠️ Excede el saldo. Maximo cobrable: {formatMoney(balance)}
+              </p>
+            </div>
+          )}
+
+          {/* Metodo de pago */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+              Metodo de pago
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                { val: "efectivo", label: "Efectivo", Icon: Banknote },
+                { val: "tarjeta", label: "Tarjeta", Icon: CreditCard },
+                { val: "transferencia", label: "Transfer.", Icon: ArrowRightLeft },
+                { val: "credito", label: "Credito", Icon: HandCoins },
+                { val: "otro", label: "Otro", Icon: DollarSign },
+              ] as const).map(({ val, label, Icon }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setPaymentMethod(val)}
+                  className={
+                    "flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-[10px] font-bold transition-all " +
+                    (paymentMethod === val
+                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-200"
+                      : "bg-slate-900/85 border-slate-600 text-slate-300 hover:border-slate-500")
+                  }
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nota opcional */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+              Nota (opcional)
+            </label>
+            <Input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="h-9 bg-slate-900 border-slate-600 text-white text-sm"
+              placeholder="Ej: pagado en efectivo, vino con el resto"
+              maxLength={300}
+            />
+          </div>
+        </div>
+
+        {/* Footer con acciones */}
+        <div className="px-5 py-4 border-t border-slate-700 flex gap-2 justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-600"
+            disabled={updatePayment.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={updatePayment.isPending || additionalNum <= 0 || exceedsBalance}
+            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-bold gap-2"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {updatePayment.isPending ? "Registrando..." : "Registrar cobro"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function POSTab() {
   const utils = trpc.useUtils();
   const productsQuery = trpc.veterinaria.products.list.useQuery({});
@@ -662,6 +1041,11 @@ function POSTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* B2.3b: Cuentas por cobrar arriba del POS, solo aparece si hay pendientes */}
+        <div className="lg:col-span-3">
+          <PendingPaymentsBar />
+        </div>
+
         {/* Catalogo */}
         <div className="lg:col-span-2 space-y-4">
           <div className="relative">
