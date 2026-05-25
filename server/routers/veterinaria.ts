@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, asc, gte, lte, ne, like, or, sql, inArray } from "drizzle-orm";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import { router, protectedProcedure } from "../_core/trpc";
 import {
@@ -15,10 +15,35 @@ import {
   vetClinicSettings,
   vetAppointments,
   customers,
+  petOwnerPortalTokens,
+  portalAccessLog,
 } from "../../drizzle/schema";
 import * as db from "../db";
 import { veterinariaCashiers } from "../db";
 import { createNotification } from "./notifications";
+
+// ============================================================================
+// P2 - PORTAL DE DUENOS: helpers de tokens (admin side)
+// ----------------------------------------------------------------------------
+// Token plano: 32 bytes random -> base64url (43 chars, URL-safe)
+// Token hash:  SHA-256 hex (64 chars) -> guardado en BD
+// El plano se devuelve UNA SOLA VEZ al generar; despues solo el hash existe.
+// ============================================================================
+function generatePortalToken(): { plainToken: string; tokenHash: string } {
+  // 32 bytes = 256 bits de entropia -> a prueba de brute force
+  const raw = randomBytes(32);
+  const plainToken = raw
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const tokenHash = createHash("sha256").update(plainToken).digest("hex");
+  return { plainToken, tokenHash };
+}
+
+function hashPortalToken(plainToken: string): string {
+  return createHash("sha256").update(plainToken).digest("hex");
+}
 
 // ============================================================================
 // PASSWORD HASHING - scrypt nativo de Node (sin dependencias extras)
@@ -1512,5 +1537,187 @@ export const veterinariaRouter = router({
         await ensureVetAccess(ctx.user.id);
         return await db.deleteVetCashier(input.id, ctx.user.id);
       }),
+  }),
+
+  // ==========================================================================
+  // P2 - PORTAL DE DUENOS DE MASCOTAS (admin side)
+  // --------------------------------------------------------------------------
+  // Endpoints para que Ana Karen (admin clinica) genere, vea y revoque links
+  // privados que envia a sus clientes finales por WhatsApp.
+  //
+  // El endpoint publico (lectura por token, sin auth) vive en P3 como router
+  // separado fuera del veterinariaRouter (publicProcedure).
+  // ==========================================================================
+  portal: router({
+    /**
+     * Genera un nuevo token privado para un cliente.
+     * Si ya existe un token activo para ese cliente, lo revoca y crea uno nuevo
+     * (politica: un solo token activo por cliente a la vez).
+     *
+     * Retorna el token PLANO una sola vez. Despues solo el hash queda en BD.
+     */
+    generate: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.number().int().positive(),
+          expiresInDays: z.number().int().min(7).max(730).default(365),
+          internalNotes: z.string().max(255).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        // Validar que el cliente exista y pertenezca a un cliente conocido
+        const customerRows = await conn
+          .select()
+          .from(customers)
+          .where(eq(customers.id, input.customerId));
+        if (!customerRows[0]) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cliente no encontrado" });
+        }
+
+        // Revocar tokens activos previos del mismo cliente en esta clinica
+        await conn
+          .update(petOwnerPortalTokens)
+          .set({ status: "revoked" })
+          .where(
+            and(
+              eq(petOwnerPortalTokens.clinicUserId, ctx.user.id),
+              eq(petOwnerPortalTokens.customerId, input.customerId),
+              eq(petOwnerPortalTokens.status, "active"),
+            ),
+          );
+
+        // Generar token nuevo
+        const { plainToken, tokenHash } = generatePortalToken();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
+
+        const insertResult = await conn.insert(petOwnerPortalTokens).values({
+          clinicUserId: ctx.user.id,
+          customerId: input.customerId,
+          tokenHash,
+          status: "active",
+          expiresAt,
+          internalNotes: input.internalNotes,
+        });
+        const insertedId = (insertResult as any).insertId as number;
+
+        return {
+          tokenId: insertedId,
+          plainToken, // Solo se devuelve UNA VEZ. Ana Karen lo copia/comparte ahora.
+          expiresAt: expiresAt.toISOString(),
+          customerName: customerRows[0].name,
+        };
+      }),
+
+    /**
+     * Lista los tokens del cliente especificado.
+     * NO retorna el token plano (no lo tenemos guardado).
+     */
+    listByCustomer: protectedProcedure
+      .input(z.object({ customerId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+        return await conn
+          .select({
+            id: petOwnerPortalTokens.id,
+            status: petOwnerPortalTokens.status,
+            expiresAt: petOwnerPortalTokens.expiresAt,
+            lastAccessAt: petOwnerPortalTokens.lastAccessAt,
+            accessCount: petOwnerPortalTokens.accessCount,
+            internalNotes: petOwnerPortalTokens.internalNotes,
+            createdAt: petOwnerPortalTokens.createdAt,
+          })
+          .from(petOwnerPortalTokens)
+          .where(
+            and(
+              eq(petOwnerPortalTokens.clinicUserId, ctx.user.id),
+              eq(petOwnerPortalTokens.customerId, input.customerId),
+            ),
+          )
+          .orderBy(desc(petOwnerPortalTokens.createdAt));
+      }),
+
+    /**
+     * Lista todos los tokens activos de la clinica (vista global).
+     * Util para dashboard "X clientes con portal activo".
+     */
+    listActive: protectedProcedure.query(async ({ ctx }) => {
+      await ensureVetAccess(ctx.user.id);
+      const conn = await getDbOrThrow();
+      return await conn
+        .select({
+          token: petOwnerPortalTokens,
+          customer: customers,
+        })
+        .from(petOwnerPortalTokens)
+        .leftJoin(customers, eq(petOwnerPortalTokens.customerId, customers.id))
+        .where(
+          and(
+            eq(petOwnerPortalTokens.clinicUserId, ctx.user.id),
+            eq(petOwnerPortalTokens.status, "active"),
+          ),
+        )
+        .orderBy(desc(petOwnerPortalTokens.createdAt));
+    }),
+
+    /**
+     * Revoca un token especifico. No se puede deshacer; hay que generar nuevo.
+     */
+    revoke: protectedProcedure
+      .input(z.object({ tokenId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        await ensureVetAccess(ctx.user.id);
+        const conn = await getDbOrThrow();
+
+        // Validar ownership
+        const rows = await conn
+          .select()
+          .from(petOwnerPortalTokens)
+          .where(
+            and(
+              eq(petOwnerPortalTokens.id, input.tokenId),
+              eq(petOwnerPortalTokens.clinicUserId, ctx.user.id),
+            ),
+          );
+        if (!rows[0]) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Token no encontrado" });
+        }
+
+        await conn
+          .update(petOwnerPortalTokens)
+          .set({ status: "revoked" })
+          .where(eq(petOwnerPortalTokens.id, input.tokenId));
+
+        return { ok: true, revokedId: input.tokenId };
+      }),
+
+    /**
+     * Estadisticas globales del portal para dashboard de Ana Karen.
+     */
+    stats: protectedProcedure.query(async ({ ctx }) => {
+      await ensureVetAccess(ctx.user.id);
+      const conn = await getDbOrThrow();
+      const allRows = await conn
+        .select()
+        .from(petOwnerPortalTokens)
+        .where(eq(petOwnerPortalTokens.clinicUserId, ctx.user.id));
+
+      const active = allRows.filter((t) => t.status === "active").length;
+      const revoked = allRows.filter((t) => t.status === "revoked").length;
+      const totalAccess = allRows.reduce((acc, t) => acc + (t.accessCount ?? 0), 0);
+      const usedAtLeastOnce = allRows.filter((t) => (t.accessCount ?? 0) > 0).length;
+
+      return {
+        active,
+        revoked,
+        totalTokens: allRows.length,
+        totalAccess,
+        usedAtLeastOnce,
+      };
+    }),
   }),
 });
