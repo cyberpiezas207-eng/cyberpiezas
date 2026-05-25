@@ -1081,6 +1081,14 @@ export const vetSales = mysqlTable("vetSales", {
   paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "tarjeta", "transferencia", "credito", "otro"]).default("efectivo").notNull(),
   paymentStatus: mysqlEnum("paymentStatus", ["pagado", "pendiente", "parcial", "cancelado"]).default("pagado").notNull(),
 
+  // B2: monto realmente cobrado (para anticipos / pagos parciales).
+  // Si es NULL y paymentStatus='pagado', se asume total cobrado.
+  amountPaid: decimal("amountPaid", { precision: 10, scale: 2 }),
+
+  // B2: cajero/doctor que atendio la venta. FK suave a veterinariaCashiers.id.
+  // NULL = venta sin atribuir (legacy o ventas rapidas).
+  attendedByCashierId: int("attendedByCashierId"),
+
   notes: text("notes"),
 
   createdAt: timestamp("createdAt").defaultNow().notNull(),
