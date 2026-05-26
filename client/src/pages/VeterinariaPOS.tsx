@@ -3825,3 +3825,4 @@ function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; o
     </>
   );
 }
+ 
