@@ -37,6 +37,7 @@ import VariantsManagement from "@/pages/VariantsManagement";
 import { CyberpiezasHome } from "@/pages/CyberpiezasHome";
 import SubscriptionPage from "@/pages/SubscriptionPage";
 import PublicStore from "@/pages/PublicStore";
+import PublicPetPortal from "@/pages/PublicPetPortal";
 import StoreCheckout from "@/pages/StoreCheckout";
 import StoreOrdersPanel from "@/pages/StoreOrdersPanel";
 import SystemsPanel from "@/pages/SystemsPanel";
@@ -147,6 +148,8 @@ function Router() {
       <Route path="/suscripcion" component={SubscriptionPage} />
       <Route path="/tienda/:slug" component={PublicStore} />
       <Route path="/tienda/:slug/checkout" component={StoreCheckout} />
+      {/* P5 - Portal publico de duenos de mascotas (acceso por token) */}
+      <Route path="/mi-mascota/:token" component={PublicPetPortal} />
       <Route path="/store-orders" component={StoreOrdersPanel} />
       <Route path="/cameras-store" component={CamerasStore} />
       <Route path="/subscriptions-dashboard">
