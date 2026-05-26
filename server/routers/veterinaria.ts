@@ -2052,5 +2052,138 @@ export const veterinariaRouter = router({
         };
       }),
   }),
+
+  // ────────────────────────────────────────────────────────────────────────
+  // DASHBOARD - resumen para SystemsPanel (metricas en vivo)
+  // ────────────────────────────────────────────────────────────────────────
+  // Devuelve KPIs rapidos del dia para mostrar en el card de Veterinaria
+  // del SystemsPanel. Solo cuenta datos del subscriber actual.
+  // Tolera errores (devuelve 0s si algo falla, nunca rompe el dashboard).
+  // ────────────────────────────────────────────────────────────────────────
+  dashboard: router({
+    summary: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const subscriberId = ctx.user?.id;
+        if (!subscriberId) {
+          return {
+            appointmentsToday: 0,
+            salesToday: 0,
+            totalToday: 0,
+            pendingPayments: 0,
+            pendingAmount: 0,
+            vaccinesDueSoon: 0,
+            totalPets: 0,
+            hasData: false,
+          };
+        }
+
+        const dbConn = await db.getDbOrThrow();
+
+        // Rango del dia de hoy (zona del servidor)
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Rango de proximos 30 dias (para vacunas proximas)
+        const in30Days = new Date();
+        in30Days.setDate(in30Days.getDate() + 30);
+
+        // Citas de hoy
+        const todayApps = await dbConn
+          .select({ count: sql<number>`count(*)` })
+          .from(vetAppointments)
+          .where(
+            and(
+              eq(vetAppointments.subscriberId, subscriberId),
+              gte(vetAppointments.appointmentAt, startOfDay),
+              lte(vetAppointments.appointmentAt, endOfDay),
+              ne(vetAppointments.status, "cancelled" as const)
+            )
+          );
+
+        // Ventas de hoy (total y suma)
+        const todaySales = await dbConn
+          .select({
+            count: sql<number>`count(*)`,
+            total: sql<string>`coalesce(sum(${vetSales.total}), 0)`,
+          })
+          .from(vetSales)
+          .where(
+            and(
+              eq(vetSales.subscriberId, subscriberId),
+              gte(vetSales.createdAt, startOfDay),
+              lte(vetSales.createdAt, endOfDay)
+            )
+          );
+
+        // Cuentas por cobrar
+        const pendingSales = await dbConn
+          .select({
+            count: sql<number>`count(*)`,
+            total: sql<string>`coalesce(sum(${vetSales.total} - coalesce(${vetSales.amountPaid}, 0)), 0)`,
+          })
+          .from(vetSales)
+          .where(
+            and(
+              eq(vetSales.subscriberId, subscriberId),
+              or(
+                eq(vetSales.paymentStatus, "pending" as const),
+                eq(vetSales.paymentStatus, "partial" as const)
+              )
+            )
+          );
+
+        // Vacunas que vencen en proximos 30 dias
+        const vaccinesDue = await dbConn
+          .select({ count: sql<number>`count(*)` })
+          .from(vetVaccinations)
+          .where(
+            and(
+              eq(vetVaccinations.subscriberId, subscriberId),
+              gte(vetVaccinations.nextDoseDate, new Date()),
+              lte(vetVaccinations.nextDoseDate, in30Days)
+            )
+          );
+
+        // Total mascotas registradas
+        const totalPetsCount = await dbConn
+          .select({ count: sql<number>`count(*)` })
+          .from(pets)
+          .where(eq(pets.subscriberId, subscriberId));
+
+        const apptsToday = Number(todayApps[0]?.count ?? 0);
+        const salesCount = Number(todaySales[0]?.count ?? 0);
+        const salesTotal = Number(todaySales[0]?.total ?? 0);
+        const pendCount = Number(pendingSales[0]?.count ?? 0);
+        const pendAmount = Number(pendingSales[0]?.total ?? 0);
+        const vacDue = Number(vaccinesDue[0]?.count ?? 0);
+        const petsCount = Number(totalPetsCount[0]?.count ?? 0);
+
+        return {
+          appointmentsToday: apptsToday,
+          salesToday: salesCount,
+          totalToday: salesTotal,
+          pendingPayments: pendCount,
+          pendingAmount: pendAmount,
+          vaccinesDueSoon: vacDue,
+          totalPets: petsCount,
+          hasData: petsCount > 0 || salesCount > 0 || apptsToday > 0,
+        };
+      } catch (err) {
+        console.error("[veterinaria.dashboard.summary] error:", err);
+        // Tolerar errores: devolver ceros en lugar de romper el dashboard
+        return {
+          appointmentsToday: 0,
+          salesToday: 0,
+          totalToday: 0,
+          pendingPayments: 0,
+          pendingAmount: 0,
+          vaccinesDueSoon: 0,
+          totalPets: 0,
+          hasData: false,
+        };
+      }
+    }),
+  }),
 });
- 
