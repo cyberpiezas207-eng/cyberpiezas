@@ -2521,86 +2521,173 @@ function VisitForm({ petId, customerId, onClose, onSaved }: {
 
   const createVisit = trpc.veterinaria.visits.create.useMutation({
     onSuccess: () => {
-      toast.success("Visita registrada");
+      toast.success("Visita registrada correctamente");
       onSaved();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => {
+      console.error("[VisitForm] Error:", err);
+      toast.error(err?.message || "No se pudo registrar la visita");
+    },
   });
 
   const handleSubmit = () => {
-    if (!form.reason) return toast.error("Motivo requerido");
+    if (!form.reason.trim()) return toast.error("El motivo es obligatorio");
     createVisit.mutate({
       petId,
       customerId,
-      reason: form.reason,
+      reason: form.reason.trim(),
       weight: form.weight || undefined,
       temperature: form.temperature || undefined,
-      diagnosis: form.diagnosis || undefined,
-      treatment: form.treatment || undefined,
-      prescribedMedications: form.prescribedMedications || undefined,
+      diagnosis: form.diagnosis.trim() || undefined,
+      treatment: form.treatment.trim() || undefined,
+      prescribedMedications: form.prescribedMedications.trim() || undefined,
     });
   };
 
   return (
-    <div className="p-4 bg-purple-950/30 border border-purple-500/30 rounded-lg space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-purple-200">Nueva visita</p>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+    <div className="bg-white rounded-2xl border border-purple-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+      {/* Header premium */}
+      <div className="bg-gradient-to-br from-purple-50 via-white to-pink-50 px-5 pt-4 pb-3 border-b border-purple-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md shadow-purple-500/30">
+            <FileText className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-600 mb-0.5">
+              Expediente clinico
+            </p>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">Nueva visita</h3>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+          aria-label="Cerrar"
+        >
           <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="px-5 py-4 space-y-3.5">
+        <div>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Motivo de la visita <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Ej. Consulta de control, vomito, vacunacion..."
+            value={form.reason}
+            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            autoFocus
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Peso (kg)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="12.5"
+              value={form.weight}
+              onChange={(e) => setForm({ ...form, weight: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-11 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Temperatura (°C)
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              placeholder="38.5"
+              value={form.temperature}
+              onChange={(e) => setForm({ ...form, temperature: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-11 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Diagnostico
+          </label>
+          <textarea
+            placeholder="Hallazgos clinicos, impresion diagnostica..."
+            value={form.diagnosis}
+            onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
+            rows={2}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Tratamiento
+          </label>
+          <textarea
+            placeholder="Procedimientos realizados, indicaciones..."
+            value={form.treatment}
+            onChange={(e) => setForm({ ...form, treatment: e.target.value })}
+            rows={2}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Medicamentos recetados
+          </label>
+          <textarea
+            placeholder="Medicamento, dosis, frecuencia..."
+            value={form.prescribedMedications}
+            onChange={(e) => setForm({ ...form, prescribedMedications: e.target.value })}
+            rows={2}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all resize-none"
+          />
+        </div>
+
+        <div className="bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 text-[11px] text-slate-600">
+          <span className="text-purple-500">🔒</span> Diagnostico y tratamiento son confidenciales — no se comparten en el portal del dueno.
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-5 pb-5 pt-1 flex gap-2 justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={createVisit.isPending}
+          className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-11 px-5 rounded-xl"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={createVisit.isPending || !form.reason.trim()}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white gap-2 font-bold h-11 px-5 rounded-xl shadow-lg shadow-purple-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+        >
+          {createVisit.isPending ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Guardar visita
+            </>
+          )}
         </Button>
       </div>
-      <Input
-        placeholder="Motivo de la visita *"
-        value={form.reason}
-        onChange={(e) => setForm({ ...form, reason: e.target.value })}
-        className="bg-slate-900/80 border-slate-600 text-white"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <Input
-          placeholder="Peso (kg)"
-          type="number"
-          step="0.01"
-          value={form.weight}
-          onChange={(e) => setForm({ ...form, weight: e.target.value })}
-          className="bg-slate-900/80 border-slate-600 text-white"
-        />
-        <Input
-          placeholder="Temperatura"
-          type="number"
-          step="0.1"
-          value={form.temperature}
-          onChange={(e) => setForm({ ...form, temperature: e.target.value })}
-          className="bg-slate-900/80 border-slate-600 text-white"
-        />
-      </div>
-      <Textarea
-        placeholder="Diagnostico"
-        value={form.diagnosis}
-        onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
-        rows={2}
-        className="bg-slate-900/80 border-slate-600 text-white"
-      />
-      <Textarea
-        placeholder="Tratamiento"
-        value={form.treatment}
-        onChange={(e) => setForm({ ...form, treatment: e.target.value })}
-        rows={2}
-        className="bg-slate-900/80 border-slate-600 text-white"
-      />
-      <Textarea
-        placeholder="Medicamentos recetados"
-        value={form.prescribedMedications}
-        onChange={(e) => setForm({ ...form, prescribedMedications: e.target.value })}
-        rows={2}
-        className="bg-slate-900/80 border-slate-600 text-white"
-      />
-      <Button
-        onClick={handleSubmit}
-        disabled={createVisit.isPending}
-        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-      >
-        {createVisit.isPending ? "Guardando..." : "Guardar visita"}
-      </Button>
     </div>
   );
 }
@@ -2619,67 +2706,157 @@ function VaccineForm({ petId, onClose, onSaved }: {
 
   const createVaccine = trpc.veterinaria.vaccinations.create.useMutation({
     onSuccess: () => {
-      toast.success("Vacuna registrada");
+      toast.success("Vacuna registrada correctamente");
       onSaved();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => {
+      console.error("[VaccineForm] Error:", err);
+      toast.error(err?.message || "No se pudo registrar la vacuna");
+    },
   });
 
   const handleSubmit = () => {
-    if (!form.vaccineName) return toast.error("Nombre de vacuna requerido");
+    if (!form.vaccineName.trim()) return toast.error("El nombre de la vacuna es obligatorio");
     createVaccine.mutate({
       petId,
-      vaccineName: form.vaccineName,
-      brand: form.brand || undefined,
-      batchNumber: form.batchNumber || undefined,
+      vaccineName: form.vaccineName.trim(),
+      brand: form.brand.trim() || undefined,
+      batchNumber: form.batchNumber.trim() || undefined,
       nextDoseDate: form.nextDoseDate ? new Date(form.nextDoseDate) : undefined,
     });
   };
 
+  // Sugerir fecha proxima dosis automaticamente (1 ano default)
+  const suggestNextYear = () => {
+    const next = new Date();
+    next.setFullYear(next.getFullYear() + 1);
+    setForm({ ...form, nextDoseDate: next.toISOString().split("T")[0] });
+  };
+
   return (
-    <div className="p-4 bg-cyan-950/30 border border-cyan-500/30 rounded-lg space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-cyan-200">Nueva vacuna</p>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+    <div className="bg-white rounded-2xl border border-cyan-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+      {/* Header premium */}
+      <div className="bg-gradient-to-br from-cyan-50 via-white to-emerald-50 px-5 pt-4 pb-3 border-b border-cyan-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shadow-md shadow-cyan-500/30">
+            <Syringe className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-600 mb-0.5">
+              Cartilla de vacunacion
+            </p>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">Registrar vacuna</h3>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+          aria-label="Cerrar"
+        >
           <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="px-5 py-4 space-y-3.5">
+        <div>
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+            Nombre de la vacuna <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Ej. Antirrabica, Multiple Canina, Triple Felina..."
+            value={form.vaccineName}
+            onChange={(e) => setForm({ ...form, vaccineName: e.target.value })}
+            autoFocus
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:bg-white focus:ring-2 focus:ring-cyan-100 focus:outline-none transition-all"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Marca
+            </label>
+            <input
+              type="text"
+              placeholder="Zoetis, Virbac..."
+              value={form.brand}
+              onChange={(e) => setForm({ ...form, brand: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-11 text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:bg-white focus:ring-2 focus:ring-cyan-100 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Lote
+            </label>
+            <input
+              type="text"
+              placeholder="A12345"
+              value={form.batchNumber}
+              onChange={(e) => setForm({ ...form, batchNumber: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-11 text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:bg-white focus:ring-2 focus:ring-cyan-100 focus:outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Proxima dosis
+            </label>
+            <button
+              type="button"
+              onClick={suggestNextYear}
+              className="text-[11px] font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
+            >
+              +1 año automatico
+            </button>
+          </div>
+          <input
+            type="date"
+            value={form.nextDoseDate}
+            onChange={(e) => setForm({ ...form, nextDoseDate: e.target.value })}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:bg-white focus:ring-2 focus:ring-cyan-100 focus:outline-none transition-all"
+          />
+        </div>
+
+        <div className="bg-cyan-50 border border-cyan-100 rounded-xl px-3 py-2 text-[11px] text-slate-600">
+          <span className="text-cyan-500">💡</span> El dueno vera la fecha de proxima dosis en su portal con countdown automatico.
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-5 pb-5 pt-1 flex gap-2 justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={createVaccine.isPending}
+          className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-11 px-5 rounded-xl"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={createVaccine.isPending || !form.vaccineName.trim()}
+          className="bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-white gap-2 font-bold h-11 px-5 rounded-xl shadow-lg shadow-cyan-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+        >
+          {createVaccine.isPending ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Syringe className="w-4 h-4" />
+              Registrar vacuna
+            </>
+          )}
         </Button>
       </div>
-      <Input
-        placeholder="Nombre de la vacuna *"
-        value={form.vaccineName}
-        onChange={(e) => setForm({ ...form, vaccineName: e.target.value })}
-        className="bg-slate-900/80 border-slate-600 text-white"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <Input
-          placeholder="Marca"
-          value={form.brand}
-          onChange={(e) => setForm({ ...form, brand: e.target.value })}
-          className="bg-slate-900/80 border-slate-600 text-white"
-        />
-        <Input
-          placeholder="Lote"
-          value={form.batchNumber}
-          onChange={(e) => setForm({ ...form, batchNumber: e.target.value })}
-          className="bg-slate-900/80 border-slate-600 text-white"
-        />
-      </div>
-      <div>
-        <label className="text-xs text-cyan-300">Proxima dosis (opcional)</label>
-        <Input
-          type="date"
-          value={form.nextDoseDate}
-          onChange={(e) => setForm({ ...form, nextDoseDate: e.target.value })}
-          className="bg-slate-900/80 border-slate-600 text-white"
-        />
-      </div>
-      <Button
-        onClick={handleSubmit}
-        disabled={createVaccine.isPending}
-        className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
-      >
-        {createVaccine.isPending ? "Guardando..." : "Registrar vacuna"}
-      </Button>
     </div>
   );
 }
@@ -3775,8 +3952,14 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
   const pets = (petsQuery.data ?? []).filter((row: any) => row.pet.customerId === customerId);
 
   const createMut = trpc.veterinaria.appointments.create.useMutation({
-    onSuccess: () => { toast.success("Cita agendada correctamente"); onSaved(); },
-    onError: (err) => toast.error(err.message),
+    onSuccess: () => {
+      toast.success("Cita agendada correctamente");
+      onSaved();
+    },
+    onError: (err: any) => {
+      console.error("[AppointmentForm] Error:", err);
+      toast.error(err?.message || "No se pudo agendar la cita");
+    },
   });
 
   const handleSave = () => {
@@ -3797,136 +3980,216 @@ function AppointmentForm({ customers, onClose, onSaved }: { customers: any[]; on
     });
   };
 
+  // Sugerencias de horarios comunes
+  const todayStr = new Date().toISOString().split("T")[0];
+
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-white flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-emerald-200" />
-          </div>
-          Nueva cita
-        </CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-200 hover:text-white">
-          <X className="w-4 h-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-4 space-y-3">
-          <div>
-            <label className="text-xs font-bold text-purple-100 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <UserCircle className="w-3.5 h-3.5" /> Cliente <span className="text-rose-400">*</span>
-            </label>
-            <select
-              value={customerId}
-              onChange={(e) => { setCustomerId(Number(e.target.value)); setPetId(0); }}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header con gradiente sage premium */}
+        <div className="relative bg-gradient-to-br from-emerald-50 via-white to-cyan-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+              aria-label="Cerrar"
             >
-              <option value={0}>-- Selecciona el cliente --</option>
-              {customers.map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.phone ? " (" + c.phone + ")" : ""}
-                </option>
-              ))}
-            </select>
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          {customerId > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <CalendarDays className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <label className="text-xs font-bold text-purple-100 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <PawPrint className="w-3.5 h-3.5" /> Mascota <span className="text-rose-400">*</span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-0.5">
+                Agenda
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Nueva cita</h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Cliente y mascota - destacados en card morada */}
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+            <div>
+              <label className="text-xs font-bold text-purple-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <UserCircle className="w-3.5 h-3.5" /> Cliente <span className="text-rose-500">*</span>
               </label>
-              {pets.length === 0 ? (
-                <p className="text-amber-200 text-sm bg-amber-950/40 border border-amber-500/30 rounded-lg p-2.5">
-                  Este cliente no tiene mascotas registradas. Crea una en la pestaña Mascotas.
-                </p>
-              ) : (
-                <select
-                  value={petId}
-                  onChange={(e) => setPetId(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
-                >
-                  <option value={0}>-- Selecciona la mascota --</option>
-                  {pets.map((row: any) => (
-                    <option key={row.pet.id} value={row.pet.id}>
-                      {row.pet.name} ({row.pet.species})
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={customerId}
+                onChange={(e) => { setCustomerId(Number(e.target.value)); setPetId(0); }}
+                className="w-full bg-white border border-purple-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-purple-500 focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+              >
+                <option value={0}>-- Selecciona el cliente --</option>
+                {customers.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.phone ? " (" + c.phone + ")" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {customerId > 0 && (
+              <div>
+                <label className="text-xs font-bold text-purple-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <PawPrint className="w-3.5 h-3.5" /> Mascota <span className="text-rose-500">*</span>
+                </label>
+                {pets.length === 0 ? (
+                  <div className="flex items-start gap-2 text-amber-900 text-sm bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                    <span>
+                      Este cliente no tiene mascotas. Crea una en la pestaña{" "}
+                      <strong className="font-bold">Mascotas</strong>.
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={petId}
+                    onChange={(e) => setPetId(Number(e.target.value))}
+                    className="w-full bg-white border border-purple-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-purple-500 focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+                  >
+                    <option value={0}>-- Selecciona la mascota --</option>
+                    {pets.map((row: any) => (
+                      <option key={row.pet.id} value={row.pet.id}>
+                        {row.pet.name} ({row.pet.species})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Fecha + Hora + Duracion */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                Fecha <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={date}
+                min={todayStr}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-12 text-slate-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                Hora <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-12 text-slate-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                Duracion (min)
+              </label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-12 text-slate-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Motivo */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Motivo de la cita <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Consulta general, vacunacion, control..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Notas adicionales
+              <span className="text-slate-400 font-normal normal-case ml-1.5 tracking-normal">
+                (opcional)
+              </span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Informacion extra, recordatorios..."
+              rows={3}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all resize-none"
+            />
+          </div>
+
+          {/* Tip si fecha y hora estan listas */}
+          {date && time && reason.trim() && (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 text-[11px] text-slate-600 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+              <span>
+                Cita agendada para{" "}
+                <strong className="font-bold text-slate-900">
+                  {new Date(date + "T" + time).toLocaleString("es-MX", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </strong>
+              </span>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-              Fecha <span className="text-rose-400">*</span>
-            </label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-              Hora <span className="text-rose-400">*</span>
-            </label>
-            <Input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Duración (min)</label>
-            <Input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-            Motivo de la cita <span className="text-rose-400">*</span>
-          </label>
-          <Input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Consulta general, vacunación, control..."
-            className="bg-slate-950 border-slate-600 text-white h-11"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Notas adicionales</label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Información extra, recordatorios..."
-            className="bg-slate-950 border-slate-600 text-white min-h-[80px]"
-          />
-        </div>
-
-        <div className="flex gap-2 pt-2">
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
           <Button
-            onClick={handleSave}
+            type="button"
+            variant="outline"
+            onClick={onClose}
             disabled={createMut.isPending}
-            className="flex-1 h-11 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold shadow-lg shadow-emerald-500/20"
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
           >
-            <Save className="w-4 h-4" />
-            {createMut.isPending ? "Agendando..." : "Agendar cita"}
-          </Button>
-          <Button variant="outline" onClick={onClose} className="border-slate-600 text-slate-200 hover:bg-slate-700">
             Cancelar
           </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={createMut.isPending || !customerId || !petId || !date || !time || !reason.trim()}
+            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            {createMut.isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Agendando...
+              </>
+            ) : (
+              <>
+                <CalendarDays className="w-4 h-4" />
+                Agendar cita
+              </>
+            )}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
