@@ -632,98 +632,198 @@ function CustomerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   const [notes, setNotes] = useState("");
 
   const createMut = trpc.customers.create.useMutation({
-    onSuccess: () => { toast.success("Cliente creado correctamente"); onSaved(); },
-    onError: (err) => toast.error(err.message),
+    onSuccess: () => {
+      toast.success("Cliente creado correctamente");
+      onSaved();
+    },
+    onError: (err: any) => {
+      // Manejo robusto: muestra el mensaje del backend tal cual, sin enmascarar
+      console.error("[CustomerForm] Error al crear cliente:", err);
+      const msg = err?.message || "No se pudo crear el cliente. Intenta de nuevo.";
+      toast.error(msg);
+    },
   });
 
   const handleSave = () => {
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       toast.error("El nombre es obligatorio");
       return;
     }
-    const data: any = { name: name.trim() };
+    if (trimmedName.length < 2) {
+      toast.error("El nombre debe tener al menos 2 caracteres");
+      return;
+    }
+    // Validacion suave de email si se ingreso
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !trimmedEmail.includes("@")) {
+      toast.error("El email no parece valido");
+      return;
+    }
+
+    const data: any = { name: trimmedName };
     if (phone.trim()) data.phone = phone.trim();
-    if (email.trim()) data.email = email.trim();
+    if (trimmedEmail) data.email = trimmedEmail;
     if (notes.trim()) data.notes = notes.trim();
 
     createMut.mutate(data);
   };
 
+  // Soporte tecla Enter para submit rapido (excepto en textarea)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-              <UserCircle className="w-5 h-5 text-emerald-200" />
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Header con gradiente sage premium */}
+        <div className="relative bg-gradient-to-br from-emerald-50 via-white to-cyan-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+              aria-label="Cerrar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <UserCircle className="w-6 h-6 text-white" />
             </div>
-            Nuevo cliente
-          </CardTitle>
-          <Button size="icon" variant="ghost" onClick={onClose} className="text-slate-100 hover:text-white hover:bg-slate-800">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-            Nombre completo <span className="text-rose-400">*</span>
-          </label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ej. Juan Perez"
-            className="bg-slate-950 border-slate-600 text-white h-11"
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Telefono</label>
-            <Input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="5512345678"
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Email</label>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="cliente@ejemplo.com"
-              type="email"
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-0.5">
+                Nuevo registro
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Agregar cliente
+              </h2>
+            </div>
           </div>
         </div>
-        <div>
-          <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Notas</label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Direccion, observaciones, alergias del cliente..."
-            className="bg-slate-950 border-slate-600 text-white min-h-[90px]"
-          />
-          <p className="text-xs text-slate-200 mt-1.5">
-            Anota direccion, alergias, preferencias o cualquier nota util.
-          </p>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Nombre */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Nombre completo <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej. Maria Lopez"
+              autoFocus
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Telefono + Email en fila (responsive) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                Telefono
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="55 1234 5678"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="cliente@correo.com"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Notas
+              <span className="text-slate-400 font-normal normal-case ml-1.5 tracking-normal">
+                (opcional)
+              </span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Direccion, alergias, preferencias o cualquier dato util..."
+              rows={3}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all resize-none"
+            />
+            <p className="text-[11px] text-slate-500 mt-1.5 flex items-start gap-1">
+              <span className="text-emerald-500">💡</span>
+              Anota cualquier cosa que te ayude a recordar a este cliente.
+            </p>
+          </div>
+
+          {/* Aviso campos obligatorios */}
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 text-[11px] text-slate-600">
+            <span className="text-rose-500 font-bold">*</span> Solo el nombre es obligatorio. Lo demas lo puedes agregar despues.
+          </div>
         </div>
-        <div className="flex gap-2 pt-2">
+
+        {/* Footer con acciones */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
           <Button
-            onClick={handleSave}
+            type="button"
+            variant="outline"
+            onClick={onClose}
             disabled={createMut.isPending}
-            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold flex-1 sm:flex-none shadow-lg shadow-emerald-500/20"
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
           >
-            <Save className="w-4 h-4" />
-            {createMut.isPending ? "Guardando..." : "Crear cliente"}
-          </Button>
-          <Button variant="outline" onClick={onClose} className="border-slate-600 text-slate-200 hover:bg-slate-700">
             Cancelar
           </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={createMut.isPending || !name.trim()}
+            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            {createMut.isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Crear cliente
+              </>
+            )}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -3825,4 +3925,3 @@ function ReceiptModal({ sale, settings, onClose }: { sale: any; settings: any; o
     </>
   );
 }
- 
