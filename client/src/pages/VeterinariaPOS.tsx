@@ -2043,193 +2043,266 @@ function PetForm({ customers, onClose, onSaved }: { customers: any[]; onClose: (
 
   const createPet = trpc.veterinaria.pets.create.useMutation({
     onSuccess: () => {
-      toast.success("Mascota registrada");
+      toast.success("Mascota registrada correctamente");
       onSaved();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => {
+      console.error("[PetForm] Error al crear mascota:", err);
+      const msg = err?.message || "No se pudo registrar la mascota.";
+      toast.error(msg);
+    },
   });
 
   const handleSubmit = () => {
     if (!form.customerId) return toast.error("Selecciona un cliente");
-    if (!form.name) return toast.error("Nombre requerido");
+    if (!form.name.trim()) return toast.error("El nombre es obligatorio");
+    if (form.name.trim().length < 2) return toast.error("Nombre demasiado corto");
     createPet.mutate({
       customerId: form.customerId,
-      name: form.name,
+      name: form.name.trim(),
       species: form.species,
-      breed: form.breed || undefined,
+      breed: form.breed.trim() || undefined,
       sex: form.sex,
       sterilized: form.sterilized,
-      color: form.color || undefined,
-      microchip: form.microchip || undefined,
-      weight: form.weight || undefined,
-      notes: form.notes || undefined,
+      color: form.color.trim() || undefined,
+      microchip: form.microchip.trim() || undefined,
+      weight: form.weight.trim() || undefined,
+      notes: form.notes.trim() || undefined,
     });
   };
 
+  const speciesEmoji: Record<string, string> = {
+    perro: "🐕",
+    gato: "🐈",
+    ave: "🦜",
+    reptil: "🦎",
+    roedor: "🐹",
+    exotico: "🦊",
+    otro: "🐾",
+  };
+
   return (
-    <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-white flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-            <PawPrint className="w-5 h-5 text-emerald-200" />
-          </div>
-          Nueva mascota
-        </CardTitle>
-        <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-100 hover:text-white hover:bg-slate-800">
-          <X className="w-4 h-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Selector de cliente destacado */}
-        <div className="bg-purple-950/30 border border-purple-500/30 rounded-xl p-4">
-          <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <UserCircle className="w-3.5 h-3.5" />
-            Dueño de la mascota <span className="text-rose-400">*</span>
-          </label>
-          {customers.length === 0 ? (
-            <div className="flex items-center gap-2 text-amber-200 text-sm bg-amber-950/30 border border-amber-500/30 rounded-lg p-3">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>Primero registra un cliente en la pestaña <strong>Clientes</strong>.</span>
-            </div>
-          ) : (
-            <select
-              value={form.customerId}
-              onChange={(e) => setForm({ ...form, customerId: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-purple-500/60 focus:outline-none"
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header con gradiente sage premium */}
+        <div className="relative bg-gradient-to-br from-emerald-50 via-white to-cyan-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+              aria-label="Cerrar"
             >
-              <option value={0}>-- Selecciona el cliente --</option>
-              {customers.map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.phone ? " (" + c.phone + ")" : ""}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Datos basicos */}
-        <div>
-          <p className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <PawPrint className="w-3 h-3" /> Datos de la mascota
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Nombre <span className="text-rose-400">*</span></label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Firulais"
-                className="bg-slate-950 border-slate-600 text-white h-11"
-              />
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 text-2xl">
+              {speciesEmoji[form.species] || "🐾"}
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Especie</label>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-0.5">
+                Nuevo registro
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Agregar mascota
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-5">
+          {/* Selector de cliente destacado */}
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+            <label className="text-xs font-bold text-purple-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <UserCircle className="w-3.5 h-3.5" />
+              Dueno de la mascota <span className="text-rose-500">*</span>
+            </label>
+            {customers.length === 0 ? (
+              <div className="flex items-start gap-2 text-amber-900 text-sm bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                <span>
+                  Primero registra un cliente en la pestana{" "}
+                  <strong className="font-bold">Clientes</strong>.
+                </span>
+              </div>
+            ) : (
               <select
-                value={form.species}
-                onChange={(e) => setForm({ ...form, species: e.target.value as any })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
+                value={form.customerId}
+                onChange={(e) => setForm({ ...form, customerId: Number(e.target.value) })}
+                className="w-full bg-white border border-purple-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-purple-500 focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
               >
-                <option value="perro">🐕 Perro</option>
-                <option value="gato">🐈 Gato</option>
-                <option value="ave">🦜 Ave</option>
-                <option value="reptil">🦎 Reptil</option>
-                <option value="roedor">🐹 Roedor</option>
-                <option value="exotico">🦊 Exotico</option>
-                <option value="otro">🐾 Otro</option>
+                <option value={0}>-- Selecciona el cliente --</option>
+                {customers.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.phone ? " (" + c.phone + ")" : ""}
+                  </option>
+                ))}
               </select>
+            )}
+          </div>
+
+          {/* Datos basicos */}
+          <div>
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <PawPrint className="w-3 h-3 text-emerald-600" /> Datos de la mascota
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                  Nombre <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Firulais"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Especie</label>
+                <select
+                  value={form.species}
+                  onChange={(e) => setForm({ ...form, species: e.target.value as any })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                >
+                  <option value="perro">🐕 Perro</option>
+                  <option value="gato">🐈 Gato</option>
+                  <option value="ave">🦜 Ave</option>
+                  <option value="reptil">🦎 Reptil</option>
+                  <option value="roedor">🐹 Roedor</option>
+                  <option value="exotico">🦊 Exotico</option>
+                  <option value="otro">🐾 Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Raza</label>
+                <input
+                  type="text"
+                  value={form.breed}
+                  onChange={(e) => setForm({ ...form, breed: e.target.value })}
+                  placeholder="Labrador, Persa, Mestizo..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Sexo</label>
+                <select
+                  value={form.sex}
+                  onChange={(e) => setForm({ ...form, sex: e.target.value as any })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                >
+                  <option value="desconocido">Desconocido</option>
+                  <option value="macho">♂ Macho</option>
+                  <option value="hembra">♀ Hembra</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Color</label>
+                <input
+                  type="text"
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  placeholder="Cafe con blanco"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Peso (kg)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.weight}
+                  onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                  placeholder="12.5"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Datos opcionales */}
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <p className="text-[11px] font-semibold text-slate-500 italic">Opcional (puedes agregar despues)</p>
             <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Raza</label>
-              <Input
-                value={form.breed}
-                onChange={(e) => setForm({ ...form, breed: e.target.value })}
-                placeholder="Labrador, Persa, Mestizo..."
-                className="bg-slate-950 border-slate-600 text-white h-11"
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block">Numero de microchip</label>
+              <input
+                type="text"
+                value={form.microchip}
+                onChange={(e) => setForm({ ...form, microchip: e.target.value })}
+                placeholder="123456789012345"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
               />
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Sexo</label>
-              <select
-                value={form.sex}
-                onChange={(e) => setForm({ ...form, sex: e.target.value as any })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium focus:border-emerald-500/60 focus:outline-none"
-              >
-                <option value="desconocido">Desconocido</option>
-                <option value="macho">Macho</option>
-                <option value="hembra">Hembra</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Color</label>
-              <Input
-                value={form.color}
-                onChange={(e) => setForm({ ...form, color: e.target.value })}
-                placeholder="Cafe con blanco"
-                className="bg-slate-950 border-slate-600 text-white h-11"
+            <label className="flex items-center gap-3 text-sm text-slate-800 bg-slate-50 rounded-xl p-3.5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.sterilized}
+                onChange={(e) => setForm({ ...form, sterilized: e.target.checked })}
+                className="w-5 h-5 rounded accent-emerald-500"
               />
-            </div>
+              <div className="flex-1">
+                <p className="font-bold">Mascota esterilizada</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Marca si ya fue esterilizada/castrada</p>
+              </div>
+            </label>
             <div>
-              <label className="text-xs font-bold text-slate-200 mb-1.5 block">Peso (kg)</label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                placeholder="12.5"
-                className="bg-slate-950 border-slate-600 text-white h-11"
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block">Notas medicas / observaciones</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Alergias, comportamiento, condiciones especiales..."
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all resize-none"
               />
+              <p className="text-[11px] text-slate-500 mt-1.5 flex items-start gap-1">
+                <span className="text-emerald-500">💡</span>
+                Solo tu y tu equipo veran estas notas (no son visibles al dueno).
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Datos opcionales */}
-        <div className="space-y-3 pt-2 border-t border-slate-600">
-          <div>
-            <label className="text-xs font-bold text-slate-200 mb-1.5 block">Numero de microchip</label>
-            <Input
-              value={form.microchip}
-              onChange={(e) => setForm({ ...form, microchip: e.target.value })}
-              placeholder="123456789012345"
-              className="bg-slate-950 border-slate-600 text-white h-11"
-            />
-          </div>
-          <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/85 rounded-lg p-3 border border-slate-600 cursor-pointer hover:bg-slate-900/80 transition-colors">
-            <input
-              type="checkbox"
-              checked={form.sterilized}
-              onChange={(e) => setForm({ ...form, sterilized: e.target.checked })}
-              className="w-4 h-4 accent-emerald-500"
-            />
-            <span className="font-medium">Mascota esterilizada</span>
-          </label>
-          <div>
-            <label className="text-xs font-bold text-slate-200 mb-1.5 block">Notas medicas / observaciones</label>
-            <Textarea
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Alergias, comportamiento, condiciones especiales..."
-              className="bg-slate-950 border-slate-600 text-white min-h-[80px]"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        {/* Botones */}
-        <div className="flex gap-2 pt-2">
+        {/* Footer con acciones */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
           <Button
-            onClick={handleSubmit}
-            disabled={createPet.isPending || customers.length === 0}
-            className="flex-1 h-11 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold shadow-lg shadow-emerald-500/20"
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={createPet.isPending}
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
           >
-            <Save className="w-4 h-4" />
-            {createPet.isPending ? "Guardando mascota..." : "Guardar mascota"}
-          </Button>
-          <Button variant="outline" onClick={onClose} className="border-slate-600 text-slate-200 hover:bg-slate-700">
             Cancelar
           </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={createPet.isPending || customers.length === 0 || !form.name.trim() || !form.customerId}
+            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            {createPet.isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Guardar mascota
+              </>
+            )}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -2668,95 +2741,160 @@ function ProductsTab() {
       </div>
 
       {showForm && (
-        <Card className="bg-gradient-to-br from-purple-950/80 via-slate-950 to-pink-950/80 border-purple-500/60 shadow-2xl shadow-purple-500/10">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-purple-500/30 flex items-center justify-center">
-                <Package className="w-5 h-5 text-purple-200" />
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setShowForm(false)}
+        >
+          <div
+            className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con gradiente purple/pink premium (productos = morado) */}
+            <div className="relative bg-gradient-to-br from-purple-50 via-white to-pink-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+              <div className="absolute top-4 right-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              Nuevo producto
-            </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-100 hover:text-white">
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">
-                Nombre del producto <span className="text-rose-400">*</span>
-              </label>
-              <Input
-                placeholder="Ej. Antiparasitario Drontal"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="bg-slate-950 border-slate-600 text-white h-11"
-              />
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <Package className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-600 mb-0.5">
+                    Inventario
+                  </p>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                    Nuevo producto
+                  </h2>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">Categoria</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
-              >
-                <option value="medicamento">💊 Medicamento</option>
-                <option value="alimento">🍖 Alimento</option>
-                <option value="accesorio">🦴 Accesorio</option>
-                <option value="higiene">🧼 Higiene</option>
-                <option value="vitamina">🌿 Vitamina</option>
-                <option value="otro">📦 Otro</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">
-                  Precio <span className="text-rose-400">*</span>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                  Nombre del producto <span className="text-rose-500">*</span>
                 </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="0.00"
-                  className="bg-slate-950 border-slate-600 text-white h-11"
+                <input
+                  type="text"
+                  placeholder="Ej. Antiparasitario Drontal"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">Costo</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.cost}
-                  onChange={(e) => setForm({ ...form, cost: e.target.value })}
-                  placeholder="0.00"
-                  className="bg-slate-950 border-slate-600 text-white h-11"
-                />
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                  Categoria
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as any })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+                >
+                  <option value="medicamento">💊 Medicamento</option>
+                  <option value="alimento">🍖 Alimento</option>
+                  <option value="accesorio">🦴 Accesorio</option>
+                  <option value="higiene">🧼 Higiene</option>
+                  <option value="vitamina">🌿 Vitamina</option>
+                  <option value="otro">📦 Otro</option>
+                </select>
               </div>
-              <div>
-                <label className="text-xs font-bold text-purple-200 uppercase tracking-wider mb-1.5 block">Stock</label>
-                <Input
-                  type="number"
-                  value={form.stock}
-                  onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
-                  className="bg-slate-950 border-slate-600 text-white h-11"
-                />
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                    Precio <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 h-12 text-slate-900 font-semibold placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                    Costo
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.cost}
+                      onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 h-12 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                    Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 h-12 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-100 focus:outline-none transition-all"
+                  />
+                </div>
               </div>
+
+              <label className="flex items-center gap-3 text-sm text-slate-800 bg-slate-50 rounded-xl p-3.5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={form.requiresPrescription}
+                  onChange={(e) => setForm({ ...form, requiresPrescription: e.target.checked })}
+                  className="w-5 h-5 rounded accent-purple-500"
+                />
+                <div className="flex-1">
+                  <p className="font-bold">Requiere receta medica</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Marca si solo se vende con prescripcion</p>
+                </div>
+              </label>
+
+              {form.cost && form.price && parseFloat(form.cost) > 0 && parseFloat(form.price) > 0 && (
+                <div className="bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 text-[11px] text-slate-700 flex items-center justify-between">
+                  <span>Margen estimado:</span>
+                  <span className="font-bold text-purple-700">
+                    {(((parseFloat(form.price) - parseFloat(form.cost)) / parseFloat(form.price)) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              )}
             </div>
-            <label className="flex items-center gap-2.5 text-sm text-slate-100 bg-slate-900/85 rounded-lg p-3 border border-slate-600 cursor-pointer hover:bg-slate-900/80">
-              <input
-                type="checkbox"
-                checked={form.requiresPrescription}
-                onChange={(e) => setForm({ ...form, requiresPrescription: e.target.checked })}
-                className="w-4 h-4 accent-purple-500"
-              />
-              <span className="font-medium">Requiere receta medica</span>
-            </label>
-            <div className="flex gap-2 pt-2">
+
+            {/* Footer */}
+            <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
               <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                disabled={createProduct.isPending}
+                className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
                 onClick={() => {
-                  if (!form.name || !form.price) return toast.error("Nombre y precio son obligatorios");
+                  if (!form.name.trim()) return toast.error("El nombre es obligatorio");
+                  if (!form.price || parseFloat(form.price) <= 0) return toast.error("Precio invalido");
                   createProduct.mutate({
-                    name: form.name,
+                    name: form.name.trim(),
                     category: form.category,
                     price: form.price,
                     cost: form.cost || undefined,
@@ -2764,18 +2902,24 @@ function ProductsTab() {
                     requiresPrescription: form.requiresPrescription,
                   });
                 }}
-                disabled={createProduct.isPending}
-                className="flex-1 h-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white gap-2 font-bold shadow-lg shadow-purple-500/20"
+                disabled={createProduct.isPending || !form.name.trim() || !form.price}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-purple-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
               >
-                <Save className="w-4 h-4" />
-                {createProduct.isPending ? "Guardando..." : "Guardar producto"}
-              </Button>
-              <Button variant="outline" onClick={() => setShowForm(false)} className="border-slate-600 text-slate-200 hover:bg-slate-700">
-                Cancelar
+                {createProduct.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Guardar producto
+                  </>
+                )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {productsQuery.isLoading ? (
@@ -2914,89 +3058,147 @@ function ServicesTab() {
       </div>
 
       {showForm && (
-        <Card className="bg-gradient-to-br from-emerald-950/80 via-slate-950 to-cyan-950/80 border-emerald-500/60 shadow-2xl shadow-emerald-500/10">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/30 flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-emerald-200" />
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setShowForm(false)}
+        >
+          <div
+            className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con gradiente sage premium */}
+            <div className="relative bg-gradient-to-br from-emerald-50 via-white to-cyan-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+              <div className="absolute top-4 right-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              Nuevo servicio
-            </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)} className="text-slate-100 hover:text-white">
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-                Nombre del servicio <span className="text-rose-400">*</span>
-              </label>
-              <Input
-                placeholder="Ej. Consulta general"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="bg-slate-950 border-slate-600 text-white h-11"
-              />
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 text-2xl">
+                  {categoryEmoji[form.category] || "🛠"}
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-0.5">
+                    Catalogo
+                  </p>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                    Nuevo servicio
+                  </h2>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Categoria</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as any })}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white h-11 font-medium"
-              >
-                <option value="consulta">🩺 Consulta</option>
-                <option value="vacuna">💉 Vacuna</option>
-                <option value="desparasitacion">🧪 Desparasitacion</option>
-                <option value="estetica">✂️ Estetica</option>
-                <option value="cirugia">⚕️ Cirugia</option>
-                <option value="hospitalizacion">🏥 Hospitalizacion</option>
-                <option value="domicilio">🏠 Domicilio</option>
-                <option value="otro">📋 Otro</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">
-                  Precio <span className="text-rose-400">*</span>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                  Nombre del servicio <span className="text-rose-500">*</span>
                 </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="300.00"
-                  className="bg-slate-950 border-slate-600 text-white h-11"
+                <input
+                  type="text"
+                  placeholder="Ej. Consulta general"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-emerald-200 uppercase tracking-wider mb-1.5 block">Duracion (min)</label>
-                <Input
-                  type="number"
-                  value={form.durationMinutes}
-                  onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
-                  className="bg-slate-950 border-slate-600 text-white h-11"
-                />
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                  Categoria
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as any })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 font-medium focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                >
+                  <option value="consulta">🩺 Consulta</option>
+                  <option value="vacuna">💉 Vacuna</option>
+                  <option value="desparasitacion">🧪 Desparasitacion</option>
+                  <option value="estetica">✂️ Estetica</option>
+                  <option value="cirugia">⚕️ Cirugia</option>
+                  <option value="hospitalizacion">🏥 Hospitalizacion</option>
+                  <option value="domicilio">🏠 Domicilio</option>
+                  <option value="otro">📋 Otro</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                    Precio (MXN) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      placeholder="300.00"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 h-12 text-slate-900 font-semibold placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                    Duracion (min)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.durationMinutes}
+                    onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 text-[11px] text-slate-600">
+                <span className="text-emerald-500">💡</span> Si vendes este servicio en el POS y el nombre contiene{" "}
+                <strong>"vacuna"</strong>, el sistema crea automaticamente el registro en la cartilla.
               </div>
             </div>
-            <div className="flex gap-2 pt-2">
+
+            {/* Footer con acciones */}
+            <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
               <Button
-                onClick={() => {
-                  if (!form.name || !form.price) return toast.error("Nombre y precio son obligatorios");
-                  createService.mutate(form);
-                }}
+                type="button"
+                variant="outline"
+                onClick={() => setShowForm(false)}
                 disabled={createService.isPending}
-                className="flex-1 h-11 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold shadow-lg shadow-emerald-500/20"
+                className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
               >
-                <Save className="w-4 h-4" />
-                {createService.isPending ? "Guardando..." : "Guardar servicio"}
-              </Button>
-              <Button variant="outline" onClick={() => setShowForm(false)} className="border-slate-600 text-slate-200 hover:bg-slate-700">
                 Cancelar
               </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!form.name.trim()) return toast.error("El nombre es obligatorio");
+                  if (!form.price || parseFloat(form.price) <= 0) return toast.error("Precio invalido");
+                  createService.mutate(form);
+                }}
+                disabled={createService.isPending || !form.name.trim() || !form.price}
+                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+              >
+                {createService.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Guardar servicio
+                  </>
+                )}
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {servicesQuery.isLoading ? (
