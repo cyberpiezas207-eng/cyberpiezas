@@ -1563,4 +1563,71 @@ export const portalAccessLog = mysqlTable("portalAccessLog", {
 export type PortalAccessLog = typeof portalAccessLog.$inferSelect;
 export type InsertPortalAccessLog = typeof portalAccessLog.$inferInsert;
 
+// ============================================================================
+// ABARROTES - tabla de clientes con limite de credito (fiado)
+// ----------------------------------------------------------------------------
+// Cada tiendita (subscriber) tiene sus propios clientes conocidos a los que
+// les vende a fiado. El cliente NO es usuario del sistema; es solo un registro
+// para que el dueno tenga su libreta digital ordenada.
+// ============================================================================
+export const abarrotesCustomers = mysqlTable("abarrotesCustomers", {
+  id: int("id").autoincrement().primaryKey(),
+  subscriberId: int("subscriberId").references(() => users.id).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 20 }), // para WhatsApp
+  notes: text("notes"), // observaciones del dueno ("siempre paga los viernes")
+  creditLimit: decimal("creditLimit", { precision: 10, scale: 2 }).default("0.00"), // limite total de fiado
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AbarrotesCustomer = typeof abarrotesCustomers.$inferSelect;
+export type InsertAbarrotesCustomer = typeof abarrotesCustomers.$inferInsert;
+
+// ============================================================================
+// ABARROTES - deudas/fiados (cada venta a credito genera una entrada aqui)
+// ----------------------------------------------------------------------------
+// totalAmount = monto original de la deuda
+// paidAmount  = cuanto se ha abonado (puede ser 0 al inicio)
+// remainingAmount (calculado) = totalAmount - paidAmount
+// status: pending (sin abonos), partial (abonos parciales), paid (saldada)
+// ============================================================================
+export const abarrotesFiados = mysqlTable("abarrotesFiados", {
+  id: int("id").autoincrement().primaryKey(),
+  subscriberId: int("subscriberId").references(() => users.id).notNull(),
+  customerId: int("customerId").references(() => abarrotesCustomers.id).notNull(),
+  saleId: int("saleId"), // referencia a sale en tabla sales si aplica
+  description: varchar("description", { length: 255 }), // "Despensa semanal", "Refrescos"
+  totalAmount: decimal("totalAmount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: decimal("paidAmount", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  status: mysqlEnum("status", ["pending", "partial", "paid"]).default("pending").notNull(),
+  dueDate: timestamp("dueDate"), // fecha esperada de pago (opcional)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AbarrotesFiado = typeof abarrotesFiados.$inferSelect;
+export type InsertAbarrotesFiado = typeof abarrotesFiados.$inferInsert;
+
+// ============================================================================
+// ABARROTES - abonos (pagos parciales de un fiado)
+// ----------------------------------------------------------------------------
+// Cada vez que el cliente paga algo de su deuda, se registra aqui.
+// Permite ver historial completo: "abono $50 el 15-may, $30 el 22-may", etc.
+// ============================================================================
+export const abarrotesAbonos = mysqlTable("abarrotesAbonos", {
+  id: int("id").autoincrement().primaryKey(),
+  subscriberId: int("subscriberId").references(() => users.id).notNull(),
+  fiadoId: int("fiadoId").references(() => abarrotesFiados.id).notNull(),
+  customerId: int("customerId").references(() => abarrotesCustomers.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "transfer", "card"]).default("cash").notNull(),
+  notes: varchar("notes", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AbarrotesAbono = typeof abarrotesAbonos.$inferSelect;
+export type InsertAbarrotesAbono = typeof abarrotesAbonos.$inferInsert;
+
 export * from "./mobility-schema";
