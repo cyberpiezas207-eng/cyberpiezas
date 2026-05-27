@@ -72,8 +72,11 @@ export default function AbarrotesPOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "fiado">("cash");
   const [amountPaid, setAmountPaid] = useState("");
+  // Estado para venta a fiado: cliente seleccionado + descripcion
+  const [fiadoCustomerId, setFiadoCustomerId] = useState<number>(0);
+  const [fiadoDescription, setFiadoDescription] = useState("");
   const [mounted, setMounted] = useState(false);
   // Estado para modal "Producto personalizado" (venta rapida sin codigo)
   const [showCustomProduct, setShowCustomProduct] = useState(false);
@@ -107,13 +110,20 @@ export default function AbarrotesPOS() {
     },
   });
 
+  // Mutation para crear fiado (venta a credito vinculada a cliente)
+  const createFiado = trpc.abarrotes.fiado.fiados.create.useMutation({
+    onError: (error) => {
+      toast.error("Error al registrar el fiado: " + error.message);
+    },
+  });
+
   // ========================================================================
   // FIADO - CLIENTES (queries del nuevo router abarrotes.fiado)
   // Solo carga si el tab activo es 'clientes' o 'fiados' (optimizacion)
   // ========================================================================
   const utils = trpc.useUtils();
   const customersQuery = trpc.abarrotes.fiado.customers.list.useQuery(undefined, {
-    enabled: activeTab === "clientes" || activeTab === "fiados",
+    enabled: activeTab === "clientes" || activeTab === "fiados" || showCheckout,
     refetchOnWindowFocus: false,
   });
   const customers = customersQuery.data ?? [];
@@ -237,26 +247,60 @@ export default function AbarrotesPOS() {
     (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
-    createSale.mutate({
-      items: cart.map((item) => ({
-        // Para items rapidos enviamos el ID generado, igual que productos normales
-        // El backend los procesa como ventas (no afectan stock). Identificamos con sizeVariant.
-        productId: item.id,
-        sizeVariant: item.isQuick ? "rapido" : "N/A",
-        size: "N/A",
-        color: "N/A",
-        quantity: item.quantity,
-        unitPrice: item.price.toString(),
-        lineTotal: (item.price * item.quantity).toString(),
-      })),
-      subtotal: subtotal.toString(),
-      discount: "0",
-      tax: tax.toString(),
-      total: total.toString(),
-      paymentMethod: paymentMethod as "cash" | "card",
-    });
+
+    // Validacion especial para fiado
+    if (paymentMethod === "fiado") {
+      if (!fiadoCustomerId) {
+        return toast.error("Selecciona el cliente para registrar la deuda");
+      }
+    }
+
+    try {
+      // PASO 1: Crear la venta normal en el sistema
+      const saleResult: any = await createSale.mutateAsync({
+        items: cart.map((item) => ({
+          // Para items rapidos enviamos el ID generado, igual que productos normales
+          // El backend los procesa como ventas (no afectan stock). Identificamos con sizeVariant.
+          productId: item.id,
+          sizeVariant: item.isQuick ? "rapido" : "N/A",
+          size: "N/A",
+          color: "N/A",
+          quantity: item.quantity,
+          unitPrice: item.price.toString(),
+          lineTotal: (item.price * item.quantity).toString(),
+        })),
+        subtotal: subtotal.toString(),
+        discount: "0",
+        tax: tax.toString(),
+        total: total.toString(),
+        // Si es fiado, marcamos como cash en sales.create pero registramos en libreta
+        paymentMethod: (paymentMethod === "fiado" ? "cash" : paymentMethod) as "cash" | "card",
+      });
+
+      // PASO 2: Si es fiado, ademas registramos en la libreta digital
+      if (paymentMethod === "fiado" && fiadoCustomerId) {
+        const customer = customers.find((c: any) => c.id === fiadoCustomerId);
+        const fiadoResult: any = await createFiado.mutateAsync({
+          customerId: fiadoCustomerId,
+          saleId: saleResult?.id ? Number(saleResult.id) : undefined,
+          description: fiadoDescription.trim() || ("Venta del " + new Date().toLocaleDateString("es-MX")),
+          totalAmount: total.toString(),
+        });
+
+        toast.success("Fiado registrado en libreta de " + (customer?.name || "cliente"));
+
+        // Invalidar query de clientes para que se vea el nuevo saldo
+        utils.abarrotes.fiado.customers.list.invalidate();
+
+        // Limpiar estado del fiado
+        setFiadoCustomerId(0);
+        setFiadoDescription("");
+      }
+    } catch (err) {
+      console.error("[handleCheckout] error:", err);
+    }
   };
 
   // Botones de monto rapido para efectivo (UX abarrotes)
@@ -667,9 +711,18 @@ export default function AbarrotesPOS() {
           setAmountPaid={setAmountPaid}
           change={change}
           quickAmounts={quickAmounts}
-          onCancel={() => setShowCheckout(false)}
+          customers={customers}
+          fiadoCustomerId={fiadoCustomerId}
+          setFiadoCustomerId={setFiadoCustomerId}
+          fiadoDescription={fiadoDescription}
+          setFiadoDescription={setFiadoDescription}
+          onCancel={() => {
+            setShowCheckout(false);
+            setFiadoCustomerId(0);
+            setFiadoDescription("");
+          }}
           onConfirm={handleCheckout}
-          isPending={createSale.isPending}
+          isPending={createSale.isPending || createFiado.isPending}
         />
       )}
 
@@ -801,10 +854,18 @@ function CartItemRow({ item, onIncrement, onDecrement, onRemove }: {
 
 function CheckoutModal({
   subtotal, tax, total, paymentMethod, setPaymentMethod, amountPaid, setAmountPaid,
-  change, quickAmounts, onCancel, onConfirm, isPending,
+  change, quickAmounts, customers, fiadoCustomerId, setFiadoCustomerId,
+  fiadoDescription, setFiadoDescription, onCancel, onConfirm, isPending,
 }: any) {
   const insufficient = amountPaid && parseFloat(amountPaid) < total;
   const sufficient = amountPaid && parseFloat(amountPaid) >= total;
+
+  // Cliente seleccionado para fiado (objeto completo)
+  const selectedCustomer = customers?.find((c: any) => c.id === fiadoCustomerId);
+  const currentBalance = selectedCustomer ? Number(selectedCustomer.pendingAmount || 0) : 0;
+  const newBalance = currentBalance + total;
+  const creditLimit = selectedCustomer ? Number(selectedCustomer.creditLimit || 0) : 0;
+  const wouldExceedLimit = creditLimit > 0 && newBalance > creditLimit;
 
   return (
     <div
@@ -866,11 +927,11 @@ function CheckoutModal({
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
               Metodo de pago
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setPaymentMethod("cash")}
                 className={
-                  "flex items-center justify-center gap-2 h-12 rounded-xl font-bold transition-all " +
+                  "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 h-14 sm:h-12 rounded-xl font-bold transition-all text-xs sm:text-sm " +
                   (paymentMethod === "cash"
                     ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30"
                     : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
@@ -882,7 +943,7 @@ function CheckoutModal({
               <button
                 onClick={() => setPaymentMethod("card")}
                 className={
-                  "flex items-center justify-center gap-2 h-12 rounded-xl font-bold transition-all " +
+                  "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 h-14 sm:h-12 rounded-xl font-bold transition-all text-xs sm:text-sm " +
                   (paymentMethod === "card"
                     ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30"
                     : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
@@ -890,6 +951,18 @@ function CheckoutModal({
               >
                 <CreditCard className="w-4 h-4" />
                 Tarjeta
+              </button>
+              <button
+                onClick={() => setPaymentMethod("fiado")}
+                className={
+                  "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 h-14 sm:h-12 rounded-xl font-bold transition-all text-xs sm:text-sm " +
+                  (paymentMethod === "fiado"
+                    ? "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/30"
+                    : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
+                }
+              >
+                <PiggyBank className="w-4 h-4" />
+                Fiado
               </button>
             </div>
           </div>
@@ -956,6 +1029,109 @@ function CheckoutModal({
               </p>
             </div>
           )}
+
+          {/* ============================================================ */}
+          {/* SECCION FIADO - selector de cliente + descripcion             */}
+          {/* ============================================================ */}
+          {paymentMethod === "fiado" && (
+            <div className="space-y-3 animate-scale-in">
+              {/* Selector de cliente */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+                  Cliente <span className="text-rose-500">*</span>
+                </label>
+                {!customers || customers.length === 0 ? (
+                  <div className="flex items-start gap-2 text-amber-900 text-sm bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                    <span>
+                      No tienes clientes registrados. Primero crea uno en la pestana{" "}
+                      <strong className="font-bold">Clientes</strong>.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <UserCircle className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={fiadoCustomerId}
+                      onChange={(e) => setFiadoCustomerId(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 h-12 text-slate-900 font-medium focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-100 focus:outline-none transition-all appearance-none"
+                    >
+                      <option value={0}>-- Selecciona el cliente --</option>
+                      {customers.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}{c.phone ? " · " + c.phone : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Resumen del saldo si hay cliente seleccionado */}
+              {selectedCustomer && (
+                <div className="bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200 rounded-2xl p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600">Saldo actual</span>
+                    <span className="text-slate-900 font-bold">
+                      ${currentBalance.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600">Esta venta</span>
+                    <span className="text-rose-600 font-bold">+ ${total.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-rose-200 pt-1.5 mt-1 flex items-center justify-between">
+                    <span className="text-slate-900 font-bold text-sm">Nuevo saldo</span>
+                    <span className="text-lg font-bold text-rose-600">
+                      ${newBalance.toFixed(2)}
+                    </span>
+                  </div>
+                  {creditLimit > 0 && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Limite de credito: ${creditLimit.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Aviso de limite excedido */}
+              {wouldExceedLimit && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-rose-700 font-bold">Limite de credito excedido</p>
+                    <p className="text-[11px] text-rose-600 mt-0.5">
+                      El cliente superara su limite por ${(newBalance - creditLimit).toFixed(2)}.
+                      Puedes continuar si confias en el.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Descripcion */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+                  Descripcion <span className="text-slate-400 font-normal normal-case tracking-normal ml-1">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Despensa semanal, refrescos..."
+                  value={fiadoDescription}
+                  onChange={(e) => setFiadoDescription(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-100 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* Tip educativo */}
+              <div className="bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 text-[11px] text-slate-600 flex items-start gap-1.5">
+                <PiggyBank className="w-3.5 h-3.5 text-rose-500 flex-shrink-0 mt-0.5" />
+                <span>
+                  Esta venta se registrara en la libreta digital del cliente.
+                  Despues podras recibir abonos parciales.
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -972,13 +1148,27 @@ function CheckoutModal({
           <Button
             type="button"
             onClick={onConfirm}
-            disabled={isPending || (paymentMethod === "cash" && !sufficient)}
-            className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-amber-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+            disabled={
+              isPending ||
+              (paymentMethod === "cash" && !sufficient) ||
+              (paymentMethod === "fiado" && !fiadoCustomerId)
+            }
+            className={
+              "text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 " +
+              (paymentMethod === "fiado"
+                ? "bg-gradient-to-r from-rose-500 via-pink-500 to-rose-500 hover:from-rose-600 hover:via-pink-600 hover:to-rose-600 shadow-rose-500/30"
+                : "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 shadow-amber-500/30")
+            }
           >
             {isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Procesando...
+              </>
+            ) : paymentMethod === "fiado" ? (
+              <>
+                <PiggyBank className="w-4 h-4" />
+                Registrar fiado
               </>
             ) : (
               <>
