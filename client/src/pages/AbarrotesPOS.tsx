@@ -54,6 +54,7 @@ interface CartItem {
   quantity: number;
   category: string;
   sku?: string;
+  isQuick?: boolean; // true para ventas rapidas sin codigo
 }
 
 export default function AbarrotesPOS() {
@@ -64,6 +65,10 @@ export default function AbarrotesPOS() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [amountPaid, setAmountPaid] = useState("");
   const [mounted, setMounted] = useState(false);
+  // Estado para modal "Producto personalizado" (venta rapida sin codigo)
+  const [showCustomProduct, setShowCustomProduct] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
@@ -127,6 +132,40 @@ export default function AbarrotesPOS() {
   // ========================================================================
   // LOGICA DE CARRITO Y VENTA (sin cambios funcionales)
   // ========================================================================
+  // ========================================================================
+  // VENTA RAPIDA - agregar item sin producto registrado
+  // Permite vender productos sueltos (golosinas, pan, etc) sin tenerlos
+  // capturados en el catalogo. Se identifican con isQuick: true.
+  // ========================================================================
+  const addQuickItem = (price: number, name?: string) => {
+    const finalName = name?.trim() || "Venta rapida $" + price.toFixed(2);
+    // Generar ID unico para items rapidos (no chocan con productos reales)
+    const quickId = "quick-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+
+    setCart([
+      ...cart,
+      {
+        id: quickId,
+        name: finalName,
+        price: price,
+        quantity: 1,
+        category: "rapido",
+        isQuick: true,
+      },
+    ]);
+    toast.success("Agregado: " + finalName, { duration: 1200 });
+  };
+
+  const handleAddCustomProduct = () => {
+    const priceNum = parseFloat(customPrice);
+    if (!customName.trim()) return toast.error("Escribe el nombre del producto");
+    if (!priceNum || priceNum <= 0) return toast.error("Monto invalido");
+    addQuickItem(priceNum, customName.trim());
+    setCustomName("");
+    setCustomPrice("");
+    setShowCustomProduct(false);
+  };
+
   const addToCart = (product: any) => {
     const existing = cart.find((item) => item.id === product.id);
     if (existing) {
@@ -179,8 +218,10 @@ export default function AbarrotesPOS() {
     if (cart.length === 0) return;
     createSale.mutate({
       items: cart.map((item) => ({
+        // Para items rapidos enviamos el ID generado, igual que productos normales
+        // El backend los procesa como ventas (no afectan stock). Identificamos con sizeVariant.
         productId: item.id,
-        sizeVariant: "N/A",
+        sizeVariant: item.isQuick ? "rapido" : "N/A",
         size: "N/A",
         color: "N/A",
         quantity: item.quantity,
@@ -387,6 +428,41 @@ export default function AbarrotesPOS() {
 
               {/* Items del carrito */}
               <div className="p-4">
+                {/* ────────────────────────────────────────────────── */}
+                {/* SECCION VENTA RAPIDA - productos sin codigo         */}
+                {/* ────────────────────────────────────────────────── */}
+                <div className="mb-4 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-500/30 rounded-2xl p-3">
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      Venta rapida
+                    </span>
+                    <span className="text-[9px] text-slate-500 ml-auto italic">sin codigo</span>
+                  </div>
+
+                  {/* Botones de monto preestablecido */}
+                  <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+                    {[1, 5, 10, 20].map((amount) => (
+                      <button
+                        key={amount}
+                        onClick={() => addQuickItem(amount)}
+                        className="h-9 rounded-lg bg-white/[0.05] hover:bg-amber-500/25 border border-white/10 hover:border-amber-500/50 text-white hover:text-amber-100 text-xs font-bold transition-all active:scale-95"
+                      >
+                        ${amount}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Boton producto personalizado */}
+                  <button
+                    onClick={() => setShowCustomProduct(true)}
+                    className="w-full h-9 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 hover:border-amber-500/50 text-amber-200 hover:text-amber-100 text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Producto personalizado
+                  </button>
+                </div>
+
                 {cart.length === 0 ? (
                   <div className="text-center py-10">
                     <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -465,6 +541,24 @@ export default function AbarrotesPOS() {
           isPending={createSale.isPending}
         />
       )}
+
+      {/* ============================================================ */}
+      {/* MODAL PRODUCTO PERSONALIZADO - venta rapida con nombre        */}
+      {/* ============================================================ */}
+      {showCustomProduct && (
+        <CustomProductModal
+          name={customName}
+          setName={setCustomName}
+          price={customPrice}
+          setPrice={setCustomPrice}
+          onCancel={() => {
+            setShowCustomProduct(false);
+            setCustomName("");
+            setCustomPrice("");
+          }}
+          onAdd={handleAddCustomProduct}
+        />
+      )}
     </div>
   );
 }
@@ -518,9 +612,16 @@ function CartItemRow({ item, onIncrement, onDecrement, onRemove }: {
   const lineTotal = item.price * item.quantity;
 
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-2.5 animate-scale-in">
+    <div className={"border rounded-xl p-2.5 animate-scale-in " + (item.isQuick ? "bg-amber-500/[0.08] border-amber-500/30" : "bg-white/[0.03] border-white/10")}>
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="font-bold text-white text-xs truncate flex-1 min-w-0">{item.name}</p>
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <p className="font-bold text-white text-xs truncate">{item.name}</p>
+          {item.isQuick && (
+            <span className="flex-shrink-0 text-[8px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 rounded">
+              Rapido
+            </span>
+          )}
+        </div>
         <button
           onClick={onRemove}
           className="w-6 h-6 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-500/50 flex items-center justify-center transition-all flex-shrink-0"
@@ -741,6 +842,113 @@ function CheckoutModal({
                 Confirmar pago
               </>
             )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomProductModal({ name, setName, price, setPrice, onCancel, onAdd }: any) {
+  const priceNum = parseFloat(price);
+  const isValid = name.trim().length > 0 && priceNum > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/40">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600 mb-0.5">
+                Venta rapida
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Producto personalizado
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Nombre del producto <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ej. Pan blanco, refresco suelto, golosina..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Precio <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && isValid) onAdd(); }}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 h-14 text-slate-900 text-2xl font-bold placeholder:text-slate-300 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-[11px] text-slate-600 flex items-start gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <span>
+              Ideal para productos sin codigo de barras: golosinas sueltas, pan, productos a granel improvisados.
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={onAdd}
+            disabled={!isValid}
+            className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-amber-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            <Plus className="w-4 h-4" />
+            Agregar al carrito
           </Button>
         </div>
       </div>
