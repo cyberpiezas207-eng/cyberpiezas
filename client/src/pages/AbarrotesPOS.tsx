@@ -27,6 +27,9 @@ import {
   MessageCircle,
   PiggyBank,
   Save,
+  Calendar,
+  Receipt,
+  ArrowDownCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -84,6 +87,8 @@ export default function AbarrotesPOS() {
   const [customPrice, setCustomPrice] = useState("");
   // Estado para modal "Nuevo cliente" (fiado)
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  // Estado para modal "Registrar abono" (pago parcial de fiado)
+  const [abonoFiado, setAbonoFiado] = useState<any>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
@@ -127,6 +132,16 @@ export default function AbarrotesPOS() {
     refetchOnWindowFocus: false,
   });
   const customers = customersQuery.data ?? [];
+
+  // Query de fiados (deudas) - solo cuando el tab activo es 'fiados'
+  const fiadosQuery = trpc.abarrotes.fiado.fiados.list.useQuery(
+    { includeAll: false },
+    {
+      enabled: activeTab === "fiados",
+      refetchOnWindowFocus: false,
+    }
+  );
+  const fiados = fiadosQuery.data ?? [];
 
   // ========================================================================
   // GUARD DE ACCESO
@@ -435,6 +450,7 @@ export default function AbarrotesPOS() {
               onClick={() => setActiveTab("fiados")}
               icon={<Wallet className="w-4 h-4" />}
               label="Fiados"
+              badge={fiados.length > 0 ? fiados.length : undefined}
             />
           </div>
         </div>
@@ -668,29 +684,66 @@ export default function AbarrotesPOS() {
         )}
 
         {/* ============================================================ */}
-        {/* TAB FIADOS: placeholder (siguiente sub-commit)                */}
+        {/* TAB FIADOS: Lista de deudas activas + sistema de abonos       */}
         {/* ============================================================ */}
         {activeTab === "fiados" && (
           <div className={mounted ? "animate-slide-up" : "opacity-0"}>
             <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-white/10 px-5 py-4">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-rose-500/10 via-pink-500/10 to-rose-500/10 border-b border-white/10 px-5 py-4">
                 <h2 className="text-white font-bold text-base flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-amber-400" />
+                  <Wallet className="w-4 h-4 text-rose-400" />
                   Libreta de fiados
+                  <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/15 px-2 py-0.5 rounded-full ml-1">
+                    {fiados.length} {fiados.length === 1 ? "deuda activa" : "deudas activas"}
+                  </span>
                 </h2>
+                {fiados.length > 0 && (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Total por cobrar:{" "}
+                    <span className="font-bold text-rose-300">
+                      ${fiados.reduce((sum: number, f: any) =>
+                        sum + (Number(f.totalAmount) - Number(f.paidAmount)), 0
+                      ).toFixed(2)}
+                    </span>
+                  </p>
+                )}
               </div>
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <PiggyBank className="w-7 h-7 text-amber-400/60" />
-                </div>
-                <p className="text-white font-bold text-sm mb-1">Gestion completa proximamente</p>
-                <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
-                  Aqui podras ver todas las deudas activas, registrar abonos parciales,
-                  enviar recordatorios por WhatsApp y mantener tu libreta digital ordenada.
-                </p>
-                <p className="text-amber-300/70 text-xs mt-3 italic">
-                  Por ahora, registra tus clientes en la pestana <strong>Clientes</strong>.
-                </p>
+
+              {/* Body */}
+              <div className="p-4 sm:p-5">
+                {fiadosQuery.isLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-rose-400 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Cargando deudas...</p>
+                  </div>
+                ) : fiados.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-7 h-7 text-emerald-400/80" />
+                    </div>
+                    <p className="text-white font-bold text-sm mb-1">¡Sin deudas pendientes!</p>
+                    <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
+                      Cuando registres una venta a fiado, aparecera aqui.
+                      Por ahora todos tus clientes estan al corriente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {fiados.map((fiado: any, idx: number) => {
+                      const customer = customers.find((c: any) => c.id === fiado.customerId);
+                      return (
+                        <FiadoCard
+                          key={fiado.id}
+                          fiado={fiado}
+                          customer={customer}
+                          delay={idx * 50}
+                          onAbonar={() => setAbonoFiado(fiado)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -752,6 +805,22 @@ export default function AbarrotesPOS() {
           onCancel={() => setShowCustomerForm(false)}
           onSaved={() => {
             setShowCustomerForm(false);
+            utils.abarrotes.fiado.customers.list.invalidate();
+          }}
+        />
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL ABONO - registrar pago parcial de un fiado              */}
+      {/* ============================================================ */}
+      {abonoFiado && (
+        <AbonoModal
+          fiado={abonoFiado}
+          customer={customers.find((c: any) => c.id === abonoFiado.customerId)}
+          onCancel={() => setAbonoFiado(null)}
+          onSaved={() => {
+            setAbonoFiado(null);
+            utils.abarrotes.fiado.fiados.list.invalidate();
             utils.abarrotes.fiado.customers.list.invalidate();
           }}
         />
@@ -1622,6 +1691,426 @@ function CustomerFormModal({ onCancel, onSaved }: { onCancel: () => void; onSave
               <>
                 <Save className="w-4 h-4" />
                 Guardar cliente
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// FIADO CARD - tarjeta de deuda activa con cliente + saldo + boton abonar
+// ============================================================================
+function FiadoCard({ fiado, customer, delay, onAbonar }: {
+  fiado: any;
+  customer: any;
+  delay: number;
+  onAbonar: () => void;
+}) {
+  const total = Number(fiado.totalAmount);
+  const paid = Number(fiado.paidAmount);
+  const remaining = total - paid;
+  const progress = total > 0 ? (paid / total) * 100 : 0;
+  const isPartial = fiado.status === "partial";
+
+  // Fecha formateada
+  const createdDate = fiado.createdAt ? new Date(fiado.createdAt) : null;
+  const daysAgo = createdDate
+    ? Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const dateLabel = daysAgo === 0
+    ? "Hoy"
+    : daysAgo === 1
+    ? "Ayer"
+    : "Hace " + daysAgo + " dias";
+
+  // WhatsApp
+  const phoneClean = (customer?.phone || "").replace(/\D/g, "");
+  const phoneForWA = phoneClean.length === 10 ? "52" + phoneClean : phoneClean;
+  const whatsappText = customer
+    ? "Hola " + customer.name + ", te recuerdo que tienes un saldo pendiente de $" +
+      remaining.toFixed(2) + (fiado.description ? " (" + fiado.description + ")" : "") +
+      ". Gracias!"
+    : "";
+  const whatsappUrl = phoneClean
+    ? "https://wa.me/" + phoneForWA + "?text=" + encodeURIComponent(whatsappText)
+    : null;
+
+  return (
+    <div
+      className="relative bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-md border border-white/10 hover:border-rose-500/30 rounded-2xl p-4 transition-all overflow-hidden animate-slide-up"
+      style={{ animationDelay: delay + "ms", animationFillMode: "forwards", opacity: 0 }}
+    >
+      <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-15 bg-gradient-to-br from-rose-500 to-pink-500" />
+
+      <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Info principal */}
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500/30 to-pink-500/30 border border-rose-500/40 flex items-center justify-center flex-shrink-0">
+            <Receipt className="w-5 h-5 text-rose-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <p className="font-bold text-white text-sm truncate">
+                {customer?.name || "Cliente eliminado"}
+              </p>
+              {isPartial && (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 rounded">
+                  Abonando
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
+              {fiado.description || "Venta a fiado"}
+            </p>
+            <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-2.5 h-2.5" />
+                {dateLabel}
+              </span>
+              {customer?.phone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-2.5 h-2.5" />
+                  {customer.phone}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Montos */}
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Resta pagar
+          </p>
+          <p className="text-2xl font-bold text-rose-300 tracking-tight">
+            ${remaining.toFixed(2)}
+          </p>
+          <p className="text-[10px] text-slate-500">
+            de ${total.toFixed(2)} {paid > 0 && "(abonado $" + paid.toFixed(2) + ")"}
+          </p>
+        </div>
+      </div>
+
+      {/* Barra de progreso si hay abonos parciales */}
+      {paid > 0 && (
+        <div className="mt-3 w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
+            style={{ width: progress + "%" }}
+          />
+        </div>
+      )}
+
+      {/* Acciones */}
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
+        <Button
+          onClick={onAbonar}
+          className="flex-1 h-9 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 gap-1.5 text-xs"
+        >
+          <ArrowDownCircle className="w-3.5 h-3.5" />
+          Registrar abono
+        </Button>
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-green-500/15 hover:bg-green-500/25 border border-green-500/30 hover:border-green-500/50 text-green-300 hover:text-green-200 font-bold text-xs transition-all"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Recordar</span>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MODAL ABONO - registrar pago parcial de un fiado
+// ============================================================================
+function AbonoModal({ fiado, customer, onCancel, onSaved }: {
+  fiado: any;
+  customer: any;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const total = Number(fiado.totalAmount);
+  const paid = Number(fiado.paidAmount);
+  const remaining = total - paid;
+
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer" | "card">("cash");
+  const [notes, setNotes] = useState("");
+
+  const createAbono = trpc.abarrotes.fiado.abonos.create.useMutation({
+    onSuccess: (data: any) => {
+      const newStatus = data.status === "paid" ? "¡Deuda saldada por completo!" : "Abono registrado";
+      toast.success(newStatus);
+      onSaved();
+    },
+    onError: (err: any) => {
+      console.error("[AbonoModal] Error:", err);
+      toast.error(err?.message || "No se pudo registrar el abono");
+    },
+  });
+
+  const amountNum = parseFloat(amount);
+  const isValid = amountNum > 0 && amountNum <= remaining;
+  const exceedsRemaining = amount && amountNum > remaining;
+  const newRemaining = isValid ? remaining - amountNum : remaining;
+  const wouldFinish = isValid && newRemaining === 0;
+
+  const handleSubmit = () => {
+    if (!isValid) {
+      if (exceedsRemaining) return toast.error("El abono excede el saldo");
+      return toast.error("Ingresa un monto valido");
+    }
+    createAbono.mutate({
+      fiadoId: fiado.id,
+      amount: amountNum.toFixed(2),
+      paymentMethod,
+      notes: notes.trim() || undefined,
+    });
+  };
+
+  // Botones rapidos
+  const half = (remaining / 2).toFixed(2);
+  const quickAmounts = [
+    { label: "$50", value: "50.00" },
+    { label: "$100", value: "100.00" },
+    { label: "Mitad", value: half },
+    { label: "Liquidar", value: remaining.toFixed(2) },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="relative bg-gradient-to-br from-emerald-50 via-white to-cyan-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/40">
+              <ArrowDownCircle className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-0.5">
+                Abono
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Registrar pago
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Resumen del fiado */}
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-1">
+            <p className="text-xs text-slate-600">
+              <span className="font-bold text-slate-900">{customer?.name || "Cliente"}</span>
+              {fiado.description && " · " + fiado.description}
+            </p>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-slate-600">Saldo pendiente</span>
+              <span className="text-xl font-bold text-rose-600">
+                ${remaining.toFixed(2)}
+              </span>
+            </div>
+            {paid > 0 && (
+              <p className="text-[10px] text-slate-500">
+                Ya abonado: ${paid.toFixed(2)} de ${total.toFixed(2)}
+              </p>
+            )}
+          </div>
+
+          {/* Monto */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              Monto del abono <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max={remaining}
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 h-14 text-slate-900 text-2xl font-bold placeholder:text-slate-300 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Botones rapidos */}
+          <div className="grid grid-cols-4 gap-2">
+            {quickAmounts.map((qa, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setAmount(qa.value)}
+                disabled={parseFloat(qa.value) > remaining || parseFloat(qa.value) <= 0}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {qa.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Resultado preview */}
+          {isValid && (
+            <div
+              className={
+                "rounded-2xl p-4 animate-scale-in border " +
+                (wouldFinish
+                  ? "bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-200"
+                  : "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200")
+              }
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className={"w-5 h-5 " + (wouldFinish ? "text-emerald-600" : "text-amber-600")}
+                  />
+                  <span
+                    className={"font-bold text-sm " + (wouldFinish ? "text-emerald-700" : "text-amber-700")}
+                  >
+                    {wouldFinish ? "Liquidacion total" : "Saldo nuevo"}
+                  </span>
+                </div>
+                <span
+                  className={"text-2xl font-bold " + (wouldFinish ? "text-emerald-700" : "text-amber-700")}
+                >
+                  ${newRemaining.toFixed(2)}
+                </span>
+              </div>
+              {wouldFinish && (
+                <p className="text-[10px] text-emerald-600 mt-1">
+                  ✨ Esta deuda quedara saldada
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Error si excede */}
+          {exceedsRemaining && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2 animate-scale-in">
+              <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-rose-700 font-bold">Monto demasiado alto</p>
+                <p className="text-[11px] text-rose-600">
+                  El maximo a abonar es ${remaining.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Metodo de pago del abono */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">
+              Como pago el cliente
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setPaymentMethod("cash")}
+                className={
+                  "flex items-center justify-center gap-1.5 h-10 rounded-xl font-bold transition-all text-xs " +
+                  (paymentMethod === "cash"
+                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/30"
+                    : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
+                }
+              >
+                <Banknote className="w-3.5 h-3.5" />
+                Efectivo
+              </button>
+              <button
+                onClick={() => setPaymentMethod("transfer")}
+                className={
+                  "flex items-center justify-center gap-1.5 h-10 rounded-xl font-bold transition-all text-xs " +
+                  (paymentMethod === "transfer"
+                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/30"
+                    : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
+                }
+              >
+                Transfer.
+              </button>
+              <button
+                onClick={() => setPaymentMethod("card")}
+                className={
+                  "flex items-center justify-center gap-1.5 h-10 rounded-xl font-bold transition-all text-xs " +
+                  (paymentMethod === "card"
+                    ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/30"
+                    : "bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100")
+                }
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                Tarjeta
+              </button>
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Notas <span className="text-slate-400 font-normal normal-case tracking-normal ml-1">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ej. Pago parcial, prometio el viernes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-11 text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={createAbono.isPending}
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={createAbono.isPending || !isValid}
+            className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 hover:from-emerald-600 hover:via-cyan-600 hover:to-emerald-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            {createAbono.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <ArrowDownCircle className="w-4 h-4" />
+                Registrar abono
               </>
             )}
           </Button>
