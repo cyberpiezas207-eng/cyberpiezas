@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, desc, sql, gte, lte } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
-import { posStaff, users } from "../../drizzle/schema";
+import { posStaff, users, abarrotesCustomers, abarrotesFiados, abarrotesAbonos } from "../../drizzle/schema";
 import * as db from "../db";
 import { assertPosPermission, checkPosPermission } from "../_core/posPermissions";
 import type { PosPermission } from "../db";
@@ -1060,6 +1060,559 @@ const reportsRouter = router({
 });
 
 // =============================================================================
+// FIADO ROUTER - Libreta Digital de Abarrotes
+// -----------------------------------------------------------------------------
+// El diferenciador clave segun ChatGPT:
+// "Deja de perder dinero con el fiado. CyberPiezas te dice quien debe,
+//  cuanto debe y te ayuda a cobrar por WhatsApp."
+//
+// Endpoints:
+//   - customers.list      : clientes con saldo pendiente calculado
+//   - customers.create    : crear cliente conocido (registro libreta)
+//   - customers.update    : editar cliente
+//   - customers.toggleActive : activar/desactivar cliente
+//   - fiados.list         : listar deudas (opcional filtro por cliente)
+//   - fiados.create       : registrar deuda nueva
+//   - abonos.create       : registrar pago parcial (reduce saldo)
+//   - abonos.listByFiado  : historial de abonos de una deuda
+//   - dashboard.summary   : KPIs para SystemsPanel (ventas hoy, fiado pendiente)
+// =============================================================================
+
+const fiadoRouter = router({
+  // ──────────────────────────────────────────────────────────────────────────
+  // CUSTOMERS - clientes conocidos del tendero
+  // ──────────────────────────────────────────────────────────────────────────
+  customers: router({
+    /**
+     * Lista clientes activos con saldo pendiente calculado en vivo.
+     * Devuelve cada cliente + total de fiado pendiente + numero de deudas activas.
+     */
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const actor = await resolvePosActor(ctx.user.id);
+      if (!actor.canAccess) failByReason(actor.reason);
+
+      await assertPosPermission({
+        userId: actor.actorUserId,
+        posCode: POS_CODE,
+        permission: "sales.view_history",
+      });
+
+      const dbConn = await db.getDbOrThrow();
+
+      // Trae clientes con sus deudas agregadas en una sola consulta
+      const customers = await dbConn
+        .select({
+          id: abarrotesCustomers.id,
+          name: abarrotesCustomers.name,
+          phone: abarrotesCustomers.phone,
+          notes: abarrotesCustomers.notes,
+          creditLimit: abarrotesCustomers.creditLimit,
+          isActive: abarrotesCustomers.isActive,
+          createdAt: abarrotesCustomers.createdAt,
+        })
+        .from(abarrotesCustomers)
+        .where(
+          and(
+            eq(abarrotesCustomers.subscriberId, actor.ownerUserId),
+            eq(abarrotesCustomers.isActive, true)
+          )
+        )
+        .orderBy(desc(abarrotesCustomers.createdAt));
+
+      // Para cada cliente calcula saldo pendiente
+      const result = await Promise.all(
+        customers.map(async (customer) => {
+          const balanceQuery = await dbConn
+            .select({
+              totalDebt: sql<string>`COALESCE(SUM(${abarrotesFiados.totalAmount} - ${abarrotesFiados.paidAmount}), 0)`,
+              activeDebts: sql<number>`COUNT(*)`,
+            })
+            .from(abarrotesFiados)
+            .where(
+              and(
+                eq(abarrotesFiados.customerId, customer.id),
+                sql`${abarrotesFiados.status} != 'paid'`
+              )
+            );
+
+          const pending = Number(balanceQuery[0]?.totalDebt ?? 0);
+          const activeCount = Number(balanceQuery[0]?.activeDebts ?? 0);
+
+          return {
+            ...customer,
+            pendingAmount: pending,
+            activeDebtsCount: activeCount,
+          };
+        })
+      );
+
+      return result;
+    }),
+
+    /**
+     * Crea un cliente nuevo (registro en libreta de fiado).
+     */
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(2).max(100),
+          phone: z.string().trim().max(20).optional(),
+          notes: z.string().trim().max(500).optional(),
+          creditLimit: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.create",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        const inserted = await dbConn.insert(abarrotesCustomers).values({
+          subscriberId: actor.ownerUserId,
+          name: input.name,
+          phone: input.phone ?? null,
+          notes: input.notes ?? null,
+          creditLimit: input.creditLimit ?? "0.00",
+          isActive: true,
+        });
+
+        const insertId = Number((inserted as any)[0]?.insertId ?? 0);
+
+        return {
+          ok: true,
+          id: insertId,
+          name: input.name,
+        };
+      }),
+
+    /**
+     * Actualiza datos del cliente (nombre, telefono, notas, limite credito).
+     */
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          name: z.string().trim().min(2).max(100).optional(),
+          phone: z.string().trim().max(20).optional().nullable(),
+          notes: z.string().trim().max(500).optional().nullable(),
+          creditLimit: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.create",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        // Validar que el cliente pertenece al owner
+        const existing = await dbConn
+          .select()
+          .from(abarrotesCustomers)
+          .where(
+            and(
+              eq(abarrotesCustomers.id, input.id),
+              eq(abarrotesCustomers.subscriberId, actor.ownerUserId)
+            )
+          )
+          .limit(1);
+
+        if (existing.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cliente no encontrado en tu tiendita.",
+          });
+        }
+
+        const updates: any = {};
+        if (input.name !== undefined) updates.name = input.name;
+        if (input.phone !== undefined) updates.phone = input.phone;
+        if (input.notes !== undefined) updates.notes = input.notes;
+        if (input.creditLimit !== undefined) updates.creditLimit = input.creditLimit;
+
+        if (Object.keys(updates).length > 0) {
+          await dbConn
+            .update(abarrotesCustomers)
+            .set(updates)
+            .where(eq(abarrotesCustomers.id, input.id));
+        }
+
+        return { ok: true, id: input.id };
+      }),
+
+    /**
+     * Activa o desactiva un cliente (soft delete).
+     * No borramos para preservar historial de deudas.
+     */
+    toggleActive: protectedProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          isActive: z.boolean(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.create",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        await dbConn
+          .update(abarrotesCustomers)
+          .set({ isActive: input.isActive })
+          .where(
+            and(
+              eq(abarrotesCustomers.id, input.id),
+              eq(abarrotesCustomers.subscriberId, actor.ownerUserId)
+            )
+          );
+
+        return { ok: true };
+      }),
+  }),
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // FIADOS - deudas individuales
+  // ──────────────────────────────────────────────────────────────────────────
+  fiados: router({
+    /**
+     * Lista deudas del owner, opcionalmente filtradas por cliente.
+     * Por defecto muestra solo no pagadas (pending + partial).
+     */
+    list: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.number().int().positive().optional(),
+          includeAll: z.boolean().default(false), // si true incluye pagadas
+        }).optional()
+      )
+      .query(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.view_history",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        const conditions = [eq(abarrotesFiados.subscriberId, actor.ownerUserId)];
+
+        if (input?.customerId) {
+          conditions.push(eq(abarrotesFiados.customerId, input.customerId));
+        }
+
+        if (!input?.includeAll) {
+          conditions.push(sql`${abarrotesFiados.status} != 'paid'`);
+        }
+
+        const fiados = await dbConn
+          .select()
+          .from(abarrotesFiados)
+          .where(and(...conditions))
+          .orderBy(desc(abarrotesFiados.createdAt));
+
+        return fiados;
+      }),
+
+    /**
+     * Crea una deuda nueva (registra venta a fiado en libreta).
+     * Si no se especifica saleId, es una deuda manual (no vinculada a venta POS).
+     */
+    create: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.number().int().positive(),
+          saleId: z.number().int().positive().optional(),
+          description: z.string().trim().max(255).optional(),
+          totalAmount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+          dueDate: z.date().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.create",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        // Validar que el cliente pertenece al owner
+        const customer = await dbConn
+          .select()
+          .from(abarrotesCustomers)
+          .where(
+            and(
+              eq(abarrotesCustomers.id, input.customerId),
+              eq(abarrotesCustomers.subscriberId, actor.ownerUserId)
+            )
+          )
+          .limit(1);
+
+        if (customer.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cliente no encontrado en tu tiendita.",
+          });
+        }
+
+        if (!customer[0].isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Este cliente esta desactivado.",
+          });
+        }
+
+        const inserted = await dbConn.insert(abarrotesFiados).values({
+          subscriberId: actor.ownerUserId,
+          customerId: input.customerId,
+          saleId: input.saleId ?? null,
+          description: input.description ?? "Venta a fiado",
+          totalAmount: input.totalAmount,
+          paidAmount: "0.00",
+          status: "pending",
+          dueDate: input.dueDate ?? null,
+        });
+
+        const insertId = Number((inserted as any)[0]?.insertId ?? 0);
+
+        return {
+          ok: true,
+          id: insertId,
+          customerName: customer[0].name,
+        };
+      }),
+  }),
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ABONOS - pagos parciales de fiados
+  // ──────────────────────────────────────────────────────────────────────────
+  abonos: router({
+    /**
+     * Registra un abono (pago parcial). Recalcula paidAmount y status del fiado.
+     * Si paidAmount >= totalAmount, marca como 'paid'. Sino 'partial'.
+     */
+    create: protectedProcedure
+      .input(
+        z.object({
+          fiadoId: z.number().int().positive(),
+          amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+          paymentMethod: z.enum(["cash", "transfer", "card"]).default("cash"),
+          notes: z.string().trim().max(255).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.create",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        // Validar que el fiado pertenece al owner
+        const fiado = await dbConn
+          .select()
+          .from(abarrotesFiados)
+          .where(
+            and(
+              eq(abarrotesFiados.id, input.fiadoId),
+              eq(abarrotesFiados.subscriberId, actor.ownerUserId)
+            )
+          )
+          .limit(1);
+
+        if (fiado.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Deuda no encontrada.",
+          });
+        }
+
+        if (fiado[0].status === "paid") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Esta deuda ya esta pagada.",
+          });
+        }
+
+        const amountNum = parseFloat(input.amount);
+        const currentPaid = parseFloat(fiado[0].paidAmount);
+        const total = parseFloat(fiado[0].totalAmount);
+        const newPaid = currentPaid + amountNum;
+
+        if (newPaid > total) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "El abono excede el saldo pendiente. Saldo: $" + (total - currentPaid).toFixed(2),
+          });
+        }
+
+        // Insertar el abono
+        await dbConn.insert(abarrotesAbonos).values({
+          subscriberId: actor.ownerUserId,
+          fiadoId: input.fiadoId,
+          customerId: fiado[0].customerId,
+          amount: input.amount,
+          paymentMethod: input.paymentMethod,
+          notes: input.notes ?? null,
+        });
+
+        // Actualizar el fiado
+        const newStatus = newPaid >= total ? "paid" : "partial";
+        await dbConn
+          .update(abarrotesFiados)
+          .set({
+            paidAmount: newPaid.toFixed(2),
+            status: newStatus as any,
+          })
+          .where(eq(abarrotesFiados.id, input.fiadoId));
+
+        return {
+          ok: true,
+          newPaidAmount: newPaid.toFixed(2),
+          remainingAmount: (total - newPaid).toFixed(2),
+          status: newStatus,
+        };
+      }),
+
+    /**
+     * Lista abonos historicos de una deuda especifica.
+     */
+    listByFiado: protectedProcedure
+      .input(z.object({ fiadoId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) failByReason(actor.reason);
+
+        await assertPosPermission({
+          userId: actor.actorUserId,
+          posCode: POS_CODE,
+          permission: "sales.view_history",
+        });
+
+        const dbConn = await db.getDbOrThrow();
+
+        const abonos = await dbConn
+          .select()
+          .from(abarrotesAbonos)
+          .where(
+            and(
+              eq(abarrotesAbonos.fiadoId, input.fiadoId),
+              eq(abarrotesAbonos.subscriberId, actor.ownerUserId)
+            )
+          )
+          .orderBy(desc(abarrotesAbonos.createdAt));
+
+        return abonos;
+      }),
+  }),
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // DASHBOARD - resumen para SystemsPanel (similar al de Veterinaria)
+  // ──────────────────────────────────────────────────────────────────────────
+  dashboard: router({
+    summary: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const actor = await resolvePosActor(ctx.user.id);
+        if (!actor.canAccess) {
+          return {
+            salesToday: 0,
+            totalToday: 0,
+            pendingFiados: 0,
+            pendingFiadoAmount: 0,
+            totalCustomers: 0,
+            hasData: false,
+          };
+        }
+
+        const dbConn = await db.getDbOrThrow();
+
+        // Rango del dia
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Fiados pendientes (no pagados)
+        const pendingFiados = await dbConn
+          .select({
+            count: sql<number>`COUNT(*)`,
+            total: sql<string>`COALESCE(SUM(${abarrotesFiados.totalAmount} - ${abarrotesFiados.paidAmount}), 0)`,
+          })
+          .from(abarrotesFiados)
+          .where(
+            and(
+              eq(abarrotesFiados.subscriberId, actor.ownerUserId),
+              sql`${abarrotesFiados.status} != 'paid'`
+            )
+          );
+
+        // Clientes activos
+        const totalCustomersQ = await dbConn
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(abarrotesCustomers)
+          .where(
+            and(
+              eq(abarrotesCustomers.subscriberId, actor.ownerUserId),
+              eq(abarrotesCustomers.isActive, true)
+            )
+          );
+
+        const fiadosCount = Number(pendingFiados[0]?.count ?? 0);
+        const fiadosAmount = Number(pendingFiados[0]?.total ?? 0);
+        const customersCount = Number(totalCustomersQ[0]?.count ?? 0);
+
+        return {
+          salesToday: 0, // TODO: integrar con tabla sales cuando este disponible
+          totalToday: 0,
+          pendingFiados: fiadosCount,
+          pendingFiadoAmount: fiadosAmount,
+          totalCustomers: customersCount,
+          hasData: customersCount > 0 || fiadosCount > 0,
+        };
+      } catch (err) {
+        console.error("[abarrotes.dashboard.summary] error:", err);
+        return {
+          salesToday: 0,
+          totalToday: 0,
+          pendingFiados: 0,
+          pendingFiadoAmount: 0,
+          totalCustomers: 0,
+          hasData: false,
+        };
+      }
+    }),
+  }),
+});
+
+// =============================================================================
 // ROUTER PRINCIPAL DE ABARROTES
 // =============================================================================
 
@@ -1069,4 +1622,5 @@ export const abarrotesRouter = router({
   sales: salesRouter,
   inventory: inventoryRouter,
   reports: reportsRouter,
+  fiado: fiadoRouter,
 });
