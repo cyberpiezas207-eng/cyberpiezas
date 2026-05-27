@@ -375,6 +375,58 @@ export async function runStartupMigrations(): Promise<void> {
       ")",
     "CREATE INDEX `idx_portallog_token` ON `portalAccessLog` (`tokenId`)",
     "CREATE INDEX `idx_portallog_iphash_time` ON `portalAccessLog` (`ipHash`, `accessedAt`)",
+    // ========================================================================
+    // ABARROTES - Sistema de Fiado (Libreta Digital)
+    // - abarrotesCustomers: clientes conocidos a los que se les vende a fiado
+    // - abarrotesFiados: deudas activas con totalAmount y paidAmount
+    // - abarrotesAbonos: pagos parciales historicos de cada fiado
+    // Es el diferenciador clave segun ChatGPT para Abarrotes vertical.
+    // ========================================================================
+    "CREATE TABLE IF NOT EXISTS `abarrotesCustomers` (" +
+      "`id` int AUTO_INCREMENT NOT NULL, " +
+      "`subscriberId` int NOT NULL, " +
+      "`name` varchar(100) NOT NULL, " +
+      "`phone` varchar(20) NULL DEFAULT NULL, " +
+      "`notes` text NULL DEFAULT NULL, " +
+      "`creditLimit` decimal(10,2) NULL DEFAULT '0.00', " +
+      "`isActive` boolean NOT NULL DEFAULT true, " +
+      "`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
+      "PRIMARY KEY (`id`)" +
+      ")",
+    "CREATE INDEX `idx_abarrotescustomer_subscriber` ON `abarrotesCustomers` (`subscriberId`)",
+    "CREATE INDEX `idx_abarrotescustomer_active` ON `abarrotesCustomers` (`subscriberId`, `isActive`)",
+    "CREATE TABLE IF NOT EXISTS `abarrotesFiados` (" +
+      "`id` int AUTO_INCREMENT NOT NULL, " +
+      "`subscriberId` int NOT NULL, " +
+      "`customerId` int NOT NULL, " +
+      "`saleId` int NULL DEFAULT NULL, " +
+      "`description` varchar(255) NULL DEFAULT NULL, " +
+      "`totalAmount` decimal(10,2) NOT NULL, " +
+      "`paidAmount` decimal(10,2) NOT NULL DEFAULT '0.00', " +
+      "`status` enum('pending','partial','paid') NOT NULL DEFAULT 'pending', " +
+      "`dueDate` timestamp NULL DEFAULT NULL, " +
+      "`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
+      "PRIMARY KEY (`id`)" +
+      ")",
+    "CREATE INDEX `idx_abarrotesfiado_subscriber` ON `abarrotesFiados` (`subscriberId`)",
+    "CREATE INDEX `idx_abarrotesfiado_customer` ON `abarrotesFiados` (`customerId`)",
+    "CREATE INDEX `idx_abarrotesfiado_status` ON `abarrotesFiados` (`subscriberId`, `status`)",
+    "CREATE TABLE IF NOT EXISTS `abarrotesAbonos` (" +
+      "`id` int AUTO_INCREMENT NOT NULL, " +
+      "`subscriberId` int NOT NULL, " +
+      "`fiadoId` int NOT NULL, " +
+      "`customerId` int NOT NULL, " +
+      "`amount` decimal(10,2) NOT NULL, " +
+      "`paymentMethod` enum('cash','transfer','card') NOT NULL DEFAULT 'cash', " +
+      "`notes` varchar(255) NULL DEFAULT NULL, " +
+      "`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "PRIMARY KEY (`id`)" +
+      ")",
+    "CREATE INDEX `idx_abarrotesabono_subscriber` ON `abarrotesAbonos` (`subscriberId`)",
+    "CREATE INDEX `idx_abarrotesabono_fiado` ON `abarrotesAbonos` (`fiadoId`)",
+    "CREATE INDEX `idx_abarrotesabono_customer` ON `abarrotesAbonos` (`customerId`)",
   ];
   for (const migration of migrations) {
     try {
