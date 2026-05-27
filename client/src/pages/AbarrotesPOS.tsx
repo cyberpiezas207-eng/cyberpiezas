@@ -20,6 +20,13 @@ import {
   Sparkles,
   TrendingUp,
   Zap,
+  Users,
+  Wallet,
+  Phone,
+  UserCircle,
+  MessageCircle,
+  PiggyBank,
+  Save,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,8 +64,11 @@ interface CartItem {
   isQuick?: boolean; // true para ventas rapidas sin codigo
 }
 
+type TabKey = "venta" | "clientes" | "fiados";
+
 export default function AbarrotesPOS() {
   const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState<TabKey>("venta");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
@@ -69,6 +79,8 @@ export default function AbarrotesPOS() {
   const [showCustomProduct, setShowCustomProduct] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
+  // Estado para modal "Nuevo cliente" (fiado)
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
@@ -94,6 +106,17 @@ export default function AbarrotesPOS() {
       toast.error("Error al registrar la venta: " + error.message);
     },
   });
+
+  // ========================================================================
+  // FIADO - CLIENTES (queries del nuevo router abarrotes.fiado)
+  // Solo carga si el tab activo es 'clientes' o 'fiados' (optimizacion)
+  // ========================================================================
+  const utils = trpc.useUtils();
+  const customersQuery = trpc.abarrotes.fiado.customers.list.useQuery(undefined, {
+    enabled: activeTab === "clientes" || activeTab === "fiados",
+    refetchOnWindowFocus: false,
+  });
+  const customers = customersQuery.data ?? [];
 
   // ========================================================================
   // GUARD DE ACCESO
@@ -345,8 +368,37 @@ export default function AbarrotesPOS() {
         </header>
 
         {/* ============================================================ */}
-        {/* GRID PRINCIPAL: catalogo + carrito                            */}
+        {/* TABS NAVIGATION - Venta / Clientes / Fiados                   */}
         {/* ============================================================ */}
+        <div className={"mb-5 " + (mounted ? "animate-slide-up stagger-2" : "opacity-0")}>
+          <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 inline-flex gap-1 shadow-lg">
+            <TabButton
+              active={activeTab === "venta"}
+              onClick={() => setActiveTab("venta")}
+              icon={<ShoppingCart className="w-4 h-4" />}
+              label="Venta"
+              badge={cart.length > 0 ? cart.length : undefined}
+            />
+            <TabButton
+              active={activeTab === "clientes"}
+              onClick={() => setActiveTab("clientes")}
+              icon={<Users className="w-4 h-4" />}
+              label="Clientes"
+              badge={customers.length > 0 ? customers.length : undefined}
+            />
+            <TabButton
+              active={activeTab === "fiados"}
+              onClick={() => setActiveTab("fiados")}
+              icon={<Wallet className="w-4 h-4" />}
+              label="Fiados"
+            />
+          </div>
+        </div>
+
+        {/* ============================================================ */}
+        {/* TAB VENTA: GRID PRINCIPAL (catalogo + carrito)                */}
+        {/* ============================================================ */}
+        {activeTab === "venta" && (
         <div className="grid gap-4 lg:gap-5 lg:grid-cols-3">
           {/* ─────────────────────────────────────────────────────────── */}
           {/* COLUMNA IZQUIERDA: catalogo de productos                     */}
@@ -520,6 +572,85 @@ export default function AbarrotesPOS() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB CLIENTES: Lista de clientes con saldo + nuevo cliente     */}
+        {/* ============================================================ */}
+        {activeTab === "clientes" && (
+          <div className={mounted ? "animate-slide-up" : "opacity-0"}>
+            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-white/10 px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-white font-bold text-base flex items-center gap-2">
+                  <Users className="w-4 h-4 text-amber-400" />
+                  Clientes
+                  <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full ml-1">
+                    {customers.length}
+                  </span>
+                </h2>
+                <Button
+                  onClick={() => setShowCustomerForm(true)}
+                  className="h-10 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 gap-2 px-4 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuevo cliente
+                </Button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 sm:p-5">
+                {customersQuery.isLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-400 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Cargando clientes...</p>
+                  </div>
+                ) : customers.length === 0 ? (
+                  <EmptyClientesState onCreate={() => setShowCustomerForm(true)} />
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {customers.map((customer: any, idx: number) => (
+                      <CustomerCard
+                        key={customer.id}
+                        customer={customer}
+                        delay={idx * 50}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB FIADOS: placeholder (siguiente sub-commit)                */}
+        {/* ============================================================ */}
+        {activeTab === "fiados" && (
+          <div className={mounted ? "animate-slide-up" : "opacity-0"}>
+            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-white/10 px-5 py-4">
+                <h2 className="text-white font-bold text-base flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-amber-400" />
+                  Libreta de fiados
+                </h2>
+              </div>
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <PiggyBank className="w-7 h-7 text-amber-400/60" />
+                </div>
+                <p className="text-white font-bold text-sm mb-1">Gestion completa proximamente</p>
+                <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
+                  Aqui podras ver todas las deudas activas, registrar abonos parciales,
+                  enviar recordatorios por WhatsApp y mantener tu libreta digital ordenada.
+                </p>
+                <p className="text-amber-300/70 text-xs mt-3 italic">
+                  Por ahora, registra tus clientes en la pestana <strong>Clientes</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ============================================================ */}
@@ -557,6 +688,19 @@ export default function AbarrotesPOS() {
             setCustomPrice("");
           }}
           onAdd={handleAddCustomProduct}
+        />
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL NUEVO CLIENTE - libreta de fiado                        */}
+      {/* ============================================================ */}
+      {showCustomerForm && (
+        <CustomerFormModal
+          onCancel={() => setShowCustomerForm(false)}
+          onSaved={() => {
+            setShowCustomerForm(false);
+            utils.abarrotes.fiado.customers.list.invalidate();
+          }}
         />
       )}
     </div>
@@ -949,6 +1093,347 @@ function CustomProductModal({ name, setName, price, setPrice, onCancel, onAdd }:
           >
             <Plus className="w-4 h-4" />
             Agregar al carrito
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// TAB BUTTON - boton de navegacion entre tabs
+// ============================================================================
+function TabButton({ active, onClick, icon, label, badge }: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "flex items-center gap-2 px-3 sm:px-4 h-9 rounded-xl font-bold text-xs sm:text-sm transition-all " +
+        (active
+          ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30"
+          : "text-slate-300 hover:text-white hover:bg-white/5")
+      }
+    >
+      {icon}
+      <span>{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span
+          className={
+            "text-[9px] font-bold px-1.5 py-0.5 rounded-full " +
+            (active ? "bg-white/25 text-white" : "bg-amber-500/20 text-amber-300")
+          }
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ============================================================================
+// EMPTY STATE - cuando no hay clientes aun
+// ============================================================================
+function EmptyClientesState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="text-center py-12">
+      <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+        <Users className="w-7 h-7 text-amber-400/60" />
+      </div>
+      <p className="text-white font-bold text-sm mb-1">Aun no tienes clientes</p>
+      <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed mb-4">
+        Registra a tus clientes conocidos para empezar a llevar tu libreta digital de fiado.
+        Vas a saber quien debe, cuanto debe y cuando.
+      </p>
+      <Button
+        onClick={onCreate}
+        className="h-10 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 gap-2 px-5 text-xs"
+      >
+        <Plus className="w-4 h-4" />
+        Agregar mi primer cliente
+      </Button>
+    </div>
+  );
+}
+
+// ============================================================================
+// CUSTOMER CARD - tarjeta de cliente con saldo pendiente
+// ============================================================================
+function CustomerCard({ customer, delay }: { customer: any; delay: number }) {
+  const hasDebt = Number(customer.pendingAmount) > 0;
+  const phoneClean = (customer.phone || "").replace(/\D/g, "");
+  const phoneForWA = phoneClean.length === 10 ? "52" + phoneClean : phoneClean;
+  const whatsappText = "Hola " + customer.name + ", te recuerdo que tienes un saldo pendiente de $" + Number(customer.pendingAmount).toFixed(2) + ". Gracias!";
+  const whatsappUrl = phoneClean ? "https://wa.me/" + phoneForWA + "?text=" + encodeURIComponent(whatsappText) : null;
+
+  return (
+    <div
+      className="relative bg-white/[0.03] hover:bg-white/[0.06] backdrop-blur-md border border-white/10 hover:border-amber-500/30 rounded-2xl p-4 transition-all overflow-hidden animate-slide-up hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/10"
+      style={{ animationDelay: delay + "ms", animationFillMode: "forwards", opacity: 0 }}
+    >
+      <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-10 bg-gradient-to-br from-amber-500 to-orange-500" />
+
+      <div className="relative">
+        {/* Header: avatar + nombre */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
+            <UserCircle className="w-5 h-5 text-amber-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-white text-sm truncate">{customer.name}</p>
+            {customer.phone && (
+              <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                <Phone className="w-2.5 h-2.5" />
+                {customer.phone}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Saldo pendiente */}
+        <div
+          className={
+            "rounded-xl p-3 mb-3 " +
+            (hasDebt
+              ? "bg-rose-500/10 border border-rose-500/30"
+              : "bg-emerald-500/10 border border-emerald-500/30")
+          }
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300 mb-1">
+            Saldo pendiente
+          </p>
+          <p
+            className={
+              "text-2xl font-bold tracking-tight " +
+              (hasDebt ? "text-rose-300" : "text-emerald-300")
+            }
+          >
+            ${Number(customer.pendingAmount).toFixed(2)}
+          </p>
+          {hasDebt && customer.activeDebtsCount > 0 && (
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {customer.activeDebtsCount} {customer.activeDebtsCount === 1 ? "deuda activa" : "deudas activas"}
+            </p>
+          )}
+          {!hasDebt && (
+            <p className="text-[10px] text-emerald-400/80 mt-0.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              Sin deudas
+            </p>
+          )}
+        </div>
+
+        {/* Notas */}
+        {customer.notes && (
+          <p className="text-[11px] text-slate-400 italic mb-3 line-clamp-2">
+            {customer.notes}
+          </p>
+        )}
+
+        {/* Acciones */}
+        <div className="flex items-center gap-1.5">
+          {whatsappUrl && hasDebt && (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-green-500/15 hover:bg-green-500/25 border border-green-500/30 hover:border-green-500/50 text-green-300 hover:text-green-200 font-bold text-[11px] transition-all"
+            >
+              <MessageCircle className="w-3 h-3" />
+              Recordar pago
+            </a>
+          )}
+          {!whatsappUrl && hasDebt && (
+            <span className="flex-1 text-center text-[10px] text-slate-500 italic h-9 flex items-center justify-center">
+              Agrega telefono para WhatsApp
+            </span>
+          )}
+          {!hasDebt && (
+            <span className="flex-1 text-center text-[10px] text-slate-500 italic h-9 flex items-center justify-center">
+              Cliente al corriente
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MODAL NUEVO CLIENTE - crear cliente para libreta de fiado
+// ============================================================================
+function CustomerFormModal({ onCancel, onSaved }: { onCancel: () => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [creditLimit, setCreditLimit] = useState("");
+
+  const createCustomer = trpc.abarrotes.fiado.customers.create.useMutation({
+    onSuccess: (data) => {
+      toast.success("Cliente registrado: " + data.name);
+      onSaved();
+    },
+    onError: (err: any) => {
+      console.error("[CustomerFormModal] Error:", err);
+      toast.error(err?.message || "No se pudo registrar el cliente");
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim()) return toast.error("El nombre es obligatorio");
+    if (name.trim().length < 2) return toast.error("Nombre demasiado corto");
+    createCustomer.mutate({
+      name: name.trim(),
+      phone: phone.trim() || undefined,
+      notes: notes.trim() || undefined,
+      creditLimit: creditLimit || undefined,
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl max-h-[95vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50 px-6 pt-6 pb-5 border-b border-slate-100 rounded-t-3xl">
+          <div className="absolute top-4 right-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/40">
+              <UserCircle className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600 mb-0.5">
+                Libreta de fiado
+              </p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Nuevo cliente
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Nombre */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Nombre <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ej. Dona Lupita, Don Pepe..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Telefono */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Telefono <span className="text-slate-400 font-normal normal-case tracking-normal ml-1">(opcional, para WhatsApp)</span>
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="tel"
+                placeholder="5551234567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Limite de credito */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Limite de credito <span className="text-slate-400 font-normal normal-case tracking-normal ml-1">(opcional, $0 = sin limite)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={creditLimit}
+                onChange={(e) => setCreditLimit(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 h-12 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">
+              Notas <span className="text-slate-400 font-normal normal-case tracking-normal ml-1">(opcional)</span>
+            </label>
+            <textarea
+              placeholder="Ej. Paga los viernes, esposa de Juan, vive a una cuadra..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100 focus:outline-none transition-all resize-none"
+            />
+          </div>
+
+          {/* Tip educativo */}
+          <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-[11px] text-slate-600 flex items-start gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <span>
+              Solo registra clientes a los que ya les fias normalmente. Una vez creado podras registrar deudas y abonos.
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={createCustomer.isPending}
+            className="bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 font-bold h-12 px-6 rounded-xl"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={createCustomer.isPending || !name.trim()}
+            className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white gap-2 font-bold h-12 px-6 rounded-xl shadow-lg shadow-amber-500/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
+          >
+            {createCustomer.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Guardar cliente
+              </>
+            )}
           </Button>
         </div>
       </div>
