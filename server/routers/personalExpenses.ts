@@ -1,8 +1,8 @@
 // ============================================================================
-// ROUTER tRPC - Gastos personales (admin exclusivo)
+// ROUTER tRPC - Gastos personales (PRIVADO del propietario)
 // ----------------------------------------------------------------------------
-// Sigue el patron del proyecto: router y protectedProcedure salen de
-// _core/trpc, y adminProcedure se arma local con protectedProcedure.use().
+// Blindado con ownerOnlyProcedure: solo entra el dueno principal
+// (ctx.user.openId === ENV.ownerOpenId), igual que personalOperations.
 // El usuario se obtiene de ctx.user.id. Todo filtrado por ese usuario.
 //
 // Enchufa el motor puro (analyzeExpenseLine) con la capa de BD.
@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
+import { ENV } from "../_core/env";
 import {
   seedPersonalExpenseDefaults,
   listPersonalExpenseCategories,
@@ -31,12 +32,15 @@ import {
 } from "../personalExpensesEngine";
 
 // ----------------------------------------------------------------------------
-// Procedure admin (mismo patron que routers.ts)
+// Procedure PRIVADO del propietario (mismo candado que personalOperations)
 // ----------------------------------------------------------------------------
 
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN" });
+const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.openId !== ENV.ownerOpenId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Esta seccion es privada del propietario.",
+    });
   }
   return next({ ctx });
 });
@@ -75,7 +79,6 @@ function nowMexico(): Date {
   return new Date(Date.now() - 6 * 60 * 60 * 1000);
 }
 
-// Corre el motor con las categorias, tiendas y reglas del usuario.
 async function analyzeForUser(userId: number, text: string) {
   const [cats, stores, rules] = await Promise.all([
     listPersonalExpenseCategories(userId),
@@ -112,24 +115,24 @@ async function analyzeForUser(userId: number, text: string) {
 // ----------------------------------------------------------------------------
 
 export const personalExpensesRouter = router({
-  seedDefaults: adminProcedure.mutation(async ({ ctx }) => {
+  seedDefaults: ownerOnlyProcedure.mutation(async ({ ctx }) => {
     return await seedPersonalExpenseDefaults(ctx.user.id);
   }),
 
   categories: router({
-    list: adminProcedure.query(async ({ ctx }) => {
+    list: ownerOnlyProcedure.query(async ({ ctx }) => {
       return await listPersonalExpenseCategories(ctx.user.id);
     }),
   }),
 
   stores: router({
-    list: adminProcedure.query(async ({ ctx }) => {
+    list: ownerOnlyProcedure.query(async ({ ctx }) => {
       return await listPersonalExpenseStores(ctx.user.id);
     }),
   }),
 
   expenses: router({
-    previewCapture: adminProcedure
+    previewCapture: ownerOnlyProcedure
       .input(z.object({ text: z.string().min(1) }))
       .query(async ({ input, ctx }) => {
         const { analysis, category, store } = await analyzeForUser(
@@ -164,7 +167,7 @@ export const personalExpensesRouter = router({
         };
       }),
 
-    quickCreate: adminProcedure
+    quickCreate: ownerOnlyProcedure
       .input(
         z.object({
           text: z.string().min(1),
@@ -247,7 +250,7 @@ export const personalExpensesRouter = router({
         };
       }),
 
-    list: adminProcedure
+    list: ownerOnlyProcedure
       .input(
         z
           .object({
@@ -266,7 +269,7 @@ export const personalExpensesRouter = router({
   // ESTADISTICAS: un solo llamado con todo lo que necesita el dashboard
   // --------------------------------------------------------------------------
   stats: router({
-    dashboard: adminProcedure
+    dashboard: ownerOnlyProcedure
       .input(
         z.object({
           year: z.number().int(),
@@ -323,9 +326,9 @@ export const personalExpensesRouter = router({
 
         const topCategory = byCategory.length > 0 ? byCategory[0] : null;
         const topStore =
-          byStore.find((s) => s.storeId != null) ?? (byStore.length > 0 ? byStore[0] : null);
+          byStore.find((s) => s.storeId != null) ??
+          (byStore.length > 0 ? byStore[0] : null);
 
-        // promedio diario
         const now = nowMexico();
         const isCurrentMonth =
           now.getFullYear() === year && now.getMonth() + 1 === month;
@@ -334,11 +337,9 @@ export const personalExpensesRouter = router({
           : new Date(year, month, 0).getDate();
         const avgDaily = daysElapsed > 0 ? monthTot.total / daysElapsed : 0;
 
-        // vs mes anterior
         const diff = monthTot.total - prevTot.total;
         const pct = prevTot.total > 0 ? (diff / prevTot.total) * 100 : null;
 
-        // tendencia: ultimos 6 meses, rellenando faltantes con 0
         const trendMap = new Map(monthly.map((m) => [m.month, m.total]));
         const trend: Array<{ month: string; total: number }> = [];
         for (let i = 5; i >= 0; i--) {
