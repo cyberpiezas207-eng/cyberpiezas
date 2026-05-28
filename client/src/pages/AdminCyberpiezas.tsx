@@ -24,6 +24,7 @@ import AdminTabsBar, {
 } from "@/components/admin/AdminTabsBar";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab";
+import PersonalExpensesCard from "@/components/admin/PersonalExpensesCard";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -193,7 +194,14 @@ export default function AdminCyberpiezas() {
         {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
         {/* Tab content: Operaciones */}
-        {activeTab === "operaciones" && <OperationsView showHeader={false} />}
+       {activeTab === "operaciones" && (
+          <div className="space-y-6">
+            <PersonalExpensesCard
+              onOpen={() => toast.info("Detalle de gastos: proximamente")}
+            />
+            <OperationsView showHeader={false} />
+          </div>
+        )}
       </div>
 
       {/* Modal "Welcome email": helpers para copiar/abrir mailto */}
