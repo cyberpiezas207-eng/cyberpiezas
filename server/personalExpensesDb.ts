@@ -8,7 +8,7 @@
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { eq, and, gte, lte, desc, asc, isNull } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, isNull, sql } from "drizzle-orm";
 import { getDbOrThrow } from "./db";
 import {
   personalExpenseCategories,
@@ -23,6 +23,18 @@ import {
 import { DEFAULT_CATEGORIES, DEFAULT_STORES } from "./personalExpensesEngine";
 
 // ----------------------------------------------------------------------------
+// Helper interno: rango de fechas de un mes (YYYY-MM-DD)
+// ----------------------------------------------------------------------------
+
+function monthRange(year: number, month: number): { first: string; last: string } {
+  const mm = String(month).padStart(2, "0");
+  const first = `${year}-${mm}-01`;
+  const lastDayNum = new Date(year, month, 0).getDate();
+  const last = `${year}-${mm}-${String(lastDayNum).padStart(2, "0")}`;
+  return { first, last };
+}
+
+// ----------------------------------------------------------------------------
 // SEED: crea las categorias y tiendas por defecto si faltan (idempotente)
 // ----------------------------------------------------------------------------
 
@@ -31,7 +43,6 @@ export async function seedPersonalExpenseDefaults(
 ): Promise<{ categories: PersonalExpenseCategory[]; stores: PersonalExpenseStore[] }> {
   const conn = await getDbOrThrow();
 
-  // Categorias que ya existen para este usuario
   const existingCats = await conn
     .select()
     .from(personalExpenseCategories)
@@ -55,7 +66,6 @@ export async function seedPersonalExpenseDefaults(
     await conn.insert(personalExpenseCategories).values(catsToInsert);
   }
 
-  // Tiendas que ya existen para este usuario
   const existingStores = await conn
     .select()
     .from(personalExpenseStores)
@@ -166,7 +176,6 @@ export async function createPersonalExpense(
   const conn = await getDbOrThrow();
   const insertRes = await conn.insert(personalExpenses).values({
     userId,
-    // decimal se inserta como string para no perder precision
     amount: data.amount.toFixed(2),
     description: data.description,
     normalizedDescription: data.normalizedDescription,
@@ -212,14 +221,11 @@ export async function listPersonalExpenses(
 
   const conds = [
     eq(personalExpenses.userId, userId),
-    isNull(personalExpenses.deletedAt), // ignorar borrados (soft delete)
+    isNull(personalExpenses.deletedAt),
   ];
 
   if (opts.year && opts.month) {
-    const mm = String(opts.month).padStart(2, "0");
-    const first = `${opts.year}-${mm}-01`;
-    const lastDayNum = new Date(opts.year, opts.month, 0).getDate();
-    const last = `${opts.year}-${mm}-${String(lastDayNum).padStart(2, "0")}`;
+    const { first, last } = monthRange(opts.year, opts.month);
     conds.push(gte(personalExpenses.expenseDate, first));
     conds.push(lte(personalExpenses.expenseDate, last));
   }
@@ -230,4 +236,135 @@ export async function listPersonalExpenses(
     .where(and(...conds))
     .orderBy(desc(personalExpenses.expenseDate), desc(personalExpenses.id))
     .limit(opts.limit ?? 50);
+}
+
+// ----------------------------------------------------------------------------
+// ESTADISTICAS (alimentan las graficas)
+// decimal regresa como string, por eso usamos Number() en todo.
+// ----------------------------------------------------------------------------
+
+export interface CategorySum {
+  categoryId: number | null;
+  total: number;
+  count: number;
+}
+
+export async function sumPersonalExpensesByCategory(
+  userId: number,
+  year: number,
+  month: number,
+): Promise<CategorySum[]> {
+  const conn = await getDbOrThrow();
+  const { first, last } = monthRange(year, month);
+  const rows = await conn
+    .select({
+      categoryId: personalExpenses.categoryId,
+      total: sql<string>`COALESCE(SUM(${personalExpenses.amount}), 0)`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(personalExpenses)
+    .where(
+      and(
+        eq(personalExpenses.userId, userId),
+        isNull(personalExpenses.deletedAt),
+        gte(personalExpenses.expenseDate, first),
+        lte(personalExpenses.expenseDate, last),
+      ),
+    )
+    .groupBy(personalExpenses.categoryId);
+  return rows.map((r) => ({
+    categoryId: r.categoryId ?? null,
+    total: Number(r.total) || 0,
+    count: Number(r.count) || 0,
+  }));
+}
+
+export interface StoreSum {
+  storeId: number | null;
+  total: number;
+  count: number;
+}
+
+export async function sumPersonalExpensesByStore(
+  userId: number,
+  year: number,
+  month: number,
+): Promise<StoreSum[]> {
+  const conn = await getDbOrThrow();
+  const { first, last } = monthRange(year, month);
+  const rows = await conn
+    .select({
+      storeId: personalExpenses.storeId,
+      total: sql<string>`COALESCE(SUM(${personalExpenses.amount}), 0)`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(personalExpenses)
+    .where(
+      and(
+        eq(personalExpenses.userId, userId),
+        isNull(personalExpenses.deletedAt),
+        gte(personalExpenses.expenseDate, first),
+        lte(personalExpenses.expenseDate, last),
+      ),
+    )
+    .groupBy(personalExpenses.storeId);
+  return rows.map((r) => ({
+    storeId: r.storeId ?? null,
+    total: Number(r.total) || 0,
+    count: Number(r.count) || 0,
+  }));
+}
+
+export interface MonthTotal {
+  total: number;
+  count: number;
+}
+
+export async function totalPersonalExpensesForMonth(
+  userId: number,
+  year: number,
+  month: number,
+): Promise<MonthTotal> {
+  const conn = await getDbOrThrow();
+  const { first, last } = monthRange(year, month);
+  const rows = await conn
+    .select({
+      total: sql<string>`COALESCE(SUM(${personalExpenses.amount}), 0)`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(personalExpenses)
+    .where(
+      and(
+        eq(personalExpenses.userId, userId),
+        isNull(personalExpenses.deletedAt),
+        gte(personalExpenses.expenseDate, first),
+        lte(personalExpenses.expenseDate, last),
+      ),
+    );
+  const r = rows[0];
+  return { total: Number(r?.total) || 0, count: Number(r?.count) || 0 };
+}
+
+export interface MonthBucket {
+  month: string; // YYYY-MM
+  total: number;
+}
+
+export async function monthlyPersonalExpenseTotals(
+  userId: number,
+): Promise<MonthBucket[]> {
+  const conn = await getDbOrThrow();
+  const ymExpr = sql<string>`DATE_FORMAT(${personalExpenses.expenseDate}, '%Y-%m')`;
+  const rows = await conn
+    .select({
+      month: ymExpr,
+      total: sql<string>`COALESCE(SUM(${personalExpenses.amount}), 0)`,
+    })
+    .from(personalExpenses)
+    .where(
+      and(eq(personalExpenses.userId, userId), isNull(personalExpenses.deletedAt)),
+    )
+    .groupBy(ymExpr)
+    .orderBy(ymExpr);
+  return rows.map((r) => ({ month: r.month, total: Number(r.total) || 0 }));
 }
