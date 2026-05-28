@@ -2,7 +2,7 @@
 // VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
 // Sub-pestanas internas:
-//   - Gastos / Flujo : captura, tarjetas, graficas y lista
+//   - Gastos / Flujo : captura, sugerencia de alacena, tarjetas, graficas y lista
 //   - Alacena        : productos del hogar con niveles y lista de compra
 // Datos personales del hogar, separados del negocio. Coral = sale dinero.
 // Comentarios SIN ACENTOS por convencion del proyecto.
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
+import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import {
   ArrowLeft,
   Plus,
@@ -50,6 +51,15 @@ function formatDay(ymd: string): string {
 
 type SubTab = "gastos" | "alacena";
 
+interface PendingSuggestion {
+  detectedItems: string[];
+  expenseId: number;
+  storeId: number | null;
+  storeName: string | null;
+  totalAmount: number;
+  defaultCategoryId: number | null;
+}
+
 interface Props {
   onBack?: () => void;
 }
@@ -60,6 +70,8 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const month = now.getMonth() + 1;
 
   const [activeTab, setActiveTab] = useState<SubTab>("gastos");
+  const [pendingSuggestion, setPendingSuggestion] =
+    useState<PendingSuggestion | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -111,6 +123,23 @@ export default function PersonalExpensesView({ onBack }: Props) {
       setText("");
       setDebounced("");
       refreshAll();
+
+      // Sugerir productos para la alacena si el motor detecto items
+      const detected = (res.expense as any)?.detectedItemsJson;
+      const items: string[] = Array.isArray(detected)
+        ? detected.filter((s: unknown): s is string => typeof s === "string")
+        : [];
+      if (items.length > 0) {
+        setPendingSuggestion({
+          detectedItems: items,
+          expenseId: res.expense.id,
+          storeId: (res.expense as any).storeId ?? null,
+          storeName:
+            res.store?.name ?? (res.expense as any).storeName ?? null,
+          totalAmount: Number((res.expense as any).amount) || 0,
+          defaultCategoryId: res.category?.id ?? null,
+        });
+      }
     },
     onError: (e) => toast.error(e.message || "No se pudo guardar"),
   });
@@ -308,6 +337,19 @@ export default function PersonalExpensesView({ onBack }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* Sugerencia: agregar productos detectados a la alacena */}
+          {pendingSuggestion && (
+            <PantrySuggestionPanel
+              detectedItems={pendingSuggestion.detectedItems}
+              expenseId={pendingSuggestion.expenseId}
+              storeId={pendingSuggestion.storeId}
+              storeName={pendingSuggestion.storeName}
+              totalAmount={pendingSuggestion.totalAmount}
+              defaultCategoryId={pendingSuggestion.defaultCategoryId}
+              onClose={() => setPendingSuggestion(null)}
+            />
+          )}
 
           {/* Tarjetas de resumen */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
