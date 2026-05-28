@@ -1,8 +1,9 @@
 // ============================================================================
-// VISTA "Mis Gastos" - pantalla completa de gastos personales
+// VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
-// Captura rapida que se categoriza sola, tarjetas, graficas y lista con
-// acciones (borrar, corregir categoria y aprender regla).
+// Sub-pestanas internas:
+//   - Gastos / Flujo : captura, tarjetas, graficas y lista
+//   - Alacena        : productos del hogar con niveles y lista de compra
 // Datos personales del hogar, separados del negocio. Coral = sale dinero.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
+import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import {
   ArrowLeft,
   Plus,
@@ -25,6 +27,7 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  Package,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -45,6 +48,8 @@ function formatDay(ymd: string): string {
   return `${parts[2]}/${parts[1]}`;
 }
 
+type SubTab = "gastos" | "alacena";
+
 interface Props {
   onBack?: () => void;
 }
@@ -53,6 +58,8 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const now = nowMexico();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
+
+  const [activeTab, setActiveTab] = useState<SubTab>("gastos");
 
   const utils = trpc.useUtils();
 
@@ -165,14 +172,14 @@ export default function PersonalExpensesView({ onBack }: Props) {
             <div className="flex items-center gap-2 mb-2">
               <Wallet className="w-5 h-5 text-orange-300" />
               <span className="text-xs font-bold uppercase tracking-[0.25em] text-orange-300">
-                Gastos personales
+                Control personal
               </span>
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">
               Mis Gastos
             </h1>
             <p className="text-sm text-slate-300 mt-1">
-              Control personal, separado de las operaciones del negocio.
+              Gastos, alacena y consumo del hogar. Separado del negocio.
             </p>
           </div>
           {onBack && (
@@ -187,264 +194,299 @@ export default function PersonalExpensesView({ onBack }: Props) {
         </div>
       </div>
 
-      {/* Banner primera vez: sembrar categorias */}
-      {noCategories && (
-        <Card className="bg-slate-800 border border-purple-500/30">
-          <CardContent className="p-5 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-purple-300" />
-              <div>
-                <p className="text-sm font-semibold text-slate-200">
-                  Primera vez por aqui
-                </p>
-                <p className="text-xs text-slate-400">
-                  Activa tus categorias y tiendas iniciales para que la captura
-                  se clasifique sola.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => seed.mutate()}
-              disabled={seed.isPending}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {seed.isPending ? "Activando..." : "Activar categorias"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Captura rapida */}
-      <Card className="bg-slate-800 border border-slate-700">
-        <CardContent className="p-5">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Agregar gasto rapido
-          </label>
-          <div className="flex items-center gap-2 mt-2">
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAdd();
-              }}
-              placeholder="Ej. gasolina pemex 500"
-              className="flex-1 bg-slate-900 border-slate-700 text-slate-100"
-            />
-            <Button
-              onClick={handleAdd}
-              disabled={quickCreate.isPending || !text.trim()}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {quickCreate.isPending ? "Guardando..." : "Agregar"}
-            </Button>
-          </div>
-
-          {/* Preview en vivo */}
-          {debounced.length > 0 && preview.data && (
-            <div className="flex items-center gap-2 mt-3 flex-wrap text-sm">
-              <span className="text-slate-400">Detectado:</span>
-              {preview.data.amount > 0 && (
-                <span className="font-bold text-orange-400">
-                  {fmt(preview.data.amount)}
-                </span>
-              )}
-              {preview.data.category ? (
-                <span
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold"
-                  style={{
-                    backgroundColor: preview.data.category.color + "22",
-                    color: preview.data.category.color,
-                  }}
-                >
-                  {preview.data.category.icon} {preview.data.category.name}
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700 text-slate-300">
-                  Sin clasificar
-                </span>
-              )}
-              {preview.data.store && (
-                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700 text-slate-200 flex items-center gap-1">
-                  <Store className="w-3 h-3" />
-                  {preview.data.store.name}
-                </span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Tarjetas de resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-slate-800 border border-orange-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <Wallet className="w-4 h-4" /> Gastado este mes
-            </div>
-            <div className="text-2xl font-bold text-orange-400 mt-1">
-              {fmt(dash?.total ?? 0)}
-            </div>
-            {pct !== null && (
-              <div
-                className={
-                  "flex items-center gap-1 text-xs mt-1 " +
-                  (wentUp ? "text-rose-400" : "text-emerald-400")
-                }
-              >
-                {wentUp ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                {Math.abs(pct)}% vs mes anterior
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <Tag className="w-4 h-4" /> Categoria principal
-            </div>
-            <div className="text-lg font-bold text-slate-100 mt-1 truncate">
-              {dash?.topCategory && dash.topCategory.total > 0
-                ? `${dash.topCategory.icon} ${dash.topCategory.name}`
-                : "—"}
-            </div>
-            {dash?.topCategory && dash.topCategory.total > 0 && (
-              <div className="text-xs text-slate-400">
-                {fmt(dash.topCategory.total)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <Store className="w-4 h-4" /> Tienda top
-            </div>
-            <div className="text-lg font-bold text-slate-100 mt-1 truncate">
-              {dash?.topStore && dash.topStore.total > 0
-                ? dash.topStore.name
-                : "—"}
-            </div>
-            {dash?.topStore && dash.topStore.total > 0 && (
-              <div className="text-xs text-slate-400">
-                {fmt(dash.topStore.total)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <CalendarDays className="w-4 h-4" /> Promedio diario
-            </div>
-            <div className="text-2xl font-bold text-slate-100 mt-1">
-              {fmt(dash?.avgDaily ?? 0)}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Sub-pestanas internas */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setActiveTab("gastos")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "gastos"
+              ? "bg-orange-500/15 border border-orange-500/40 text-orange-200"
+              : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Wallet className="w-4 h-4" />
+          Gastos / Flujo
+        </button>
+        <button
+          onClick={() => setActiveTab("alacena")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "alacena"
+              ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-200"
+              : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Alacena
+        </button>
       </div>
 
-      {/* Graficas */}
-      {dash && (
-        <PersonalExpensesCharts
-          byCategory={dash.byCategory}
-          byStore={dash.byStore}
-          trend={dash.trend}
-        />
+      {/* ====== TAB: GASTOS / FLUJO ====== */}
+      {activeTab === "gastos" && (
+        <>
+          {/* Banner primera vez: sembrar categorias */}
+          {noCategories && (
+            <Card className="bg-slate-800 border border-purple-500/30">
+              <CardContent className="p-5 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-purple-300" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-200">
+                      Primera vez por aqui
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Activa tus categorias y tiendas iniciales para que la
+                      captura se clasifique sola.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => seed.mutate()}
+                  disabled={seed.isPending}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {seed.isPending ? "Activando..." : "Activar categorias"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Captura rapida */}
+          <Card className="bg-slate-800 border border-slate-700">
+            <CardContent className="p-5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Captura rapida (escribe algo como: walmart leche huevo 780)
+              </label>
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="ej: pemex gasolina 500"
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  className="bg-slate-900 border-slate-700 text-white"
+                />
+                <Button
+                  onClick={handleAdd}
+                  disabled={quickCreate.isPending || !text.trim()}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  {quickCreate.isPending ? "Guardando..." : "Agregar"}
+                </Button>
+              </div>
+
+              {/* Preview en vivo */}
+              {debounced.length > 0 && preview.data && (
+                <div className="flex items-center gap-2 mt-3 flex-wrap text-sm">
+                  <span className="text-slate-400">Detectado:</span>
+                  {preview.data.amount > 0 && (
+                    <span className="font-bold text-orange-400">
+                      {fmt(preview.data.amount)}
+                    </span>
+                  )}
+                  {preview.data.category ? (
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                      style={{
+                        backgroundColor: preview.data.category.color + "22",
+                        color: preview.data.category.color,
+                      }}
+                    >
+                      {preview.data.category.icon} {preview.data.category.name}
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700 text-slate-300">
+                      Sin clasificar
+                    </span>
+                  )}
+                  {preview.data.store && (
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700 text-slate-200 flex items-center gap-1">
+                      <Store className="w-3 h-3" />
+                      {preview.data.store.name}
+                    </span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tarjetas de resumen */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="bg-slate-800 border border-orange-500/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <Wallet className="w-4 h-4" /> Gastado este mes
+                </div>
+                <div className="text-2xl font-bold text-orange-400 mt-1">
+                  {fmt(dash?.total ?? 0)}
+                </div>
+                {pct !== null && (
+                  <div
+                    className={
+                      "flex items-center gap-1 text-xs mt-1 " +
+                      (wentUp ? "text-rose-400" : "text-emerald-400")
+                    }
+                  >
+                    {wentUp ? (
+                      <TrendingUp className="w-3 h-3" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3" />
+                    )}
+                    {Math.abs(pct)}% vs mes anterior
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800 border border-slate-700">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <Tag className="w-4 h-4" /> Categoria principal
+                </div>
+                <div className="text-lg font-bold text-slate-100 mt-1 truncate">
+                  {dash?.topCategory && dash.topCategory.total > 0
+                    ? `${dash.topCategory.icon} ${dash.topCategory.name}`
+                    : "—"}
+                </div>
+                {dash?.topCategory && dash.topCategory.total > 0 && (
+                  <div className="text-xs text-slate-400">
+                    {fmt(dash.topCategory.total)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800 border border-slate-700">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <Store className="w-4 h-4" /> Tienda top
+                </div>
+                <div className="text-lg font-bold text-slate-100 mt-1 truncate">
+                  {dash?.topStore && dash.topStore.total > 0
+                    ? dash.topStore.name
+                    : "—"}
+                </div>
+                {dash?.topStore && dash.topStore.total > 0 && (
+                  <div className="text-xs text-slate-400">
+                    {fmt(dash.topStore.total)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800 border border-slate-700">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <CalendarDays className="w-4 h-4" /> Promedio diario
+                </div>
+                <div className="text-2xl font-bold text-slate-100 mt-1">
+                  {fmt(dash?.avgDaily ?? 0)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Graficas */}
+          {dash && (
+            <PersonalExpensesCharts
+              byCategory={dash.byCategory}
+              byStore={dash.byStore}
+              trend={dash.trend}
+            />
+          )}
+
+          {/* Lista de gastos */}
+          <Card className="bg-slate-800 border border-slate-700">
+            <CardContent className="p-5">
+              <h3 className="text-sm font-bold text-slate-200 mb-3">
+                Gastos de este mes
+              </h3>
+
+              {expenses.length === 0 ? (
+                <div className="text-center py-10">
+                  <Wallet className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-300 font-medium">
+                    Todavia no hay gastos este mes
+                  </p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Empieza capturando algo como: gasolina pemex 500
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-700/60">
+                  {expenses.map((e) => {
+                    const cat =
+                      e.categoryId != null ? catById.get(e.categoryId) : null;
+                    return (
+                      <div
+                        key={e.id}
+                        className="flex items-center justify-between gap-3 py-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+                            style={{
+                              backgroundColor: (cat?.color ?? "#888780") + "22",
+                            }}
+                          >
+                            {cat?.icon ?? "🧾"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-100 truncate">
+                              {e.description || cat?.name || "Gasto"}
+                            </p>
+                            <p className="text-xs text-slate-400 truncate">
+                              {e.storeName ? `${e.storeName} · ` : ""}
+                              {formatDay(e.expenseDate)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-sm font-bold text-orange-400">
+                            {fmt(Number(e.amount))}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={e.categoryId ?? ""}
+                              onChange={(ev) =>
+                                handleRecategorize(
+                                  e.id,
+                                  ev.target.value === ""
+                                    ? null
+                                    : Number(ev.target.value),
+                                )
+                              }
+                              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-1.5 py-1 max-w-[140px]"
+                              title="Cambiar categoria"
+                            >
+                              <option value="">Sin clasificar</option>
+                              {categories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.icon} {c.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleDelete(e.id)}
+                              className="text-slate-500 hover:text-rose-400 p-1"
+                              title="Borrar gasto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {/* Lista de gastos */}
-      <Card className="bg-slate-800 border border-slate-700">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-bold text-slate-200 mb-3">
-            Gastos de este mes
-          </h3>
-
-          {expenses.length === 0 ? (
-            <div className="text-center py-10">
-              <Wallet className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-300 font-medium">
-                Todavia no hay gastos este mes
-              </p>
-              <p className="text-slate-500 text-sm mt-1">
-                Empieza capturando algo como: gasolina pemex 500
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-700/60">
-              {expenses.map((e) => {
-                const cat = e.categoryId != null ? catById.get(e.categoryId) : null;
-                return (
-                  <div
-                    key={e.id}
-                    className="flex items-center justify-between gap-3 py-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
-                        style={{
-                          backgroundColor: (cat?.color ?? "#888780") + "22",
-                        }}
-                      >
-                        {cat?.icon ?? "🧾"}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-100 truncate">
-                          {e.description || cat?.name || "Gasto"}
-                        </p>
-                        <p className="text-xs text-slate-400 truncate">
-                          {e.storeName ? `${e.storeName} · ` : ""}
-                          {formatDay(e.expenseDate)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="text-sm font-bold text-orange-400">
-                        {fmt(Number(e.amount))}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <select
-                          value={e.categoryId ?? ""}
-                          onChange={(ev) =>
-                            handleRecategorize(
-                              e.id,
-                              ev.target.value === "" ? null : Number(ev.target.value),
-                            )
-                          }
-                          className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-1.5 py-1 max-w-[140px]"
-                          title="Cambiar categoria"
-                        >
-                          <option value="">Sin clasificar</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.icon} {c.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleDelete(e.id)}
-                          className="text-slate-500 hover:text-rose-400 p-1"
-                          title="Borrar gasto"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ====== TAB: ALACENA ====== */}
+      {activeTab === "alacena" && <PersonalPantryTab />}
     </div>
   );
 }
