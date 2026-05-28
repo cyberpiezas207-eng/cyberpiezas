@@ -19,7 +19,11 @@ import {
   listPersonalExpenseStores,
   listPersonalExpenseRules,
   createPersonalExpense,
+  getPersonalExpenseById,
   listPersonalExpenses,
+  softDeletePersonalExpense,
+  recategorizePersonalExpense,
+  addPersonalExpenseRule,
   sumPersonalExpensesByCategory,
   sumPersonalExpensesByStore,
   totalPersonalExpensesForMonth,
@@ -262,6 +266,42 @@ export const personalExpensesRouter = router({
       )
       .query(async ({ input, ctx }) => {
         return await listPersonalExpenses(ctx.user.id, input ?? {});
+      }),
+
+    // Borrar (soft delete)
+    softDelete: ownerOnlyProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return await softDeletePersonalExpense(ctx.user.id, input.id);
+      }),
+
+    // Cambiar categoria; opcionalmente guardar regla para que aprenda
+    recategorize: ownerOnlyProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          categoryId: z.number().int().positive().nullable(),
+          saveRule: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        await recategorizePersonalExpense(ctx.user.id, input.id, input.categoryId);
+
+        let ruleSaved = false;
+        if (input.saveRule && input.categoryId != null) {
+          const exp = await getPersonalExpenseById(ctx.user.id, input.id);
+          if (exp && exp.normalizedDescription) {
+            await addPersonalExpenseRule(ctx.user.id, {
+              categoryId: input.categoryId,
+              phrase: exp.description,
+              normalizedPhrase: exp.normalizedDescription,
+              createdFromExpenseId: exp.id,
+            });
+            ruleSaved = true;
+          }
+        }
+
+        return { success: true, ruleSaved };
       }),
   }),
 
