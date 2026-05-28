@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import {
   ArrowLeft,
   Plus,
@@ -315,7 +316,14 @@ export default function PersonalExpensesView({ onBack }: Props) {
           </CardContent>
         </Card>
       </div>
-
+      {/* Graficas */}
+      {dash && (
+        <PersonalExpensesCharts
+          byCategory={dash.byCategory}
+          byStore={dash.byStore}
+          trend={dash.trend}
+        />
+      )}
       {/* Lista de gastos */}
       <Card className="bg-slate-800 border border-slate-700">
         <CardContent className="p-5">
