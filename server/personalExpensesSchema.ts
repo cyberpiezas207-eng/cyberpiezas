@@ -100,7 +100,7 @@ export const personalExpenses = mysqlTable("personalExpenses", {
     .default("cash"),
   merchant: varchar("merchant", { length: 120 }),
   // Fecha real del gasto, separada de createdAt (clave para stats por mes)
-  expenseDate: date("expenseDate").notNull(),
+  expenseDate: date("expenseDate", { mode: "string" }).notNull(),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
