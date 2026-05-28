@@ -17,6 +17,7 @@ import { pagosRouter } from "./routers/pagos";
 import { taqueriaRouter } from "./routers/taqueria";
 import { mobilityRouter } from "./routers/mobility";
 import { personalExpensesRouter } from "./routers/personalExpenses";
+import { personalPantryRouter } from "./routers/personalPantry";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -188,6 +189,7 @@ export const appRouter = router({
   taqueria: taqueriaRouter,
   mobility: mobilityRouter,
   personalExpenses: personalExpensesRouter,
+  personalPantry: personalPantryRouter,
   auth: router({
     login: publicProcedure
       .input(
