@@ -190,7 +190,7 @@ type SidebarPalette = "violet" | "midnight" | "emerald";
 
 const sidebarPaletteClasses: Record<SidebarPalette, string> = {
   violet: "border-r border-white/[0.06] bg-gradient-to-b from-violet-950 via-violet-950 to-purple-950 text-white shadow-2xl",
-  midnight: "border-r border-white/[0.06] bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-white shadow-2xl",
+ midnight: "border-r border-white/10 bg-gradient-to-b from-[#0B1220] via-slate-950 to-[#0E1530] text-white shadow-2xl",
   emerald: "border-r border-white/[0.06] bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-950 text-white shadow-2xl",
 };
 
@@ -334,10 +334,11 @@ function DashboardLayoutContent({
   const [termsChecked, setTermsChecked] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
-    if (typeof window === "undefined") return "violet";
+const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
+    if (typeof window === "undefined") return "midnight";
     const saved = window.localStorage.getItem(SIDEBAR_PALETTE_KEY);
-    return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "violet";
+    // violet (morado pesado) retirado: siempre cae a midnight premium
+    return saved === "emerald" ? "emerald" : "midnight";
   });
 
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
