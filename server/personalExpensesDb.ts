@@ -203,6 +203,19 @@ export async function createPersonalExpense(
   return rows[0];
 }
 
+export async function getPersonalExpenseById(
+  userId: number,
+  id: number,
+): Promise<PersonalExpense | null> {
+  const conn = await getDbOrThrow();
+  const rows = await conn
+    .select()
+    .from(personalExpenses)
+    .where(and(eq(personalExpenses.id, id), eq(personalExpenses.userId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 // ----------------------------------------------------------------------------
 // LISTAR GASTOS (con filtro opcional por mes)
 // ----------------------------------------------------------------------------
@@ -236,6 +249,64 @@ export async function listPersonalExpenses(
     .where(and(...conds))
     .orderBy(desc(personalExpenses.expenseDate), desc(personalExpenses.id))
     .limit(opts.limit ?? 50);
+}
+
+// ----------------------------------------------------------------------------
+// EDITAR / BORRAR / APRENDER
+// ----------------------------------------------------------------------------
+
+// Soft delete: marcamos deletedAt, nunca borramos fisico.
+export async function softDeletePersonalExpense(
+  userId: number,
+  id: number,
+): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+  await conn
+    .update(personalExpenses)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(personalExpenses.id, id), eq(personalExpenses.userId, userId)));
+  return { success: true };
+}
+
+// Cambiar la categoria de un gasto (correccion manual).
+export async function recategorizePersonalExpense(
+  userId: number,
+  id: number,
+  categoryId: number | null,
+): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+  await conn
+    .update(personalExpenses)
+    .set({
+      categoryId,
+      detectionSource: "manual",
+      autoDetected: false,
+    })
+    .where(and(eq(personalExpenses.id, id), eq(personalExpenses.userId, userId)));
+  return { success: true };
+}
+
+// Guardar una regla aprendida (cuando corrijo y pido "recordar").
+export async function addPersonalExpenseRule(
+  userId: number,
+  data: {
+    categoryId: number;
+    phrase: string;
+    normalizedPhrase: string;
+    createdFromExpenseId?: number | null;
+  },
+): Promise<{ success: boolean }> {
+  const conn = await getDbOrThrow();
+  await conn.insert(personalExpenseRules).values({
+    userId,
+    categoryId: data.categoryId,
+    phrase: data.phrase,
+    normalizedPhrase: data.normalizedPhrase,
+    weight: 2,
+    isActive: true,
+    createdFromExpenseId: data.createdFromExpenseId ?? null,
+  });
+  return { success: true };
 }
 
 // ----------------------------------------------------------------------------
