@@ -611,16 +611,16 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                           isActive={isActive}
                           onClick={() => setLocation(item.path)}
                           tooltip={item.label}
-                          className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
+                        className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
                             isActive
-                              ? "bg-white/[0.10] text-white shadow-sm"
+                              ? "bg-indigo-500/15 text-white shadow-sm ring-1 ring-inset ring-indigo-400/30"
                               : "text-white/70 hover:text-white hover:bg-white/[0.06] hover:translate-x-0.5"
                           }`}
                         >
                           {isActive && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-white rounded-r-full group-data-[collapsible=icon]:hidden" />
+                           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-indigo-400 rounded-r-full group-data-[collapsible=icon]:hidden" />
                           )}
-                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-white" : "text-white/55 group-hover:text-white/80"}`} />
+                         <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-indigo-300" : "text-white/55 group-hover:text-white/80"}`} />
                           <span className="tracking-tight">{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
