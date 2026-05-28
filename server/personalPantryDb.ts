@@ -429,3 +429,4 @@ export async function getPantryStats(userId: number): Promise<PantryStats> {
     averageStockPercent: Math.round(Number(r?.avgPercent) || 0),
   };
 }
+
