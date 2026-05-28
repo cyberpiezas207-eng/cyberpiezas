@@ -473,3 +473,4 @@ export default function PersonalPantryTab() {
     </div>
   );
 }
+
