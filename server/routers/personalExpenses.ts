@@ -19,6 +19,10 @@ import {
   listPersonalExpenseRules,
   createPersonalExpense,
   listPersonalExpenses,
+  sumPersonalExpensesByCategory,
+  sumPersonalExpensesByStore,
+  totalPersonalExpensesForMonth,
+  monthlyPersonalExpenseTotals,
 } from "../personalExpensesDb";
 import {
   analyzeExpenseLine,
@@ -41,8 +45,6 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 // Constantes y helpers
 // ----------------------------------------------------------------------------
 
-// Confianza minima para auto-asignar categoria. Debajo de esto, va a "Sin
-// clasificar" pero igual guardamos lo que el motor detecto (detectedCategoryId).
 const CATEGORY_CONFIDENCE_MIN = 55;
 const STORE_CONFIDENCE_MIN = 50;
 
@@ -54,6 +56,8 @@ const KNOWN_PURCHASE_TYPES = new Set([
   "servicios",
 ]);
 
+const NEUTRAL_COLOR = "#888780";
+
 function toEntities(rows: Array<{ slug: string; keywordsJson: unknown }>): KeywordEntity[] {
   return rows.map((r) => ({
     slug: r.slug,
@@ -62,10 +66,13 @@ function toEntities(rows: Array<{ slug: string; keywordsJson: unknown }>): Keywo
 }
 
 // Morelos = UTC-6 todo el ano (Mexico ya no usa horario de verano).
-// Asi la fecha "de hoy" no se brinca al dia siguiente por la zona horaria.
 function todayMexico(): string {
   const ms = Date.now() - 6 * 60 * 60 * 1000;
   return new Date(ms).toISOString().slice(0, 10);
+}
+
+function nowMexico(): Date {
+  return new Date(Date.now() - 6 * 60 * 60 * 1000);
 }
 
 // Corre el motor con las categorias, tiendas y reglas del usuario.
@@ -76,7 +83,6 @@ async function analyzeForUser(userId: number, text: string) {
     listPersonalExpenseRules(userId),
   ]);
 
-  // Las reglas guardan categoryId; el motor trabaja con slugs. Las traducimos.
   const idToSlug = new Map<number, string>(cats.map((c) => [c.id, c.slug]));
   const ruleEntities: LearnedRule[] = rules
     .map((r) => ({
@@ -106,7 +112,6 @@ async function analyzeForUser(userId: number, text: string) {
 // ----------------------------------------------------------------------------
 
 export const personalExpensesRouter = router({
-  // Crea categorias y tiendas por defecto (idempotente). Llamar una vez.
   seedDefaults: adminProcedure.mutation(async ({ ctx }) => {
     return await seedPersonalExpenseDefaults(ctx.user.id);
   }),
@@ -124,7 +129,6 @@ export const personalExpensesRouter = router({
   }),
 
   expenses: router({
-    // Solo analiza el texto y devuelve la sugerencia. NO guarda nada.
     previewCapture: adminProcedure
       .input(z.object({ text: z.string().min(1) }))
       .query(async ({ input, ctx }) => {
@@ -160,7 +164,6 @@ export const personalExpensesRouter = router({
         };
       }),
 
-    // Crea el gasto desde una sola linea de texto.
     quickCreate: adminProcedure
       .input(
         z.object({
@@ -244,7 +247,6 @@ export const personalExpensesRouter = router({
         };
       }),
 
-    // Lista gastos, opcionalmente filtrados por mes.
     list: adminProcedure
       .input(
         z
@@ -257,6 +259,111 @@ export const personalExpensesRouter = router({
       )
       .query(async ({ input, ctx }) => {
         return await listPersonalExpenses(ctx.user.id, input ?? {});
+      }),
+  }),
+
+  // --------------------------------------------------------------------------
+  // ESTADISTICAS: un solo llamado con todo lo que necesita el dashboard
+  // --------------------------------------------------------------------------
+  stats: router({
+    dashboard: adminProcedure
+      .input(
+        z.object({
+          year: z.number().int(),
+          month: z.number().int().min(1).max(12),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const userId = ctx.user.id;
+        const { year, month } = input;
+        const prev =
+          month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+
+        const [cats, stores, byCatRaw, byStoreRaw, monthTot, prevTot, monthly] =
+          await Promise.all([
+            listPersonalExpenseCategories(userId),
+            listPersonalExpenseStores(userId),
+            sumPersonalExpensesByCategory(userId, year, month),
+            sumPersonalExpensesByStore(userId, year, month),
+            totalPersonalExpensesForMonth(userId, year, month),
+            totalPersonalExpensesForMonth(userId, prev.year, prev.month),
+            monthlyPersonalExpenseTotals(userId),
+          ]);
+
+        const catById = new Map(cats.map((c) => [c.id, c]));
+        const storeById = new Map(stores.map((s) => [s.id, s]));
+
+        const byCategory = byCatRaw
+          .map((r) => {
+            const c = r.categoryId != null ? catById.get(r.categoryId) : null;
+            return {
+              categoryId: r.categoryId,
+              name: c ? c.name : "Sin clasificar",
+              icon: c ? c.icon : "",
+              color: c ? c.color : NEUTRAL_COLOR,
+              total: r.total,
+              count: r.count,
+            };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const byStore = byStoreRaw
+          .map((r) => {
+            const s = r.storeId != null ? storeById.get(r.storeId) : null;
+            return {
+              storeId: r.storeId,
+              name: s ? s.name : "Sin tienda",
+              icon: s ? s.icon : "",
+              color: s ? s.color : NEUTRAL_COLOR,
+              total: r.total,
+              count: r.count,
+            };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const topCategory = byCategory.length > 0 ? byCategory[0] : null;
+        const topStore =
+          byStore.find((s) => s.storeId != null) ?? (byStore.length > 0 ? byStore[0] : null);
+
+        // promedio diario
+        const now = nowMexico();
+        const isCurrentMonth =
+          now.getFullYear() === year && now.getMonth() + 1 === month;
+        const daysElapsed = isCurrentMonth
+          ? now.getDate()
+          : new Date(year, month, 0).getDate();
+        const avgDaily = daysElapsed > 0 ? monthTot.total / daysElapsed : 0;
+
+        // vs mes anterior
+        const diff = monthTot.total - prevTot.total;
+        const pct = prevTot.total > 0 ? (diff / prevTot.total) * 100 : null;
+
+        // tendencia: ultimos 6 meses, rellenando faltantes con 0
+        const trendMap = new Map(monthly.map((m) => [m.month, m.total]));
+        const trend: Array<{ month: string; total: number }> = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(year, month - 1 - i, 1);
+          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          trend.push({ month: ym, total: trendMap.get(ym) || 0 });
+        }
+
+        return {
+          year,
+          month,
+          total: monthTot.total,
+          count: monthTot.count,
+          byCategory,
+          byStore,
+          topCategory,
+          topStore,
+          avgDaily: Math.round(avgDaily * 100) / 100,
+          vsLastMonth: {
+            prevTotal: prevTot.total,
+            diff: Math.round(diff * 100) / 100,
+            pct: pct === null ? null : Math.round(pct * 10) / 10,
+          },
+          trend,
+        };
       }),
   }),
 });
