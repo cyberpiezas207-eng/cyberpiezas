@@ -438,4 +438,5 @@ export async function monthlyPersonalExpenseTotals(
     .groupBy(ymExpr)
     .orderBy(ymExpr);
   return rows.map((r) => ({ month: r.month, total: Number(r.total) || 0 }));
-}
+} 
+
