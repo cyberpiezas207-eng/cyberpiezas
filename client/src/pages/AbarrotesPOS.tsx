@@ -30,6 +30,10 @@ import {
   Calendar,
   Receipt,
   ArrowDownCircle,
+  AlertCircle,
+  TrendingDown,
+  ClipboardList,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,7 +71,11 @@ interface CartItem {
   isQuick?: boolean; // true para ventas rapidas sin codigo
 }
 
-type TabKey = "venta" | "clientes" | "fiados";
+type TabKey = "venta" | "clientes" | "fiados" | "stock";
+
+// Umbral por defecto para considerar stock bajo (configurable a futuro)
+const LOW_STOCK_THRESHOLD = 10;
+const CRITICAL_STOCK_THRESHOLD = 3;
 
 export default function AbarrotesPOS() {
   const [, navigate] = useLocation();
@@ -142,6 +150,29 @@ export default function AbarrotesPOS() {
     }
   );
   const fiados = fiadosQuery.data ?? [];
+
+  // ========================================================================
+  // STOCK BAJO - calculo derivado de productos
+  // Detecta productos que tienen stock <= LOW_STOCK_THRESHOLD para alertar
+  // al tendero antes de quedarse sin existencias. NO requiere endpoint nuevo:
+  // usa el mismo products.list que ya tenemos en pantalla.
+  // ========================================================================
+  const lowStockProducts = (products ?? [])
+    .map((p: any) => {
+      // El stock puede venir en p.stock, p.totalStock o calcularse de variants
+      const stockValue =
+        typeof p.stock === "number" ? p.stock :
+        typeof p.totalStock === "number" ? p.totalStock :
+        Array.isArray(p.variants) ? p.variants.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0) :
+        null; // null = sin info de stock
+
+      return { ...p, computedStock: stockValue };
+    })
+    .filter((p: any) => p.computedStock !== null && p.computedStock <= LOW_STOCK_THRESHOLD)
+    .sort((a: any, b: any) => a.computedStock - b.computedStock); // critico primero
+
+  const lowStockCount = lowStockProducts.length;
+  const criticalStockCount = lowStockProducts.filter((p: any) => p.computedStock <= CRITICAL_STOCK_THRESHOLD).length;
 
   // ========================================================================
   // GUARD DE ACCESO
@@ -452,6 +483,13 @@ export default function AbarrotesPOS() {
               label="Fiados"
               badge={fiados.length > 0 ? fiados.length : undefined}
             />
+            <TabButton
+              active={activeTab === "stock"}
+              onClick={() => setActiveTab("stock")}
+              icon={<TrendingDown className="w-4 h-4" />}
+              label="Stock"
+              badge={lowStockCount > 0 ? lowStockCount : undefined}
+            />
           </div>
         </div>
 
@@ -748,11 +786,100 @@ export default function AbarrotesPOS() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* ============================================================ */}
-      {/* MODAL CHECKOUT PREMIUM (no Dialog estandard)                 */}
-      {/* ============================================================ */}
+        {/* ============================================================ */}
+        {/* TAB STOCK: Productos con stock bajo + lista de surtido         */}
+        {/* ============================================================ */}
+        {activeTab === "stock" && (
+          <div className={mounted ? "animate-slide-up" : "opacity-0"}>
+            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-orange-500/10 border-b border-white/10 px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-white font-bold text-base flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4 text-orange-400" />
+                    Stock bajo
+                    {lowStockCount > 0 && (
+                      <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/15 px-2 py-0.5 rounded-full ml-1">
+                        {lowStockCount} producto{lowStockCount === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </h2>
+                  {criticalStockCount > 0 && (
+                    <p className="text-xs text-rose-300 mt-1 flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>
+                        <strong className="font-bold">{criticalStockCount}</strong> en estado critico (≤ {CRITICAL_STOCK_THRESHOLD})
+                      </span>
+                    </p>
+                  )}
+                </div>
+                {lowStockProducts.length > 0 && (
+                  <Button
+                    onClick={() => {
+                      const lista = lowStockProducts
+                        .map((p: any) => "• " + p.name + " (quedan " + p.computedStock + ")")
+                        .join("\n");
+                      const fullText = "LISTA DE SURTIDO - " + new Date().toLocaleDateString("es-MX") + "\n\n" + lista;
+                      navigator.clipboard.writeText(fullText)
+                        .then(() => toast.success("Lista copiada al portapapeles"))
+                        .catch(() => toast.error("No se pudo copiar"));
+                    }}
+                    className="h-10 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 gap-2 px-4 text-xs"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar lista surtido
+                  </Button>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="p-4 sm:p-5">
+                {isLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-orange-400 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">Cargando inventario...</p>
+                  </div>
+                ) : lowStockProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-7 h-7 text-emerald-400/80" />
+                    </div>
+                    <p className="text-white font-bold text-sm mb-1">¡Inventario sano!</p>
+                    <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
+                      Ningun producto esta por debajo de las {LOW_STOCK_THRESHOLD} unidades.
+                      Te avisare cuando alguno necesite resurtido.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Lista de surtido */}
+                    <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-3 mb-4 flex items-start gap-2">
+                      <ClipboardList className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 text-xs text-slate-300 leading-relaxed">
+                        <strong className="font-bold text-orange-300">Tip:</strong>{" "}
+                        Usa el boton "Copiar lista" para mandar por WhatsApp a tu proveedor.
+                        Ya viene formateada lista para enviar.
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {lowStockProducts.map((product: any, idx: number) => (
+                        <LowStockCard
+                          key={product.id}
+                          product={product}
+                          delay={idx * 40}
+                          isCritical={product.computedStock <= CRITICAL_STOCK_THRESHOLD}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       {showCheckout && (
         <CheckoutModal
           subtotal={subtotal}
@@ -2114,6 +2241,97 @@ function AbonoModal({ fiado, customer, onCancel, onSaved }: {
               </>
             )}
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// LOW STOCK CARD - tarjeta de producto con stock bajo
+// ============================================================================
+function LowStockCard({ product, delay, isCritical }: {
+  product: any;
+  delay: number;
+  isCritical: boolean;
+}) {
+  const stock = product.computedStock;
+  const price = typeof product.basePrice === "string"
+    ? parseFloat(product.basePrice)
+    : (product.basePrice as number);
+
+  return (
+    <div
+      className={
+        "relative backdrop-blur-md border rounded-2xl p-4 transition-all overflow-hidden animate-slide-up hover:-translate-y-0.5 " +
+        (isCritical
+          ? "bg-rose-500/[0.08] border-rose-500/30 hover:border-rose-500/50 hover:shadow-xl hover:shadow-rose-500/10"
+          : "bg-orange-500/[0.05] border-orange-500/25 hover:border-orange-500/45 hover:shadow-lg hover:shadow-orange-500/10")
+      }
+      style={{ animationDelay: delay + "ms", animationFillMode: "forwards", opacity: 0 }}
+    >
+      <div
+        className={
+          "absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-15 " +
+          (isCritical ? "bg-rose-500" : "bg-orange-500")
+        }
+      />
+
+      <div className="relative">
+        {/* Header: icono + status */}
+        <div className="flex items-start justify-between mb-3">
+          <div
+            className={
+              "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 " +
+              (isCritical
+                ? "bg-rose-500/20 border border-rose-500/40"
+                : "bg-orange-500/20 border border-orange-500/40")
+            }
+          >
+            <Package className={"w-5 h-5 " + (isCritical ? "text-rose-300" : "text-orange-300")} />
+          </div>
+          <span
+            className={
+              "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border " +
+              (isCritical
+                ? "bg-rose-500/20 border-rose-500/40 text-rose-300"
+                : "bg-orange-500/20 border-orange-500/40 text-orange-300")
+            }
+          >
+            {isCritical && <AlertCircle className="w-2.5 h-2.5" />}
+            {isCritical ? "Critico" : "Bajo"}
+          </span>
+        </div>
+
+        {/* Nombre */}
+        <p className="font-bold text-white text-sm truncate mb-0.5">{product.name}</p>
+        {product.sku && (
+          <p className="text-[10px] text-slate-500 font-mono mb-2 truncate">{product.sku}</p>
+        )}
+
+        {/* Stock info destacado */}
+        <div
+          className={
+            "rounded-xl p-3 mt-2 " +
+            (isCritical
+              ? "bg-rose-500/10 border border-rose-500/30"
+              : "bg-orange-500/10 border border-orange-500/30")
+          }
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300 mb-0.5">
+            Quedan
+          </p>
+          <p
+            className={
+              "text-2xl font-bold tracking-tight " +
+              (isCritical ? "text-rose-300" : "text-orange-300")
+            }
+          >
+            {stock} <span className="text-xs font-medium text-slate-400">unidades</span>
+          </p>
+          <p className="text-[10px] text-slate-500 mt-0.5">
+            Precio: ${price.toFixed(2)}
+          </p>
         </div>
       </div>
     </div>
