@@ -25,12 +25,14 @@ import AdminTabsBar, {
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab";
 import PersonalExpensesCard from "@/components/admin/PersonalExpensesCard";
+import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<AdminTabKey>("suscriptores");
+  const [showGastos, setShowGastos] = useState(false);
   const [welcomeEmail, setWelcomeEmail] = useState<{
     to: string;
     subject: string;
@@ -194,14 +196,15 @@ export default function AdminCyberpiezas() {
         {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
         {/* Tab content: Operaciones */}
-       {activeTab === "operaciones" && (
-          <div className="space-y-6">
-            <PersonalExpensesCard
-              onOpen={() => toast.info("Detalle de gastos: proximamente")}
-            />
-            <OperationsView showHeader={false} />
-          </div>
-        )}
+       {activeTab === "operaciones" &&
+          (showGastos ? (
+            <PersonalExpensesView onBack={() => setShowGastos(false)} />
+          ) : (
+            <div className="space-y-6">
+              <PersonalExpensesCard onOpen={() => setShowGastos(true)} />
+              <OperationsView showHeader={false} />
+            </div>
+          ))}
       </div>
 
       {/* Modal "Welcome email": helpers para copiar/abrir mailto */}
