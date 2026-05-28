@@ -1,10 +1,10 @@
 // ============================================================================
 // VISTA "Mis Gastos" - pantalla completa de gastos personales
 // ----------------------------------------------------------------------------
-// Captura rapida que se categoriza sola, tarjetas de resumen y lista.
+// Captura rapida que se categoriza sola, tarjetas, graficas y lista con
+// acciones (borrar, corregir categoria y aprender regla).
 // Datos personales del hogar, separados del negocio. Coral = sale dinero.
-// Patron del proyecto: trpc de @/lib/trpc, Card/Button/Input de ui, lucide,
-// sonner. Comentarios SIN ACENTOS por convencion del proyecto.
+// Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
 import { useState, useEffect } from "react";
@@ -24,6 +24,7 @@ import {
   TrendingDown,
   Sparkles,
   Tag,
+  Trash2,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -39,7 +40,6 @@ function nowMexico(): Date {
 }
 
 function formatDay(ymd: string): string {
-  // ymd = "YYYY-MM-DD"
   const parts = (ymd || "").split("-");
   if (parts.length !== 3) return ymd || "";
   return `${parts[2]}/${parts[1]}`;
@@ -59,7 +59,6 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
 
-  // Debounce del texto para el preview en vivo (no spamear al servidor)
   useEffect(() => {
     const t = setTimeout(() => setDebounced(text.trim()), 350);
     return () => clearTimeout(t);
@@ -81,6 +80,11 @@ export default function PersonalExpensesView({ onBack }: Props) {
     { enabled: debounced.length > 0 },
   );
 
+  const refreshAll = () => {
+    utils.personalExpenses.stats.dashboard.invalidate();
+    utils.personalExpenses.expenses.list.invalidate();
+  };
+
   const seed = trpc.personalExpenses.seedDefaults.useMutation({
     onSuccess: () => {
       toast.success("Categorias y tiendas activadas");
@@ -99,10 +103,27 @@ export default function PersonalExpensesView({ onBack }: Props) {
       toast.success(`Gasto guardado en ${cat}`);
       setText("");
       setDebounced("");
-      utils.personalExpenses.stats.dashboard.invalidate();
-      utils.personalExpenses.expenses.list.invalidate();
+      refreshAll();
     },
     onError: (e) => toast.error(e.message || "No se pudo guardar"),
+  });
+
+  const recategorize = trpc.personalExpenses.expenses.recategorize.useMutation({
+    onSuccess: (res) => {
+      toast.success(
+        res.ruleSaved ? "Categoria actualizada y aprendida" : "Categoria actualizada",
+      );
+      refreshAll();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo actualizar"),
+  });
+
+  const softDelete = trpc.personalExpenses.expenses.softDelete.useMutation({
+    onSuccess: () => {
+      toast.success("Gasto borrado");
+      refreshAll();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo borrar"),
   });
 
   const handleAdd = () => {
@@ -111,12 +132,25 @@ export default function PersonalExpensesView({ onBack }: Props) {
     quickCreate.mutate({ text: t });
   };
 
+  const handleRecategorize = (expenseId: number, newCatId: number | null) => {
+    const saveRule =
+      newCatId != null
+        ? window.confirm("Recordar para la proxima? (guardar regla)")
+        : false;
+    recategorize.mutate({ id: expenseId, categoryId: newCatId, saveRule });
+  };
+
+  const handleDelete = (id: number) => {
+    if (window.confirm("Borrar este gasto?")) {
+      softDelete.mutate({ id });
+    }
+  };
+
   const dash = dashboardQuery.data;
   const categories = categoriesQuery.data ?? [];
   const expenses = listQuery.data ?? [];
   const noCategories = categoriesQuery.isFetched && categories.length === 0;
 
-  // Mapa id -> categoria para pintar la lista
   const catById = new Map(categories.map((c) => [c.id, c]));
 
   const pct = dash?.vsLastMonth?.pct ?? null;
@@ -316,6 +350,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
           </CardContent>
         </Card>
       </div>
+
       {/* Graficas */}
       {dash && (
         <PersonalExpensesCharts
@@ -324,6 +359,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
           trend={dash.trend}
         />
       )}
+
       {/* Lista de gastos */}
       <Card className="bg-slate-800 border border-slate-700">
         <CardContent className="p-5">
@@ -364,15 +400,44 @@ export default function PersonalExpensesView({ onBack }: Props) {
                           {e.description || cat?.name || "Gasto"}
                         </p>
                         <p className="text-xs text-slate-400 truncate">
-                          {cat?.name ?? "Sin clasificar"}
-                          {e.storeName ? ` · ${e.storeName}` : ""} ·{" "}
+                          {e.storeName ? `${e.storeName} · ` : ""}
                           {formatDay(e.expenseDate)}
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm font-bold text-orange-400 shrink-0">
-                      {fmt(Number(e.amount))}
-                    </span>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-sm font-bold text-orange-400">
+                        {fmt(Number(e.amount))}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={e.categoryId ?? ""}
+                          onChange={(ev) =>
+                            handleRecategorize(
+                              e.id,
+                              ev.target.value === "" ? null : Number(ev.target.value),
+                            )
+                          }
+                          className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-1.5 py-1 max-w-[140px]"
+                          title="Cambiar categoria"
+                        >
+                          <option value="">Sin clasificar</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.icon} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleDelete(e.id)}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                          title="Borrar gasto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
