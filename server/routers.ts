@@ -16,6 +16,7 @@ import { tarimaRouter } from "./routers/tarima";
 import { pagosRouter } from "./routers/pagos";
 import { taqueriaRouter } from "./routers/taqueria";
 import { mobilityRouter } from "./routers/mobility";
+import { personalExpensesRouter } from "./routers/personalExpenses";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
