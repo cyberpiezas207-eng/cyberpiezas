@@ -187,6 +187,7 @@ export const appRouter = router({
   pagos: pagosRouter,
   taqueria: taqueriaRouter,
   mobility: mobilityRouter,
+  personalExpenses: personalExpensesRouter,
   auth: router({
     login: publicProcedure
       .input(
