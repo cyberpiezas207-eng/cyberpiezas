@@ -19,6 +19,7 @@ import { mobilityRouter } from "./routers/mobility";
 import { personalExpensesRouter } from "./routers/personalExpenses";
 import { personalPantryRouter } from "./routers/personalPantry";
 import { personalPantrySuggestionsRouter } from "./routers/personalPantrySuggestions";
+import { personalPantryPricesRouter } from "./routers/personalPantryPrices";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -192,6 +193,7 @@ export const appRouter = router({
   personalExpenses: personalExpensesRouter,
   personalPantry: personalPantryRouter,
   personalPantrySuggestions: personalPantrySuggestionsRouter,
+  personalPantryPrices: personalPantryPricesRouter,
   auth: router({
     login: publicProcedure
       .input(
