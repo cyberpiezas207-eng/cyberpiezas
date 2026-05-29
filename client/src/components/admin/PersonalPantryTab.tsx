@@ -4,6 +4,7 @@
 // Productos del hogar con nivel simple (no gramos), lista de compra
 // automatica y botones rapidos. Reusa categorias y tiendas de gastos.
 // Coral/rojo = se acaba | Naranja = bajo | Verde = disponible.
+// Cada producto tiene boton "Historial" que abre modal con precios y tiendas.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
@@ -13,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import PantryPriceHistoryModal from "@/components/admin/PantryPriceHistoryModal";
 import {
   Package,
   ShoppingBasket,
@@ -23,6 +25,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Minus,
+  LineChart,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -77,6 +80,9 @@ export default function PersonalPantryTab() {
   const [newName, setNewName] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+
+  // Producto seleccionado para ver historial (modal)
+  const [historyItemId, setHistoryItemId] = useState<number | null>(null);
 
   // Reusamos categorias y tiendas de los gastos (mismas piezas)
   const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
@@ -185,6 +191,11 @@ export default function PersonalPantryTab() {
 
   const catById = new Map(categories.map((c) => [c.id, c]));
   const storeById = new Map(stores.map((s) => [s.id, s]));
+
+  // Item seleccionado para historial
+  const historyItem = historyItemId
+    ? items.find((i) => i.id === historyItemId) ?? null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -404,13 +415,22 @@ export default function PersonalPantryTab() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleArchive(item.id, item.name)}
-                        className="text-slate-500 hover:text-rose-400 p-1 shrink-0"
-                        title="Quitar de la alacena"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setHistoryItemId(item.id)}
+                          className="text-slate-500 hover:text-emerald-300 p-1"
+                          title="Ver historial de precios"
+                        >
+                          <LineChart className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleArchive(item.id, item.name)}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                          title="Quitar de la alacena"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Barra de nivel */}
@@ -470,7 +490,15 @@ export default function PersonalPantryTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de historial de precios */}
+      {historyItem && (
+        <PantryPriceHistoryModal
+          item={{ id: historyItem.id, name: historyItem.name }}
+          stores={stores.map((s) => ({ id: s.id, name: s.name }))}
+          onClose={() => setHistoryItemId(null)}
+        />
+      )}
     </div>
   );
 }
-
