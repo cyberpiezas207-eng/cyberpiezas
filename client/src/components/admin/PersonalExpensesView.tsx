@@ -2,7 +2,8 @@
 // VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
 // Sub-pestanas internas:
-//   - Gastos / Flujo : captura, sugerencia de alacena, tarjetas, graficas y lista
+//   - Gastos / Flujo : navegador de mes, captura, sugerencia de alacena,
+//                      tarjetas, graficas, filtros y lista navegable
 //   - Alacena        : productos del hogar con niveles y lista de compra
 // Boton "Gestionar" abre el modal de categorias y tiendas editables.
 // Datos personales del hogar, separados del negocio. Coral = sale dinero.
@@ -32,6 +33,9 @@ import {
   Trash2,
   Package,
   Settings,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -40,6 +44,19 @@ const fmt = (n: number) =>
     currency: "MXN",
     maximumFractionDigits: 0,
   }).format(Math.round(n));
+
+const MONTHS_ES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "Efectivo",
+  debit: "Debito",
+  credit: "Credito",
+  transfer: "Transferencia",
+  other: "Otro",
+};
 
 // Morelos = UTC-6 todo el ano
 function nowMexico(): Date {
@@ -50,6 +67,14 @@ function formatDay(ymd: string): string {
   const parts = (ymd || "").split("-");
   if (parts.length !== 3) return ymd || "";
   return `${parts[2]}/${parts[1]}`;
+}
+
+function normalizeText(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 type SubTab = "gastos" | "alacena";
@@ -68,14 +93,22 @@ interface Props {
 }
 
 export default function PersonalExpensesView({ onBack }: Props) {
-  const now = nowMexico();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const today = nowMexico();
 
   const [activeTab, setActiveTab] = useState<SubTab>("gastos");
   const [showManager, setShowManager] = useState(false);
   const [pendingSuggestion, setPendingSuggestion] =
     useState<PendingSuggestion | null>(null);
+
+  // Mes seleccionado (navegable)
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+
+  // Filtros de la lista
+  const [search, setSearch] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState<number | "all">("all");
+  const [filterStoreId, setFilterStoreId] = useState<number | "all">("all");
+  const [filterPayment, setFilterPayment] = useState<string>("all");
 
   const utils = trpc.useUtils();
 
@@ -88,6 +121,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
   }, [text]);
 
   const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
+  const storesQuery = trpc.personalExpenses.stores.list.useQuery();
   const dashboardQuery = trpc.personalExpenses.stats.dashboard.useQuery({
     year,
     month,
@@ -95,7 +129,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const listQuery = trpc.personalExpenses.expenses.list.useQuery({
     year,
     month,
-    limit: 50,
+    limit: 200,
   });
 
   const preview = trpc.personalExpenses.expenses.previewCapture.useQuery(
@@ -186,8 +220,18 @@ export default function PersonalExpensesView({ onBack }: Props) {
     }
   };
 
+  // Navegacion de mes
+  function shiftMonth(delta: number) {
+    const d = new Date(year, month - 1 + delta, 1);
+    setYear(d.getFullYear());
+    setMonth(d.getMonth() + 1);
+  }
+  const atCurrentMonth =
+    year === today.getFullYear() && month === today.getMonth() + 1;
+
   const dash = dashboardQuery.data;
   const categories = categoriesQuery.data ?? [];
+  const stores = storesQuery.data ?? [];
   const expenses = listQuery.data ?? [];
   const noCategories = categoriesQuery.isFetched && categories.length === 0;
 
@@ -195,6 +239,30 @@ export default function PersonalExpensesView({ onBack }: Props) {
 
   const pct = dash?.vsLastMonth?.pct ?? null;
   const wentUp = pct !== null && pct > 0;
+
+  // Filtrado de la lista (cliente)
+  const hasFilters =
+    search.trim().length > 0 ||
+    filterCategoryId !== "all" ||
+    filterStoreId !== "all" ||
+    filterPayment !== "all";
+
+  const filteredExpenses = expenses.filter((e) => {
+    if (search.trim()) {
+      const q = normalizeText(search);
+      const desc = normalizeText(e.description || "");
+      const store = normalizeText(e.storeName || "");
+      if (!desc.includes(q) && !store.includes(q)) return false;
+    }
+    if (filterCategoryId !== "all" && e.categoryId !== filterCategoryId)
+      return false;
+    if (filterStoreId !== "all" && e.storeId !== filterStoreId) return false;
+    if (filterPayment !== "all" && e.paymentMethod !== filterPayment)
+      return false;
+    return true;
+  });
+
+  const monthLabel = `${MONTHS_ES[month - 1]} ${year}`;
 
   return (
     <div className="space-y-6">
@@ -264,6 +332,39 @@ export default function PersonalExpensesView({ onBack }: Props) {
       {/* ====== TAB: GASTOS / FLUJO ====== */}
       {activeTab === "gastos" && (
         <>
+          {/* Navegador de mes */}
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"
+              title="Mes anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="text-center min-w-[160px]">
+              <div className="text-sm font-bold text-slate-100">{monthLabel}</div>
+              {!atCurrentMonth && (
+                <button
+                  onClick={() => {
+                    setYear(today.getFullYear());
+                    setMonth(today.getMonth() + 1);
+                  }}
+                  className="text-[10px] text-indigo-300 hover:text-indigo-200 uppercase tracking-wider"
+                >
+                  Volver al mes actual
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => shiftMonth(1)}
+              disabled={atCurrentMonth}
+              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Mes siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Banner primera vez: sembrar categorias */}
           {noCategories && (
             <Card className="bg-slate-800 border border-purple-500/30">
@@ -368,7 +469,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
             <Card className="bg-slate-800 border border-orange-500/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-slate-400 text-xs">
-                  <Wallet className="w-4 h-4" /> Gastado este mes
+                  <Wallet className="w-4 h-4" /> Gastado en el mes
                 </div>
                 <div className="text-2xl font-bold text-orange-400 mt-1">
                   {fmt(dash?.total ?? 0)}
@@ -448,26 +549,110 @@ export default function PersonalExpensesView({ onBack }: Props) {
             />
           )}
 
-          {/* Lista de gastos */}
+          {/* Lista de gastos con filtros */}
           <Card className="bg-slate-800 border border-slate-700">
             <CardContent className="p-5">
               <h3 className="text-sm font-bold text-slate-200 mb-3">
-                Gastos de este mes
+                Gastos de {monthLabel}
               </h3>
+
+              {/* Barra de filtros */}
+              <div className="space-y-2 mb-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por descripcion o tienda..."
+                    className="bg-slate-900 border-slate-700 text-white pl-9"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={filterCategoryId === "all" ? "all" : String(filterCategoryId)}
+                    onChange={(e) =>
+                      setFilterCategoryId(
+                        e.target.value === "all" ? "all" : Number(e.target.value),
+                      )
+                    }
+                    className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5"
+                  >
+                    <option value="all">Todas las categorias</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterStoreId === "all" ? "all" : String(filterStoreId)}
+                    onChange={(e) =>
+                      setFilterStoreId(
+                        e.target.value === "all" ? "all" : Number(e.target.value),
+                      )
+                    }
+                    className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5"
+                  >
+                    <option value="all">Todas las tiendas</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterPayment}
+                    onChange={(e) => setFilterPayment(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5"
+                  >
+                    <option value="all">Todos los metodos</option>
+                    {Object.entries(PAYMENT_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                  {hasFilters && (
+                    <button
+                      onClick={() => {
+                        setSearch("");
+                        setFilterCategoryId("all");
+                        setFilterStoreId("all");
+                        setFilterPayment("all");
+                      }}
+                      className="text-xs text-indigo-300 hover:text-indigo-200 px-2 py-1.5"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {expenses.length === 0 ? (
                 <div className="text-center py-10">
                   <Wallet className="w-10 h-10 text-slate-600 mx-auto mb-3" />
                   <p className="text-slate-300 font-medium">
-                    Todavia no hay gastos este mes
+                    No hay gastos en {monthLabel}
                   </p>
                   <p className="text-slate-500 text-sm mt-1">
-                    Empieza capturando algo como: gasolina pemex 500
+                    {atCurrentMonth
+                      ? "Empieza capturando algo como: gasolina pemex 500"
+                      : "Prueba con otro mes."}
+                  </p>
+                </div>
+              ) : filteredExpenses.length === 0 ? (
+                <div className="text-center py-10">
+                  <Search className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-300 font-medium">
+                    Nada coincide con tus filtros
+                  </p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Ajusta la busqueda o limpia los filtros.
                   </p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-700/60">
-                  {expenses.map((e) => {
+                  {filteredExpenses.map((e) => {
                     const cat =
                       e.categoryId != null ? catById.get(e.categoryId) : null;
                     return (
@@ -533,6 +718,15 @@ export default function PersonalExpensesView({ onBack }: Props) {
                     );
                   })}
                 </div>
+              )}
+
+              {/* Contador */}
+              {filteredExpenses.length > 0 && (
+                <p className="text-[11px] text-slate-500 text-center mt-3">
+                  {hasFilters
+                    ? `${filteredExpenses.length} de ${expenses.length} gastos`
+                    : `${expenses.length} gasto(s) en ${monthLabel}`}
+                </p>
               )}
             </CardContent>
           </Card>
