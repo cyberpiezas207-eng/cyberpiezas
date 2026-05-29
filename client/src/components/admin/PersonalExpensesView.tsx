@@ -4,6 +4,7 @@
 // Sub-pestanas internas:
 //   - Gastos / Flujo : captura, sugerencia de alacena, tarjetas, graficas y lista
 //   - Alacena        : productos del hogar con niveles y lista de compra
+// Boton "Gestionar" abre el modal de categorias y tiendas editables.
 // Datos personales del hogar, separados del negocio. Coral = sale dinero.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -17,6 +18,7 @@ import { toast } from "sonner";
 import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
+import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import {
   ArrowLeft,
   Plus,
@@ -29,6 +31,7 @@ import {
   Tag,
   Trash2,
   Package,
+  Settings,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -70,6 +73,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const month = now.getMonth() + 1;
 
   const [activeTab, setActiveTab] = useState<SubTab>("gastos");
+  const [showManager, setShowManager] = useState(false);
   const [pendingSuggestion, setPendingSuggestion] =
     useState<PendingSuggestion | null>(null);
 
@@ -223,7 +227,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
         </div>
       </div>
 
-      {/* Sub-pestanas internas */}
+      {/* Sub-pestanas internas + boton gestionar */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setActiveTab("gastos")}
@@ -246,6 +250,14 @@ export default function PersonalExpensesView({ onBack }: Props) {
         >
           <Package className="w-4 h-4" />
           Alacena
+        </button>
+        <button
+          onClick={() => setShowManager(true)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold bg-slate-800 border border-slate-700 text-slate-400 hover:text-indigo-300 ml-auto"
+          title="Gestionar categorias y tiendas"
+        >
+          <Settings className="w-4 h-4" />
+          Gestionar
         </button>
       </div>
 
@@ -529,6 +541,11 @@ export default function PersonalExpensesView({ onBack }: Props) {
 
       {/* ====== TAB: ALACENA ====== */}
       {activeTab === "alacena" && <PersonalPantryTab />}
+
+      {/* Modal Gestionar */}
+      {showManager && (
+        <CategoriesStoresManager onClose={() => setShowManager(false)} />
+      )}
     </div>
   );
 }
