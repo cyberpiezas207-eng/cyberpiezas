@@ -4,7 +4,8 @@
 // Recibe una lista de nombres (los productos sugeridos del gasto). Para cada
 // uno: si ya existe (por normalizedName), lo repone al 100% y actualiza
 // precio/tienda/fecha. Si no existe, lo crea al 100%. Todo deja huella en
-// personalPantryMovements vinculado al expenseId que lo origino.
+// personalPantryMovements vinculado al expenseId que lo origino. Si viene
+// con precio, ademas guarda un punto en el historial de precios.
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -17,6 +18,7 @@ import {
   type PersonalPantryItem,
 } from "./personalPantrySchema";
 import { normalizeText } from "./personalExpensesEngine";
+import { recordPantryItemPrice } from "./personalPantryPricesDb";
 
 function todayMexico(): string {
   const ms = Date.now() - 6 * 60 * 60 * 1000;
@@ -76,9 +78,13 @@ export async function bulkCreateOrRestockPantryItems(
       )
       .limit(1);
 
+    let pantryItemId: number;
+
     if (existing.length > 0) {
       // REPONER existente: vuelve a 100%, suma frecuencia, guarda precio/tienda
       const item = existing[0];
+      pantryItemId = item.id;
+
       await conn
         .update(personalPantryItems)
         .set({
@@ -130,11 +136,11 @@ export async function bulkCreateOrRestockPantryItems(
         notes: null,
       });
 
-      const insertId = (insertRes as any).insertId as number;
+      pantryItemId = (insertRes as any).insertId as number;
 
       await conn.insert(personalPantryMovements).values({
         userId,
-        pantryItemId: insertId,
+        pantryItemId,
         expenseId: options.expenseId ?? null,
         movementType: "added",
         stockPercentBefore: null,
@@ -147,9 +153,21 @@ export async function bulkCreateOrRestockPantryItems(
       const newItem = await conn
         .select()
         .from(personalPantryItems)
-        .where(eq(personalPantryItems.id, insertId))
+        .where(eq(personalPantryItems.id, pantryItemId))
         .limit(1);
       if (newItem[0]) finalItems.push(newItem[0]);
+    }
+
+    // Guardar punto en el historial de precios (si hay precio valido)
+    if (raw.pricePerUnit != null && raw.pricePerUnit > 0) {
+      await recordPantryItemPrice(userId, {
+        pantryItemId,
+        unitPrice: raw.pricePerUnit,
+        storeId: options.storeId ?? null,
+        expenseId: options.expenseId ?? null,
+        source: "bulk_from_expense",
+        purchasedAt: today,
+      });
     }
   }
 
