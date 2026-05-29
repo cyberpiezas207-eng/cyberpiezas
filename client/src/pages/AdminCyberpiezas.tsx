@@ -24,7 +24,7 @@ import AdminTabsBar, {
 } from "@/components/admin/AdminTabsBar";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab";
-import PersonalExpensesCard from "@/components/admin/PersonalExpensesCard";
+import FlujoGeneralPanel from "@/components/admin/FlujoGeneralPanel";
 import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
 
 export default function AdminCyberpiezas() {
@@ -201,7 +201,7 @@ export default function AdminCyberpiezas() {
             <PersonalExpensesView onBack={() => setShowGastos(false)} />
           ) : (
             <div className="space-y-6">
-              <PersonalExpensesCard onOpen={() => setShowGastos(true)} />
+             <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
               <OperationsView showHeader={false} />
             </div>
           ))}
