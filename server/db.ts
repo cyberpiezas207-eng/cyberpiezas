@@ -82,6 +82,7 @@ import {
 import { ENV } from "./_core/env";
 import { personalExpensesMigrations } from "./personalExpensesSchema";
 import { personalPantryMigrations } from "./personalPantrySchema";
+import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
@@ -211,6 +212,7 @@ export async function runStartupMigrations(): Promise<void> {
     // Tablas del modulo de gastos personales (admin exclusivo)
     ...personalExpensesMigrations,
     ...personalPantryMigrations,
+    ...personalPantryPricesMigrations,
     // Columna para persistir aceptación de términos y condiciones por usuario
     // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
     "ALTER TABLE `users` ADD COLUMN `termsAcceptedAt` timestamp NULL DEFAULT NULL",
