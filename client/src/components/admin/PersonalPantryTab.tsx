@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import PantryPriceHistoryModal from "@/components/admin/PantryPriceHistoryModal";
+import RestockItemModal from "@/components/admin/RestockItemModal";
 import {
   Package,
   ShoppingBasket,
@@ -83,6 +84,9 @@ export default function PersonalPantryTab() {
 
   // Producto seleccionado para ver historial (modal)
   const [historyItemId, setHistoryItemId] = useState<number | null>(null);
+
+  // Producto seleccionado para Comprar de nuevo (modal premium)
+  const [restockItemId, setRestockItemId] = useState<number | null>(null);
 
   // Reusamos categorias y tiendas de los gastos (mismas piezas)
   const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
@@ -159,22 +163,9 @@ export default function PersonalPantryTab() {
     });
   };
 
-  // "Comprar de nuevo": permite editar precio (puede cambiar entre compras)
-  const handleRestocked = (id: number, lastStoreId: number | null) => {
-    const priceStr = window.prompt(
-      "Precio de compra (deja vacio si no quieres registrar):",
-      "",
-    );
-    let price: number | null = null;
-    if (priceStr && priceStr.trim().length > 0) {
-      const parsed = parseFloat(priceStr.replace(",", "."));
-      if (Number.isFinite(parsed) && parsed >= 0) price = parsed;
-    }
-    restocked.mutate({
-      id,
-      price,
-      storeId: lastStoreId ?? undefined,
-    });
+  // "Comprar de nuevo": abre el modal premium con ultimo precio + mejor tienda
+  const handleRestocked = (id: number, _lastStoreId: number | null) => {
+    setRestockItemId(id);
   };
 
   const handleArchive = (id: number, name: string) => {
@@ -195,6 +186,11 @@ export default function PersonalPantryTab() {
   // Item seleccionado para historial
   const historyItem = historyItemId
     ? items.find((i) => i.id === historyItemId) ?? null
+    : null;
+
+  // Item seleccionado para Comprar de nuevo
+  const restockItem = restockItemId
+    ? items.find((i) => i.id === restockItemId) ?? null
     : null;
 
   return (
@@ -497,6 +493,29 @@ export default function PersonalPantryTab() {
           item={{ id: historyItem.id, name: historyItem.name }}
           stores={stores.map((s) => ({ id: s.id, name: s.name }))}
           onClose={() => setHistoryItemId(null)}
+        />
+      )}
+
+      {/* Modal Comprar de nuevo */}
+      {restockItem && (
+        <RestockItemModal
+          item={{
+            id: restockItem.id,
+            name: restockItem.name,
+            icon: (restockItem as any).icon ?? null,
+            categoryId: restockItem.categoryId ?? null,
+            lastPurchasePrice: (restockItem as any).lastPurchasePrice ?? null,
+            lastStoreId: restockItem.lastStoreId ?? null,
+            lastPurchasedAt: (restockItem as any).lastPurchasedAt ?? null,
+          }}
+          stores={stores.map((s) => ({
+            id: s.id,
+            name: s.name,
+            icon: s.icon ?? null,
+            color: s.color ?? null,
+          }))}
+          onClose={() => setRestockItemId(null)}
+          onSaved={refreshAll}
         />
       )}
     </div>
