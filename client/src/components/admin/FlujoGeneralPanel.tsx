@@ -15,6 +15,7 @@
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import DebtsFlowSection from "@/components/admin/DebtsFlowSection";
 import {
   TrendingUp,
   Wallet,
@@ -431,6 +432,8 @@ export default function FlujoGeneralPanel({ onOpenMisGastos }: Props) {
         Las cifras de negocio (ingresos / utilidad / inventario) NO se ven
         afectadas por tus gastos personales. Esta vista es solo referencia.
       </p>
+      {/* Seccion de deudas integrada en flujo general */}
+      <DebtsFlowSection />
     </div>
   );
 }
