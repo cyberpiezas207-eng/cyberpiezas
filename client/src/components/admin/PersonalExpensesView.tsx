@@ -881,3 +881,4 @@ export default function PersonalExpensesView({ onBack }: Props) {
     </div>
   );
 }
+
