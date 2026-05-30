@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import PersonalVehicleTab from "@/components/admin/PersonalVehicleTab";
+import PersonalDebtsTab from "@/components/admin/PersonalDebtsTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -45,6 +46,7 @@ import {
   Clock,
   Download,
   Car,
+  CreditCard,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -86,7 +88,7 @@ function normalizeText(s: string): string {
     .trim();
 }
 
-type SubTab = "gastos" | "alacena" | "vehiculo";
+type SubTab = "gastos" | "alacena" | "vehiculo" | "deudas";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -364,6 +366,17 @@ export default function PersonalExpensesView({ onBack }: Props) {
         >
           <Car className="w-4 h-4" />
           Vehiculo
+        </button>
+        <button
+          onClick={() => setActiveTab("deudas")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "deudas"
+              ? "bg-gradient-to-br from-rose-500/25 to-red-600/15 border border-rose-400/60 text-rose-100 shadow-lg shadow-rose-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          Deudas
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -846,6 +859,9 @@ export default function PersonalExpensesView({ onBack }: Props) {
 
       {/* ====== TAB: VEHICULO ====== */}
       {activeTab === "vehiculo" && <PersonalVehicleTab />}
+
+      {/* ====== TAB: DEUDAS ====== */}
+      {activeTab === "deudas" && <PersonalDebtsTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
