@@ -83,6 +83,7 @@ import { ENV } from "./_core/env";
 import { personalExpensesMigrations } from "./personalExpensesSchema";
 import { personalPantryMigrations } from "./personalPantrySchema";
 import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
+import { personalVehicleMigrations } from "./personalVehicleSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
