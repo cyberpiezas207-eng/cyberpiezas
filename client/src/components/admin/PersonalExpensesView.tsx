@@ -22,6 +22,7 @@ import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
+import MonthlyInsightsPanel from "@/components/admin/MonthlyInsightsPanel";
 import {
   ArrowLeft,
   Plus,
@@ -395,6 +396,9 @@ export default function PersonalExpensesView({ onBack }: Props) {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Resumen del mes inteligente */}
+          <MonthlyInsightsPanel year={year} month={month} />
 
           {/* Banner primera vez: sembrar categorias */}
           {noCategories && (
