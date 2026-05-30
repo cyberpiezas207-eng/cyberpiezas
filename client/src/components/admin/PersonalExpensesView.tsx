@@ -23,6 +23,7 @@ import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
 import MonthlyInsightsPanel from "@/components/admin/MonthlyInsightsPanel";
+import ExportsModal from "@/components/admin/ExportsModal";
 import {
   ArrowLeft,
   Plus,
@@ -41,6 +42,7 @@ import {
   Search,
   FileText,
   Clock,
+  Download,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -103,6 +105,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
   const [activeTab, setActiveTab] = useState<SubTab>("gastos");
   const [showManager, setShowManager] = useState(false);
   const [showDetailed, setShowDetailed] = useState(false);
+  const [showExports, setShowExports] = useState(false);
   const [pendingSuggestion, setPendingSuggestion] =
     useState<PendingSuggestion | null>(null);
 
@@ -350,8 +353,16 @@ export default function PersonalExpensesView({ onBack }: Props) {
           Alacena
         </button>
         <button
+          onClick={() => setShowExports(true)}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-emerald-200 hover:bg-slate-800 hover:border-emerald-500/40 transition-all ml-auto"
+          title="Exportar datos a CSV"
+        >
+          <Download className="w-4 h-4" />
+          Exportar
+        </button>
+        <button
           onClick={() => setShowManager(true)}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-indigo-200 hover:bg-slate-800 hover:border-indigo-500/40 transition-all ml-auto"
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-indigo-200 hover:bg-slate-800 hover:border-indigo-500/40 transition-all"
           title="Gestionar categorias y tiendas"
         >
           <Settings className="w-4 h-4" />
@@ -832,6 +843,9 @@ export default function PersonalExpensesView({ onBack }: Props) {
           onSaved={refreshAll}
         />
       )}
+
+      {/* Modal Exportar datos */}
+      {showExports && <ExportsModal onClose={() => setShowExports(false)} />}
     </div>
   );
 }
