@@ -2,11 +2,12 @@
 // VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
 // Sub-pestanas internas:
-//   - Gastos / Flujo : navegador de mes, captura, sugerencia de alacena,
-//                      tarjetas, graficas, filtros y lista navegable
+//   - Gastos / Flujo : navegador de mes, captura rapida + detallada,
+//                      sugerencia de alacena, tarjetas, graficas, filtros y lista
 //   - Alacena        : productos del hogar con niveles y lista de compra
 // Boton "Gestionar" abre el modal de categorias y tiendas editables.
-// Datos personales del hogar, separados del negocio. Coral = sale dinero.
+// Boton "Captura detallada" abre el modal de gasto manual con campos separados.
+// Pendientes en lista: badge ambar + boton para asignar monto despues.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
@@ -20,6 +21,7 @@ import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
+import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
 import {
   ArrowLeft,
   Plus,
@@ -36,6 +38,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  FileText,
+  Clock,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -97,6 +101,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
 
   const [activeTab, setActiveTab] = useState<SubTab>("gastos");
   const [showManager, setShowManager] = useState(false);
+  const [showDetailed, setShowDetailed] = useState(false);
   const [pendingSuggestion, setPendingSuggestion] =
     useState<PendingSuggestion | null>(null);
 
@@ -200,6 +205,14 @@ export default function PersonalExpensesView({ onBack }: Props) {
     onError: (e) => toast.error(e.message || "No se pudo borrar"),
   });
 
+  const setAmount = trpc.personalExpensesCapture.setAmount.useMutation({
+    onSuccess: () => {
+      toast.success("Monto asignado");
+      refreshAll();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo asignar el monto"),
+  });
+
   const handleAdd = () => {
     const t = text.trim();
     if (!t) return;
@@ -218,6 +231,17 @@ export default function PersonalExpensesView({ onBack }: Props) {
     if (window.confirm("Borrar este gasto?")) {
       softDelete.mutate({ id });
     }
+  };
+
+  const handleSetAmount = (id: number, description: string) => {
+    const raw = window.prompt(`Asignar monto a "${description}":\n(solo el numero, ej: 150)`);
+    if (raw == null) return;
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      toast.error("Monto invalido");
+      return;
+    }
+    setAmount.mutate({ id, amount: n });
   };
 
   // Navegacion de mes
@@ -448,6 +472,20 @@ export default function PersonalExpensesView({ onBack }: Props) {
                   )}
                 </div>
               )}
+
+              {/* Captura detallada */}
+              <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-[11px] text-slate-500">
+                  ¿Gasto complejo o sin monto todavia?
+                </p>
+                <button
+                  onClick={() => setShowDetailed(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-700/60 border border-slate-600 text-slate-200 hover:bg-slate-700"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Captura detallada
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -655,6 +693,7 @@ export default function PersonalExpensesView({ onBack }: Props) {
                   {filteredExpenses.map((e) => {
                     const cat =
                       e.categoryId != null ? catById.get(e.categoryId) : null;
+                    const isPending = e.purchaseType === "pending";
                     return (
                       <div
                         key={e.id}
@@ -681,9 +720,22 @@ export default function PersonalExpensesView({ onBack }: Props) {
                         </div>
 
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-sm font-bold text-orange-400">
-                            {fmt(Number(e.amount))}
-                          </span>
+                          {isPending ? (
+                            <button
+                              onClick={() =>
+                                handleSetAmount(e.id, e.description || "gasto")
+                              }
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                              title="Asignar monto"
+                            >
+                              <Clock className="w-3 h-3" />
+                              Pendiente
+                            </button>
+                          ) : (
+                            <span className="text-sm font-bold text-orange-400">
+                              {fmt(Number(e.amount))}
+                            </span>
+                          )}
                           <div className="flex items-center gap-1">
                             <select
                               value={e.categoryId ?? ""}
@@ -739,6 +791,14 @@ export default function PersonalExpensesView({ onBack }: Props) {
       {/* Modal Gestionar */}
       {showManager && (
         <CategoriesStoresManager onClose={() => setShowManager(false)} />
+      )}
+
+      {/* Modal Captura detallada */}
+      {showDetailed && (
+        <DetailedExpenseModal
+          onClose={() => setShowDetailed(false)}
+          onSaved={refreshAll}
+        />
       )}
     </div>
   );
