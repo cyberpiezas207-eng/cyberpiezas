@@ -190,7 +190,7 @@ type SidebarPalette = "violet" | "midnight" | "emerald";
 
 const sidebarPaletteClasses: Record<SidebarPalette, string> = {
   violet: "border-r border-white/[0.06] bg-gradient-to-b from-violet-950 via-violet-950 to-purple-950 text-white shadow-2xl",
- midnight: "border-r border-white/10 bg-gradient-to-b from-[#0B1220] via-slate-950 to-[#0E1530] text-white shadow-2xl",
+  midnight: "border-r border-white/[0.06] bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-white shadow-2xl",
   emerald: "border-r border-white/[0.06] bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-950 text-white shadow-2xl",
 };
 
@@ -334,11 +334,10 @@ function DashboardLayoutContent({
   const [termsChecked, setTermsChecked] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
-    if (typeof window === "undefined") return "midnight";
+  const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
+    if (typeof window === "undefined") return "violet";
     const saved = window.localStorage.getItem(SIDEBAR_PALETTE_KEY);
-    // violet (morado pesado) retirado: siempre cae a midnight premium
-    return saved === "emerald" ? "emerald" : "midnight";
+    return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "violet";
   });
 
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
@@ -585,11 +584,25 @@ const isTarimaZone = location.startsWith("/mi-tarima");
 
           <SidebarContent className="gap-0 py-4">
             <div className="px-4 pb-4 group-data-[collapsible=icon]:hidden">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-px bg-white/20" />
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Estas en</p>
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500/[0.12] via-white/[0.03] to-white/[0.02] border border-indigo-400/25 p-3 backdrop-blur-sm shadow-inner">
+                {/* Glow sutil de fondo */}
+                <div className="absolute -top-6 -right-6 w-16 h-16 bg-indigo-400/15 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-purple-400/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative flex items-center gap-2 mb-1.5">
+                  {/* Dot animado tipo live status */}
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-50" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-400 ring-2 ring-indigo-400/30" />
+                  </span>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-indigo-200/70">
+                    Estás en
+                  </p>
+                </div>
+                <p className="relative text-sm font-bold tracking-tight text-white leading-snug">
+                  {activeMenuItem?.label ?? "Módulo principal"}
+                </p>
               </div>
-              <p className="text-sm font-bold tracking-tight text-white leading-snug">{activeMenuItem?.label ?? "Módulo principal"}</p>
             </div>
             {visibleMenuGroups.map((group, groupIdx) => (
               <div key={group.section} className="px-3 py-2">
@@ -611,16 +624,16 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                           isActive={isActive}
                           onClick={() => setLocation(item.path)}
                           tooltip={item.label}
-                        className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
+                          className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
                             isActive
-                              ? "bg-indigo-500/15 text-white shadow-sm ring-1 ring-inset ring-indigo-400/30"
+                              ? "bg-white/[0.10] text-white shadow-sm"
                               : "text-white/70 hover:text-white hover:bg-white/[0.06] hover:translate-x-0.5"
                           }`}
                         >
                           {isActive && (
-                           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-indigo-400 rounded-r-full group-data-[collapsible=icon]:hidden" />
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-white rounded-r-full group-data-[collapsible=icon]:hidden" />
                           )}
-                         <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-indigo-300" : "text-white/55 group-hover:text-white/80"}`} />
+                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-white" : "text-white/55 group-hover:text-white/80"}`} />
                           <span className="tracking-tight">{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
