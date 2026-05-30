@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import PersonalExpensesCharts from "@/components/admin/PersonalExpensesCharts";
 import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
+import PersonalVehicleTab from "@/components/admin/PersonalVehicleTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -43,6 +44,7 @@ import {
   FileText,
   Clock,
   Download,
+  Car,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -84,7 +86,7 @@ function normalizeText(s: string): string {
     .trim();
 }
 
-type SubTab = "gastos" | "alacena";
+type SubTab = "gastos" | "alacena" | "vehiculo";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -351,6 +353,17 @@ export default function PersonalExpensesView({ onBack }: Props) {
         >
           <Package className="w-4 h-4" />
           Alacena
+        </button>
+        <button
+          onClick={() => setActiveTab("vehiculo")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "vehiculo"
+              ? "bg-gradient-to-br from-indigo-500/25 to-indigo-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <Car className="w-4 h-4" />
+          Vehiculo
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -830,6 +843,9 @@ export default function PersonalExpensesView({ onBack }: Props) {
 
       {/* ====== TAB: ALACENA ====== */}
       {activeTab === "alacena" && <PersonalPantryTab />}
+
+      {/* ====== TAB: VEHICULO ====== */}
+      {activeTab === "vehiculo" && <PersonalVehicleTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
