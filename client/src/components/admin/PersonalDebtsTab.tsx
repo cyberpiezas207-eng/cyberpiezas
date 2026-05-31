@@ -996,5 +996,3 @@ function RecordPaymentModal({
     </div>
   );
 }
-
-      
