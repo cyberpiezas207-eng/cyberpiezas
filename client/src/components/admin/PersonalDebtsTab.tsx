@@ -453,9 +453,18 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
                   MSI
                 </span>
               )}
-              {d.dueDay != null && (
+              {d.dueDate ? (
+                <span className="text-xs text-slate-400">
+                  📅 vence {d.dueDate}
+                </span>
+              ) : d.dueDay != null ? (
                 <span className="text-xs text-slate-400">
                   vence dia {d.dueDay}
+                </span>
+              ) : null}
+              {d.purchaseDate && (
+                <span className="text-xs text-indigo-300">
+                  🛍️ comprada {d.purchaseDate}
                 </span>
               )}
             </div>
