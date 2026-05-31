@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import SellAssetModal from "@/components/admin/SellAssetModal";
 import DebtInsightsPanel from "@/components/admin/DebtInsightsPanel";
 import PaidDebtsSection from "@/components/admin/PaidDebtsSection";
+import CompleteDebtModal from "@/components/admin/CompleteDebtModal";
 import {
   CreditCard,
   Wallet,
@@ -369,15 +370,29 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
   });
 
   const d = preview.data;
-  const canCreate =
+  const canQuickCreate =
     d &&
     (d.intent === "new_debt" || d.intent === "purchase_installment") &&
     d.creditorName &&
-    d.conceptName;
+    d.conceptName &&
+    (d.confidence ?? 0) >= 0.7;
 
-  function handleCreate() {
-    if (!text.trim() || !canCreate) return;
-    quickCreate.mutate({ text: text.trim() });
+  // Si hay deteccion parcial (intent de creacion pero falta algo), podemos
+  // abrir el modal "Completar" en lugar de fallar
+  const canOpenComplete =
+    d &&
+    (d.intent === "new_debt" || d.intent === "purchase_installment") &&
+    !canQuickCreate;
+
+  const [completing, setCompleting] = useState<any>(null);
+
+  function handlePrimaryAction() {
+    if (!text.trim()) return;
+    if (canQuickCreate) {
+      quickCreate.mutate({ text: text.trim() });
+    } else if (canOpenComplete && d) {
+      setCompleting(d);
+    }
   }
 
   return (
@@ -396,16 +411,27 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="ej: deuda coppel bici 990 4/12"
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            onKeyDown={(e) => e.key === "Enter" && handlePrimaryAction()}
             className="bg-slate-900 border-slate-700 text-white"
           />
           <Button
-            onClick={handleCreate}
-            disabled={quickCreate.isPending || !canCreate}
-            className="bg-rose-600 hover:bg-rose-700 text-white"
+            onClick={handlePrimaryAction}
+            disabled={
+              quickCreate.isPending ||
+              (!canQuickCreate && !canOpenComplete)
+            }
+            className={
+              canQuickCreate
+                ? "bg-rose-600 hover:bg-rose-700 text-white"
+                : "bg-amber-600 hover:bg-amber-700 text-white"
+            }
           >
             <Plus className="w-4 h-4 mr-1" />
-            {quickCreate.isPending ? "..." : "Crear"}
+            {quickCreate.isPending
+              ? "..."
+              : canQuickCreate
+                ? "Crear"
+                : "Completar"}
           </Button>
         </div>
 
@@ -477,7 +503,7 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
               </div>
             )}
 
-            {!canCreate && (
+            {!canQuickCreate && (
               <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
                 <AlertCircle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-200 leading-snug">
@@ -485,11 +511,27 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
                   d.intent === "partial_payment" ||
                   d.intent === "asset_sale"
                     ? "Para pagos, abonos o ventas usa el boton de cada deuda en la lista de abajo."
-                    : "Faltan datos. Asegurate de poner: acreedor, concepto, monto y avance (X/Y)."}
+                    : canOpenComplete
+                      ? "Faltan datos. El boton 'Completar' abre un formulario con lo detectado para que llenes lo que falta."
+                      : "No detectamos suficiente. Intenta: 'deuda [acreedor] [concepto] [monto] [X/Y]'"}
                 </p>
               </div>
             )}
           </div>
+        )}
+
+        {/* Modal "Completar deuda" */}
+        {completing && (
+          <CompleteDebtModal
+            detection={completing}
+            onClose={() => setCompleting(null)}
+            onCreated={() => {
+              setCompleting(null);
+              setText("");
+              setDebounced("");
+              onCreated();
+            }}
+          />
         )}
       </CardContent>
     </Card>
