@@ -27,6 +27,7 @@ import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab"
 import FlujoGeneralPanel from "@/components/admin/FlujoGeneralPanel";
 import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
 import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
+import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTiles";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -34,6 +35,9 @@ export default function AdminCyberpiezas() {
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<AdminTabKey>("suscriptores");
   const [showGastos, setShowGastos] = useState(false);
+  // Sub-tab inicial al abrir PersonalExpensesView (controlado desde tiles)
+  const [gastosInitialSubTab, setGastosInitialSubTab] =
+    useState<SubModule>("gastos");
   const [welcomeEmail, setWelcomeEmail] = useState<{
     to: string;
     subject: string;
@@ -203,14 +207,24 @@ export default function AdminCyberpiezas() {
         {/* Tab content: Pagos pendientes (Commit 3 V2 Admin Hub) */}
         {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
-        {/* Tab content: Operaciones (V3 con KPI strip arriba) */}
+        {/* Tab content: Operaciones (V3 con KPI strip + tiles arriba) */}
         {activeTab === "operaciones" &&
           (showGastos ? (
-            <PersonalExpensesView onBack={() => setShowGastos(false)} />
+            <PersonalExpensesView
+              onBack={() => setShowGastos(false)}
+              initialSubTab={gastosInitialSubTab}
+            />
           ) : (
             <div className="space-y-5">
-              {/* KPI Strip nuevo (Commit 6: Dashboard Premium) */}
+              {/* KPI Strip (Commit 6) */}
               <AdminKPIStrip />
+              {/* Tiles de navegacion a sub-modulos (Commit 7) */}
+              <AdminQuickTiles
+                onOpenModule={(subTab) => {
+                  setGastosInitialSubTab(subTab);
+                  setShowGastos(true);
+                }}
+              />
               <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
               <OperationsView showHeader={false} />
             </div>
