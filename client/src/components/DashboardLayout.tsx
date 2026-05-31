@@ -91,8 +91,7 @@ const visibleSections: MenuSection[] = ["principal", "operacion", "administracio
 
 const menuItems: MenuItem[] = [
   // ── Principal ──────────────────────────────────────────────
-  // NOTA: Centro Cyberpiezas oculto del menu lateral, se accede desde el dropdown del avatar
-  { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "oculto" },
+  { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
   { icon: Stethoscope, label: "Punto de Venta", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
   { icon: PawPrint, label: "Mascotas", path: "/veterinaria-pos/mascotas", section: "operacion", program: "veterinaria" },
@@ -339,7 +338,12 @@ function DashboardLayoutContent({
   const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
     if (typeof window === "undefined") return "midnight";
     const saved = window.localStorage.getItem(SIDEBAR_PALETTE_KEY);
-    return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "midnight";
+    // Migracion silenciosa: usuarios que tenian "violet" (default viejo) pasan a midnight
+    if (saved === "violet") {
+      window.localStorage.setItem(SIDEBAR_PALETTE_KEY, "midnight");
+      return "midnight";
+    }
+    return saved === "midnight" || saved === "emerald" ? saved : "midnight";
   });
 
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
@@ -412,10 +416,15 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       user as { role?: string | null; programAccess?: Array<{ programCode: ProgramCode; status: string }> } | null | undefined,
     );
 
-    // En zona Admin: mostrar SOLO items relevantes
+    // En zona Admin: mostrar SOLO items relevantes (centro + items administrativos sin program)
     if (isCyberpiezasZone) {
       return allItems.filter((item) => {
+        // Centro Cyberpiezas (acceso al menu de programas)
         if (item.path === "/cyberpiezas" || item.path === "/admin-cyberpiezas") {
+          return true;
+        }
+        // Items sin program (neutrales) de administracion (ej: Mis Suscripciones)
+        if (!item.program && item.section === "administracion") {
           return true;
         }
         return false;
@@ -708,9 +717,13 @@ const isTarimaZone = location.startsWith("/mi-tarima");
               ) : null}
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground hidden md:inline">
+                  <button
+                    onClick={() => setLocation("/cyberpiezas")}
+                    className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-indigo-500 dark:hover:text-indigo-300 hidden md:inline transition-colors cursor-pointer"
+                    title="Ir al Centro CyberPiezas"
+                  >
                     {branding.appTitle}
-                  </span>
+                  </button>
                   <span className="hidden md:inline text-muted-foreground/40 text-xs">›</span>
                   <span className="text-base font-bold tracking-tight text-foreground leading-tight truncate">
                     {activeMenuItem?.label ?? "Módulo principal"}
