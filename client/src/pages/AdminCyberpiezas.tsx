@@ -29,6 +29,7 @@ import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
 import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
 import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTiles";
 import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
+import AlertsCenter from "@/components/admin/AlertsCenter";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -217,6 +218,19 @@ export default function AdminCyberpiezas() {
             />
           ) : (
             <div className="space-y-5">
+              {/* Centro de Alertas (Commit 9) - se auto-oculta si no hay alertas */}
+              <AlertsCenter
+                onNavigate={(target) => {
+                  if (target === "debts") {
+                    setGastosInitialSubTab("deudas");
+                    setShowGastos(true);
+                  } else if (target === "subscriptions") {
+                    setLocation("/mis-suscripciones");
+                  } else if (target === "admin_payments") {
+                    setActiveTab("pagos");
+                  }
+                }}
+              />
               {/* KPI Strip (Commit 6) */}
               <AdminKPIStrip />
               {/* Tiles de navegacion a sub-modulos (Commit 7) */}
