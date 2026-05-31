@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SellAssetModal from "@/components/admin/SellAssetModal";
+import DebtInsightsPanel from "@/components/admin/DebtInsightsPanel";
+import PaidDebtsSection from "@/components/admin/PaidDebtsSection";
 import {
   CreditCard,
   Wallet,
@@ -187,6 +189,9 @@ export default function PersonalDebtsTab() {
       {/* Stats */}
       <StatsCards year={year} month={month} />
 
+      {/* Insights inteligentes */}
+      <DebtInsightsPanel year={year} month={month} />
+
       {/* Captura rapida */}
       <QuickDebtCapture onCreated={refreshAll} />
 
@@ -198,6 +203,9 @@ export default function PersonalDebtsTab() {
         onSell={(id) => setSellingAssetId(id)}
         onArchived={refreshAll}
       />
+
+      {/* Archivo de trofeos: deudas liquidadas */}
+      <PaidDebtsSection />
 
       {/* Modal de pago */}
       {payingDebt && (
