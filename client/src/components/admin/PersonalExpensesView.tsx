@@ -101,12 +101,13 @@ interface PendingSuggestion {
 
 interface Props {
   onBack?: () => void;
+  initialSubTab?: SubTab;
 }
 
-export default function PersonalExpensesView({ onBack }: Props) {
+export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
   const today = nowMexico();
 
-  const [activeTab, setActiveTab] = useState<SubTab>("gastos");
+  const [activeTab, setActiveTab] = useState<SubTab>(initialSubTab ?? "gastos");
   const [showManager, setShowManager] = useState(false);
   const [showDetailed, setShowDetailed] = useState(false);
   const [showExports, setShowExports] = useState(false);
@@ -881,4 +882,3 @@ export default function PersonalExpensesView({ onBack }: Props) {
     </div>
   );
 }
-
