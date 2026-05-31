@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import SellAssetModal from "@/components/admin/SellAssetModal";
 import {
   CreditCard,
   Wallet,
@@ -32,6 +33,7 @@ import {
   Receipt,
   AlertCircle,
   Trophy,
+  Tag,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -98,6 +100,7 @@ export default function PersonalDebtsTab() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [payingDebtId, setPayingDebtId] = useState<number | null>(null);
+  const [sellingAssetId, setSellingAssetId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
   const debtsQuery = trpc.personalDebts.debts.list.useQuery({
@@ -121,6 +124,7 @@ export default function PersonalDebtsTab() {
   const monthLabel = `${MONTHS_ES[month - 1]} ${year}`;
 
   const payingDebt = debts.find((d) => d.id === payingDebtId) ?? null;
+  const sellingAsset = debts.find((d) => d.id === sellingAssetId) ?? null;
 
   return (
     <div className="space-y-5">
@@ -191,6 +195,7 @@ export default function PersonalDebtsTab() {
         debts={debts}
         isLoading={debtsQuery.isLoading}
         onPay={(id) => setPayingDebtId(id)}
+        onSell={(id) => setSellingAssetId(id)}
         onArchived={refreshAll}
       />
 
@@ -201,6 +206,18 @@ export default function PersonalDebtsTab() {
           onClose={() => setPayingDebtId(null)}
           onPaid={() => {
             setPayingDebtId(null);
+            refreshAll();
+          }}
+        />
+      )}
+
+      {/* Modal de venta de activo */}
+      {sellingAsset && (
+        <SellAssetModal
+          debt={sellingAsset}
+          onClose={() => setSellingAssetId(null)}
+          onCompleted={() => {
+            setSellingAssetId(null);
             refreshAll();
           }}
         />
@@ -470,11 +487,13 @@ function DebtsList({
   debts,
   isLoading,
   onPay,
+  onSell,
   onArchived,
 }: {
   debts: any[];
   isLoading: boolean;
   onPay: (id: number) => void;
+  onSell: (id: number) => void;
   onArchived: () => void;
 }) {
   if (isLoading) {
@@ -515,6 +534,7 @@ function DebtsList({
               key={debt.id}
               debt={debt}
               onPay={() => onPay(debt.id)}
+              onSell={() => onSell(debt.id)}
               onArchived={onArchived}
             />
           ))}
@@ -531,10 +551,12 @@ function DebtsList({
 function DebtCard({
   debt,
   onPay,
+  onSell,
   onArchived,
 }: {
   debt: any;
   onPay: () => void;
+  onSell: () => void;
   onArchived: () => void;
 }) {
   const utils = trpc.useUtils();
@@ -625,9 +647,18 @@ function DebtCard({
                 {debt.linkedAssetName && (
                   <>
                     <span className="text-[11px] text-slate-600">·</span>
-                    <span className="text-[11px] text-indigo-300">
-                      🎮 {debt.linkedAssetName}
-                    </span>
+                    {debt.assetStatus === "sold" ? (
+                      <span className="text-[11px] text-orange-300 font-bold">
+                        🏷️ {debt.linkedAssetName} · vendido
+                        {debt.assetSoldPrice
+                          ? ` por ${fmt(Number(debt.assetSoldPrice))}`
+                          : ""}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-indigo-300">
+                        🎮 {debt.linkedAssetName}
+                      </span>
+                    )}
                   </>
                 )}
               </div>
@@ -696,6 +727,7 @@ function DebtCard({
                 <span className="text-slate-500">sin fecha de vencimiento</span>
               )}
             </div>
+            <div className="flex items-center gap-1.5">
             <Button
               onClick={onPay}
               size="sm"
@@ -704,9 +736,60 @@ function DebtCard({
               <Receipt className="w-3.5 h-3.5 mr-1" />
               Pagar
             </Button>
+            {debt.linkedAssetName && debt.assetStatus !== "sold" && (
+              <Button
+                onClick={onSell}
+                size="sm"
+                variant="outline"
+                className="border-orange-500/50 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200"
+                title={`Vender ${debt.linkedAssetName}`}
+              >
+                <Tag className="w-3.5 h-3.5 mr-1" />
+                Vender
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Si el activo fue vendido, mostrar bloque con info de la venta */}
+      {debt.assetStatus === "sold" && (
+        <div className="mt-3 pt-3 border-t border-slate-700/60">
+          <div className="flex items-center gap-2 flex-wrap text-[11px]">
+            <span className="px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-200 font-bold uppercase tracking-wider text-[9px]">
+              Activo vendido
+            </span>
+            {debt.assetSoldAt && (
+              <span className="text-slate-400">{formatDay(debt.assetSoldAt)}</span>
+            )}
+            {debt.assetSoldPrice && (
+              <span className="text-orange-300 font-bold">
+                {fmtExact(Number(debt.assetSoldPrice))}
+              </span>
+            )}
+            {debt.assetSoldPrice && debt.originalAmount && (
+              <span
+                className={`font-bold ${
+                  Number(debt.assetSoldPrice) - Number(debt.originalAmount) < 0
+                    ? "text-rose-300"
+                    : "text-emerald-300"
+                }`}
+              >
+                {(() => {
+                  const diff =
+                    Number(debt.assetSoldPrice) - Number(debt.originalAmount);
+                  return `${diff >= 0 ? "+" : ""}${fmtExact(diff)}`;
+                })()}
+              </span>
+            )}
+            {debt.assetSoldBuyer && (
+              <span className="text-slate-500">
+                a {debt.assetSoldBuyer}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
