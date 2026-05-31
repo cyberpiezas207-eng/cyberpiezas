@@ -529,6 +529,104 @@ export async function markAssetSold(
   return await getDebtById(userId, debt.id);
 }
 
+// Vende activo + opcionalmente registra pago a la deuda
+// Operacion atomica desde el punto de vista del usuario: si pediste pagar,
+// se hacen ambas cosas o ninguna.
+export interface SellAndPayInput {
+  debtId: number;
+  soldPrice: number;
+  soldAt?: string;
+  soldBuyer?: string | null;
+  soldNotes?: string | null;
+  // Opciones de pago a deuda
+  paymentAmount?: number; // 0 = no pagar
+  paymentIsPartial?: boolean; // si true, no avanza mensualidad
+  createExpense?: boolean;
+  expenseCategoryId?: number | null;
+}
+
+export async function sellAssetAndOptionallyPay(
+  userId: number,
+  data: SellAndPayInput,
+): Promise<{
+  debt: PersonalDebt;
+  payment: PersonalDebtPayment | null;
+  expenseId: number | null;
+  surplus: number; // sobrante despues de aplicar a deuda
+  gainLoss: number; // venta - original
+}> {
+  if (data.soldPrice <= 0) {
+    throw new Error("Precio de venta debe ser positivo");
+  }
+
+  // 1. Validar deuda y activo antes de tocar nada
+  const debtBefore = await getDebtById(userId, data.debtId);
+  if (!debtBefore) throw new Error("Deuda no encontrada");
+  if (!debtBefore.linkedAssetName) {
+    throw new Error("Esta deuda no tiene activo vinculado");
+  }
+  if (debtBefore.assetStatus === "sold") {
+    throw new Error("Este activo ya estaba marcado como vendido");
+  }
+
+  // 2. Marcar activo como vendido
+  await markAssetSold(userId, {
+    debtId: data.debtId,
+    soldPrice: data.soldPrice,
+    soldAt: data.soldAt,
+    soldBuyer: data.soldBuyer,
+    soldNotes: data.soldNotes,
+  });
+
+  // 3. Si el usuario pidio pagar, registrar pago
+  let payment: PersonalDebtPayment | null = null;
+  let expenseId: number | null = null;
+  const paymentAmount = data.paymentAmount ?? 0;
+
+  if (paymentAmount > 0) {
+    const balanceBefore = Number(debtBefore.currentBalance);
+    // No permitir pagar mas que el saldo
+    const actualPayment = Math.min(paymentAmount, balanceBefore);
+
+    if (actualPayment > 0) {
+      const res = await recordPayment(userId, {
+        debtId: data.debtId,
+        amount: actualPayment,
+        isPartial: data.paymentIsPartial ?? true, // por defecto parcial cuando viene de venta
+        notes: `Pago desde venta de "${debtBefore.linkedAssetName}"`,
+        createExpense: data.createExpense ?? false,
+        expenseCategoryId: data.expenseCategoryId ?? null,
+      });
+      payment = res.payment;
+      expenseId = res.expenseId;
+    }
+  }
+
+  // 4. Obtener estado final de la deuda
+  const debtAfter = await getDebtById(userId, data.debtId);
+  if (!debtAfter) throw new Error("Error recuperando deuda actualizada");
+
+  // 5. Calcular sobrante y resultado
+  const balanceBefore = Number(debtBefore.currentBalance);
+  const appliedToDebt = Math.min(paymentAmount, balanceBefore);
+  const surplus = Math.max(0, data.soldPrice - appliedToDebt);
+  const originalPrice = debtBefore.originalAmount
+    ? Number(debtBefore.originalAmount)
+    : 0;
+  const gainLoss =
+    originalPrice > 0
+      ? Math.round((data.soldPrice - originalPrice) * 100) / 100
+      : 0;
+
+  return {
+    debt: debtAfter,
+    payment,
+    expenseId,
+    surplus: Math.round(surplus * 100) / 100,
+    gainLoss,
+  };
+}
+
 // ----------------------------------------------------------------------------
 // STATS
 // ----------------------------------------------------------------------------
