@@ -30,6 +30,7 @@ import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
 import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTiles";
 import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
 import AlertsCenter from "@/components/admin/AlertsCenter";
+import QuickCaptureFab from "@/components/admin/QuickCaptureFab";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -332,6 +333,9 @@ export default function AdminCyberpiezas() {
           }}
         />
       )}
+
+      {/* FAB de captura rapida (Commit 10) - flotante en esquina inferior derecha */}
+      <QuickCaptureFab />
     </DashboardLayout>
   );
 }
