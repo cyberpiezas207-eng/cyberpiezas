@@ -91,7 +91,8 @@ const visibleSections: MenuSection[] = ["principal", "operacion", "administracio
 
 const menuItems: MenuItem[] = [
   // ── Principal ──────────────────────────────────────────────
-  { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "principal" },
+  // NOTA: Centro Cyberpiezas oculto del menu lateral, se accede desde el dropdown del avatar
+  { icon: Grid3x3, label: "Centro Cyberpiezas", path: "/cyberpiezas", section: "oculto" },
   { icon: ShoppingCart, label: "Punto de Venta", path: "/pos", section: "principal", program: "boutique" },
   { icon: Stethoscope, label: "Punto de Venta", path: "/veterinaria-pos", section: "principal", program: "veterinaria" },
   { icon: PawPrint, label: "Mascotas", path: "/veterinaria-pos/mascotas", section: "operacion", program: "veterinaria" },
@@ -190,7 +191,7 @@ type SidebarPalette = "violet" | "midnight" | "emerald";
 
 const sidebarPaletteClasses: Record<SidebarPalette, string> = {
   violet: "border-r border-white/[0.06] bg-gradient-to-b from-violet-950 via-violet-950 to-purple-950 text-white shadow-2xl",
-  midnight: "border-r border-white/[0.06] bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-white shadow-2xl",
+  midnight: "border-r border-indigo-500/[0.08] bg-gradient-to-b from-[#0a0f1f] via-[#0c1226] to-[#0a0f1f] text-white shadow-[8px_0_32px_-12px_rgba(0,0,0,0.6)]",
   emerald: "border-r border-white/[0.06] bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-950 text-white shadow-2xl",
 };
 
@@ -279,6 +280,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider
+      defaultOpen={false}
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
@@ -335,9 +337,9 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [sidebarPalette, setSidebarPalette] = useState<SidebarPalette>(() => {
-    if (typeof window === "undefined") return "violet";
+    if (typeof window === "undefined") return "midnight";
     const saved = window.localStorage.getItem(SIDEBAR_PALETTE_KEY);
-    return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "violet";
+    return saved === "midnight" || saved === "emerald" || saved === "violet" ? saved : "midnight";
   });
 
  // Detectar si estamos en el Panel Admin para mostrar branding contextual
@@ -583,27 +585,6 @@ const isTarimaZone = location.startsWith("/mi-tarima");
           </SidebarHeader>
 
           <SidebarContent className="gap-0 py-4">
-            <div className="px-4 pb-4 group-data-[collapsible=icon]:hidden">
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-500/[0.12] via-white/[0.03] to-white/[0.02] border border-indigo-400/25 p-3 backdrop-blur-sm shadow-inner">
-                {/* Glow sutil de fondo */}
-                <div className="absolute -top-6 -right-6 w-16 h-16 bg-indigo-400/15 rounded-full blur-2xl pointer-events-none" />
-                <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-purple-400/10 rounded-full blur-2xl pointer-events-none" />
-
-                <div className="relative flex items-center gap-2 mb-1.5">
-                  {/* Dot animado tipo live status */}
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-50" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-400 ring-2 ring-indigo-400/30" />
-                  </span>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-indigo-200/70">
-                    Estás en
-                  </p>
-                </div>
-                <p className="relative text-sm font-bold tracking-tight text-white leading-snug">
-                  {activeMenuItem?.label ?? "Módulo principal"}
-                </p>
-              </div>
-            </div>
             {visibleMenuGroups.map((group, groupIdx) => (
               <div key={group.section} className="px-3 py-2">
                 <div className="flex items-center gap-2 px-2 pb-2.5 pt-2 group-data-[collapsible=icon]:hidden">
@@ -626,14 +607,14 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                           tooltip={item.label}
                           className={`relative h-10 rounded-lg font-medium text-sm transition-all duration-200 active:scale-[0.98] group-data-[collapsible=icon]:rounded-xl ${
                             isActive
-                              ? "bg-white/[0.10] text-white shadow-sm"
-                              : "text-white/70 hover:text-white hover:bg-white/[0.06] hover:translate-x-0.5"
+                              ? "bg-indigo-500/15 text-indigo-100 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.18)]"
+                              : "text-white/65 hover:text-white hover:bg-white/[0.05] hover:translate-x-0.5"
                           }`}
                         >
                           {isActive && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-white rounded-r-full group-data-[collapsible=icon]:hidden" />
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-indigo-400 rounded-r-full group-data-[collapsible=icon]:hidden" />
                           )}
-                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-white" : "text-white/55 group-hover:text-white/80"}`} />
+                          <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-indigo-300" : "text-white/55 group-hover:text-white/80"}`} />
                           <span className="tracking-tight">{item.label}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -670,6 +651,13 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={() => setLocation("/cyberpiezas")}
+                  className="cursor-pointer"
+                >
+                  <Grid3x3 className="mr-2 h-4 w-4" />
+                  <span>Centro CyberPiezas</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
                     // Ruta de configuracion segun la zona activa
@@ -708,16 +696,26 @@ const isTarimaZone = location.startsWith("/mi-tarima");
       </div>
 
       <SidebarInset>
-        <div className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:backdrop-blur-xl">
+        <div className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:backdrop-blur-xl">
           <div className="flex h-14 items-center justify-between px-3 md:px-6">
-            <div className="flex items-center gap-2.5">
-              {isMobile ? (
-                <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
+            <div className="flex items-center gap-3 min-w-0">
+              <SidebarTrigger className="h-9 w-9 rounded-lg hover:bg-muted/60 shrink-0" />
+              <div className="hidden md:block w-px h-6 bg-border/60" />
+              {activeMenuItem?.icon ? (
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 ring-1 ring-indigo-500/20 hidden md:flex items-center justify-center shrink-0">
+                  <activeMenuItem.icon className="w-4 h-4 text-indigo-500 dark:text-indigo-300" />
+                </div>
               ) : null}
-              <div className="flex flex-col gap-0.5">
-                <span className="text-base font-bold tracking-tight text-foreground leading-tight">
-                  {activeMenuItem?.label ?? "Módulo principal"}
-                </span>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground hidden md:inline">
+                    {branding.appTitle}
+                  </span>
+                  <span className="hidden md:inline text-muted-foreground/40 text-xs">›</span>
+                  <span className="text-base font-bold tracking-tight text-foreground leading-tight truncate">
+                    {activeMenuItem?.label ?? "Módulo principal"}
+                  </span>
+                </div>
                 <span className="hidden text-[11px] text-muted-foreground md:block leading-tight">
                   {isAdminPanel
                     ? "Centro privado de administración y operaciones."
@@ -725,7 +723,7 @@ const isTarimaZone = location.startsWith("/mi-tarima");
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {switchable ? (
                 <Button
                   variant="outline"
