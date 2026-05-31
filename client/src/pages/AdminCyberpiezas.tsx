@@ -28,6 +28,7 @@ import FlujoGeneralPanel from "@/components/admin/FlujoGeneralPanel";
 import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
 import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
 import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTiles";
+import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -226,6 +227,8 @@ export default function AdminCyberpiezas() {
                 }}
               />
               <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
+              {/* Calendario visual de pagos (Commit 8) */}
+              <PaymentCalendarPanel />
               <OperationsView showHeader={false} />
             </div>
           ))}
