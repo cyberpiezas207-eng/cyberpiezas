@@ -27,6 +27,7 @@ import {
   listPayments,
   softDeletePayment,
   markAssetSold,
+  sellAssetAndOptionallyPay,
   getMonthSummary,
   getUpcomingPayments,
 } from "../personalDebtsDb";
@@ -328,6 +329,27 @@ export const personalDebtsRouter = router({
       .input(markAssetSoldSchema)
       .mutation(async ({ ctx, input }) => {
         return await markAssetSold(ctx.user.id, input);
+      }),
+
+    sellAndPay: ownerOnlyProcedure
+      .input(
+        z.object({
+          debtId: z.number().int().positive(),
+          soldPrice: z.number().positive(),
+          soldAt: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional(),
+          soldBuyer: z.string().max(100).nullable().optional(),
+          soldNotes: z.string().max(1000).nullable().optional(),
+          paymentAmount: z.number().nonnegative().optional(),
+          paymentIsPartial: z.boolean().optional(),
+          createExpense: z.boolean().optional(),
+          expenseCategoryId: z.number().int().positive().nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return await sellAssetAndOptionallyPay(ctx.user.id, input);
       }),
   }),
 });
