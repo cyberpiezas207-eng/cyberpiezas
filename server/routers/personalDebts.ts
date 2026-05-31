@@ -32,6 +32,11 @@ import {
   getUpcomingPayments,
 } from "../personalDebtsDb";
 import { analyzeDebtLine, type DebtCaptureIntent } from "../personalDebtsEngine";
+import {
+  listPaidDebts,
+  getPaidDebtsStats,
+  getDebtInsights,
+} from "../personalDebtsInsightsDb";
 
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user || ctx.user.openId !== ENV.ownerOpenId) {
@@ -321,6 +326,25 @@ export const personalDebtsRouter = router({
       )
       .query(async ({ ctx, input }) => {
         return await getUpcomingPayments(ctx.user.id, input?.daysAhead ?? 30);
+      }),
+
+    paidList: ownerOnlyProcedure.query(async ({ ctx }) => {
+      return await listPaidDebts(ctx.user.id);
+    }),
+
+    paidStats: ownerOnlyProcedure.query(async ({ ctx }) => {
+      return await getPaidDebtsStats(ctx.user.id);
+    }),
+
+    insights: ownerOnlyProcedure
+      .input(
+        z.object({
+          year: z.number().int().min(2020).max(2100),
+          month: z.number().int().min(1).max(12),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        return await getDebtInsights(ctx.user.id, input.year, input.month);
       }),
   }),
 
