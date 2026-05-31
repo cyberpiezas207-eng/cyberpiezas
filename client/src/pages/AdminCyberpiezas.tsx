@@ -26,6 +26,7 @@ import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminPendingPaymentsTab from "@/components/admin/AdminPendingPaymentsTab";
 import FlujoGeneralPanel from "@/components/admin/FlujoGeneralPanel";
 import PersonalExpensesView from "@/components/admin/PersonalExpensesView";
+import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
 
 export default function AdminCyberpiezas() {
   const { user } = useAuth();
@@ -144,31 +145,38 @@ export default function AdminCyberpiezas() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 pb-12">
-        {/* Header del panel */}
-        <div className="bg-gradient-to-r from-purple-900/40 via-fuchsia-900/30 to-slate-900 rounded-2xl p-6 border border-purple-500/30 shadow-2xl">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <ShieldCheck className="w-5 h-5 text-purple-300" />
-                <span className="text-xs font-bold uppercase tracking-[0.25em] text-purple-300">
-                  Panel de administracion
-                </span>
+      <div className="space-y-5 pb-12">
+        {/* Hero compacto del panel admin (slate/indigo palacio fino) */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-indigo-500/15 shadow-[inset_0_0_0_1px_rgba(99,102,241,0.04)]">
+          {/* Glow sutil indigo */}
+          <div className="absolute -top-16 -right-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-cyan-500/[0.06] rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative flex items-center justify-between gap-4 px-5 py-4 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-indigo-500/15 ring-1 ring-indigo-400/25 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-indigo-300" />
               </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">
-                CyberPiezas Admin
-              </h1>
-              <p className="text-sm text-slate-300 mt-1">
-                Gestiona suscriptores, accesos y operaciones de la plataforma.
-              </p>
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-300/80 mb-0.5">
+                  Panel de administracion
+                </div>
+                <h1 className="text-xl md:text-2xl font-black text-white tracking-tight leading-tight">
+                  CyberPiezas Admin
+                </h1>
+                <p className="text-[12px] text-slate-400 mt-0.5">
+                  Suscriptores, accesos y operaciones de la plataforma
+                </p>
+              </div>
             </div>
             <Button
               onClick={() =>
                 utils.personalOperations.listSubscribers.invalidate()
               }
-              className="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200"
+              size="sm"
+              className="bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-slate-200 h-9 shrink-0"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
               Refrescar
             </Button>
           </div>
@@ -195,13 +203,15 @@ export default function AdminCyberpiezas() {
         {/* Tab content: Pagos pendientes (Commit 3 V2 Admin Hub) */}
         {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
-        {/* Tab content: Operaciones */}
-       {activeTab === "operaciones" &&
+        {/* Tab content: Operaciones (V3 con KPI strip arriba) */}
+        {activeTab === "operaciones" &&
           (showGastos ? (
             <PersonalExpensesView onBack={() => setShowGastos(false)} />
           ) : (
-            <div className="space-y-6">
-             <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
+            <div className="space-y-5">
+              {/* KPI Strip nuevo (Commit 6: Dashboard Premium) */}
+              <AdminKPIStrip />
+              <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
               <OperationsView showHeader={false} />
             </div>
           ))}
@@ -211,7 +221,7 @@ export default function AdminCyberpiezas() {
       {welcomeEmail && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-gradient-to-br from-purple-600 to-pink-600 px-6 py-5 relative">
+            <div className="bg-gradient-to-br from-indigo-600 to-cyan-600 px-6 py-5 relative">
               <button
                 onClick={() => setWelcomeEmail(null)}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"
@@ -270,7 +280,7 @@ export default function AdminCyberpiezas() {
               </Button>
               <Button
                 onClick={handleOpenMail}
-                className="flex-1 rounded-full h-11 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold"
+                className="flex-1 rounded-full h-11 bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-bold"
               >
                 <Send className="w-4 h-4 mr-1.5" />
                 Abrir email
