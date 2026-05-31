@@ -102,6 +102,7 @@ export interface CreateDebtInput {
   totalInstallments?: number | null;
 
   dueDay?: number | null;
+  nextDueDate?: string | null;
   startDate?: string | null;
   endDate?: string | null;
 
@@ -178,9 +179,13 @@ export async function createDebt(
       ? data.currentBalance
       : (data.originalAmount ?? 0);
 
-  // Si tenemos dueDay y no startDate, calculamos nextDueDate
+  // Calculo de nextDueDate:
+  //   - Si viene explicito en data.nextDueDate, usar ese (parser lo detecto)
+  //   - Si no, calcular del dueDay (proximo mes con ese dia)
   let nextDueDate: string | null = null;
-  if (data.dueDay != null) {
+  if (data.nextDueDate) {
+    nextDueDate = data.nextDueDate;
+  } else if (data.dueDay != null) {
     nextDueDate = computeNextDueDate(data.dueDay);
   }
 
