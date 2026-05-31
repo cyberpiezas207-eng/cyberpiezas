@@ -262,6 +262,8 @@ export const personalDebtsRouter = router({
           currentInstallment: detection.currentInstallment ?? 0,
           totalInstallments: detection.totalInstallments,
           dueDay: detection.dueDay,
+          nextDueDate: detection.dueDate ?? detection.nextPaymentDate ?? null,
+          startDate: detection.purchaseDate ?? undefined,
           isInstallmentPurchase: isPurchase,
           installmentPlanType: detection.isMsi
             ? "msi"
