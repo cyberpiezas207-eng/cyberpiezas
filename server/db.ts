@@ -85,6 +85,7 @@ import { personalPantryMigrations } from "./personalPantrySchema";
 import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
 import { personalVehicleMigrations } from "./personalVehicleSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
+import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
