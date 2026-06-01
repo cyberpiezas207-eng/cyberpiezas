@@ -83,6 +83,7 @@ import { ENV } from "./_core/env";
 import { personalExpensesMigrations } from "./personalExpensesSchema";
 import { personalPantryMigrations } from "./personalPantrySchema";
 import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
+import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { personalVehicleMigrations } from "./personalVehicleSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
 import { personalRemindersMigrations } from "./personalRemindersSchema";
