@@ -4660,3 +4660,4 @@ export async function userHasPosPermission(args: {
 
   return !!permRows[0];
 }
+
