@@ -8,9 +8,9 @@
 //   - "cambiar aceite en 6 meses"               -> dueDate: hoy+180, title: "cambiar aceite"
 //   - "renovar dominio 15 de julio"             -> dueDate: 2026-07-15
 //   - "comprar regalo mama mañana 6pm"          -> dueDate: manana, dueTime: 18:00
-#   - "pagar internet cada mes urgente"         -> isRecurring: monthly, priority: urgent
-#   - "cita dentista lunes 3pm"                 -> proximo lunes a las 15:00
-#
+//   - "pagar internet cada mes urgente"         -> isRecurring: monthly, priority: urgent
+//   - "cita dentista lunes 3pm"                 -> proximo lunes a las 15:00
+//
 // Pure function. Reusable desde router (quickCreate) y frontend (preview).
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -461,4 +461,3 @@ export function analyzeReminderLine(text: string): ReminderDetection {
 
   return result;
 }
-
