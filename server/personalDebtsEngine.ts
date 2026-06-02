@@ -71,9 +71,22 @@ export interface DebtLineDetection {
 // ----------------------------------------------------------------------------
 
 const CREDITOR_KEYWORDS: Array<{ keyword: string; name: string }> = [
+  // Patrones de 2+ palabras primero (orden importa para matching)
   { keyword: "mercado libre", name: "Mercado Libre" },
-  { keyword: "mercadolibre", name: "Mercado Libre" },
+  { keyword: "mercado pago", name: "Mercado Pago" },
   { keyword: "american express", name: "American Express" },
+  { keyword: "rappi card", name: "Rappi Card" },
+  { keyword: "rappi pay", name: "Rappi Pay" },
+  { keyword: "hey banco", name: "Hey Banco" },
+  { keyword: "prestamo mama", name: "Prestamo mama" },
+  { keyword: "prestamo papa", name: "Prestamo papa" },
+  { keyword: "prestamo hermano", name: "Prestamo hermano" },
+  { keyword: "prestamo hermana", name: "Prestamo hermana" },
+  { keyword: "prestamo amigo", name: "Prestamo amigo" },
+
+  // Patrones de 1 palabra
+  { keyword: "mercadolibre", name: "Mercado Libre" },
+  { keyword: "mercadopago", name: "Mercado Pago" },
   { keyword: "citibanamex", name: "Citibanamex" },
   { keyword: "coppel", name: "Coppel" },
   { keyword: "elektra", name: "Elektra" },
@@ -85,6 +98,8 @@ const CREDITOR_KEYWORDS: Array<{ keyword: string; name: string }> = [
   { keyword: "sanborns", name: "Sanborns" },
   { keyword: "walmart", name: "Walmart" },
   { keyword: "amazon", name: "Amazon" },
+
+  // Bancos tradicionales
   { keyword: "banamex", name: "Banamex" },
   { keyword: "bbva", name: "BBVA" },
   { keyword: "santander", name: "Santander" },
@@ -93,13 +108,30 @@ const CREDITOR_KEYWORDS: Array<{ keyword: string; name: string }> = [
   { keyword: "scotiabank", name: "Scotiabank" },
   { keyword: "azteca", name: "Banco Azteca" },
   { keyword: "amex", name: "American Express" },
-  { keyword: "prestamo mama", name: "Prestamo mama" },
-  { keyword: "prestamo papa", name: "Prestamo papa" },
-  { keyword: "prestamo hermano", name: "Prestamo hermano" },
-  { keyword: "prestamo hermana", name: "Prestamo hermana" },
-  { keyword: "prestamo amigo", name: "Prestamo amigo" },
+  { keyword: "inbursa", name: "Inbursa" },
+  { keyword: "banregio", name: "Banregio" },
+  { keyword: "afirme", name: "Afirme" },
+
+  // Fintechs y tarjetas digitales modernas (NUEVO)
+  { keyword: "plata card", name: "Plata Card" },
+  { keyword: "plata", name: "Plata" },
+  { keyword: "nu mexico", name: "Nu" },
+  { keyword: "nubank", name: "Nu" },
+  { keyword: "stori", name: "Stori" },
+  { keyword: "klar", name: "Klar" },
+  { keyword: "uala", name: "Uala" },
+  { keyword: "ualá", name: "Uala" },
+  { keyword: "broxel", name: "Broxel" },
+  { keyword: "kueski", name: "Kueski Pay" },
+  { keyword: "cuenca", name: "Cuenca" },
+  { keyword: "fondeadora", name: "Fondeadora" },
+  { keyword: "albo", name: "Albo" },
+  { keyword: "didi card", name: "Didi Card" },
+
+  // Prestamos personales (1 palabra)
   { keyword: "prestamo", name: "Prestamo personal" },
   { keyword: "tarjeta", name: "Tarjeta" },
+  { keyword: "credito", name: "Credito" },
 ];
 
 const INTENT_KEYWORDS: Array<{
@@ -200,6 +232,36 @@ function detectIsMsi(text: string): boolean {
 }
 
 function detectIntent(text: string): DebtCaptureIntent {
+  // V2.2: Prioridad inteligente
+  // Caso especial: si el texto tiene "deuda" o "tengo deuda" en cualquier
+  // posicion + un acreedor conocido, el intent es "new_debt" AUNQUE
+  // tambien diga "pague" o "abone" (esos son contexto inicial, no el verbo
+  // principal). Esto resuelve capturas tipo "tarjeta plata pague 540 debo 1241"
+  // que SI describen una deuda nueva con un pago inicial ya hecho.
+  const hasDebtKeyword =
+    /\b(deuda|tengo deuda|debo)\b/.test(text) ||
+    /\btarjeta\s+[a-z]+\b/.test(text); // "tarjeta plata", "tarjeta coppel" etc
+
+  const hasNewDebtSignal =
+    text.includes("compre") ||
+    text.includes("compra a meses") ||
+    text.includes("msi");
+
+  // Si hay senal fuerte de NEW_DEBT, le da prioridad sobre payment/partial_payment
+  if (hasDebtKeyword || hasNewDebtSignal) {
+    // Pero respetar venta de activo (asset_sale) y compras a meses que son
+    // intents distintos y claros
+    if (text.includes("vendi") || text.includes("venta de") || text.includes("vendido")) {
+      return "asset_sale";
+    }
+    if (text.includes("compra a meses") || text.includes("compre") || text.includes("msi")) {
+      return "purchase_installment";
+    }
+    return "new_debt";
+  }
+
+  // Comportamiento previo: primero busca en las primeras 30 chars,
+  // luego en todo el texto
   const firstPart = text.slice(0, 30);
   for (const entry of INTENT_KEYWORDS) {
     for (const kw of entry.keywords) {
@@ -513,6 +575,52 @@ export function analyzeDebtLine(
   // 6e. Marcar keywords para limpieza
   markKeywordSpansToRemove(lower, removedSpans);
 
+  // 6f. V2.2: Detectores especificos para captura tipo
+  //    "tarjeta plata pague 540 debo 1241"
+  // - "(aun )?debo N" -> currentBalance = N (lo que aun debe)
+  // - "pague N"        -> contexto: pago inicial ya hecho
+  //                       Si hay currentBalance, recalcula:
+  //                       originalAmount = currentBalance + N (deuda total)
+  if (
+    result.intent === "new_debt" ||
+    result.intent === "purchase_installment"
+  ) {
+    // "aun debo N" / "todavia debo N" / "debo N"
+    const remainMatch = lower.match(
+      /\b(?:aun |todavia )?debo\s+(\d+(?:[.,]\d+)?)\b/,
+    );
+    if (remainMatch) {
+      const val = parseFloat(remainMatch[1].replace(",", "."));
+      if (val > 0 && val < 10_000_000) {
+        result.currentBalance = val;
+        result.originalAmount = val; // Por default; puede recalcularse abajo
+        const idx = remainMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + remainMatch[0].length,
+        });
+      }
+    }
+
+    // "pague N" -> pago inicial (no es el monto principal)
+    const paidMatch = lower.match(/\bpague\s+(\d+(?:[.,]\d+)?)\b/);
+    if (paidMatch) {
+      const paid = parseFloat(paidMatch[1].replace(",", "."));
+      if (paid > 0 && paid < 10_000_000) {
+        const idx = paidMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + paidMatch[0].length,
+        });
+        // Si tenemos balance, recalcular originalAmount = balance + ya pagado
+        if (result.currentBalance != null && result.currentBalance > 0) {
+          result.originalAmount =
+            Math.round((result.currentBalance + paid) * 100) / 100;
+        }
+      }
+    }
+  }
+
   // 7. Numeros
   const allNums = extractNumbers(lower);
   const usedValues = new Set<number>();
@@ -545,8 +653,13 @@ export function analyzeDebtLine(
       result.currentBalance =
         Math.round(result.installmentAmount * restantes * 100) / 100;
     } else if (moneyNums.length > 0) {
-      result.originalAmount = moneyNums[0].value;
-      result.currentBalance = moneyNums[0].value;
+      // V2.2: Solo asignar si no fueron seteados por detectores especificos previos
+      if (result.originalAmount == null) {
+        result.originalAmount = moneyNums[0].value;
+      }
+      if (result.currentBalance == null) {
+        result.currentBalance = moneyNums[0].value;
+      }
     }
     if (result.intent === "ambiguous") result.intent = "new_debt";
   } else if (result.intent === "purchase_installment") {
