@@ -38,7 +38,7 @@ import {
 // ----------------------------------------------------------------------------
 
 type Severity = "critical" | "urgent" | "info";
-type ActionTarget = "debts" | "subscriptions" | "admin_payments";
+type ActionTarget = "debts" | "subscriptions" | "admin_payments" | "reminders";
 
 interface AlertItem {
   id: string;
@@ -147,6 +147,11 @@ export default function AlertsCenter({ onNavigate }: Props) {
     { status: "pending" },
     { enabled: isAdmin },
   );
+
+  const remindersQuery = trpc.personalReminders.reminders.list.useQuery({
+    filter: "pending",
+    limit: 50,
+  });
 
   // --- Construir alertas en cliente ---
   const alerts = useMemo<AlertItem[]>(() => {
@@ -259,16 +264,78 @@ export default function AlertsCenter({ onNavigate }: Props) {
       }
     }
 
+    // Alertas de recordatorios pendientes
+    const reminders = (remindersQuery.data ?? []) as any[];
+    for (const r of reminders) {
+      const days = daysUntil(r.dueDate);
+
+      // Atrasado (vencido)
+      if (days != null && days < 0) {
+        out.push({
+          id: `reminder-overdue-${r.id}`,
+          severity: "critical",
+          icon: Bell,
+          title: `Atrasado: ${r.title}`,
+          description: `Venció hace ${Math.abs(days)} día${Math.abs(days) === 1 ? "" : "s"}`,
+          actionLabel: "Ver",
+          actionTarget: "reminders",
+          priority: 95 + Math.min(Math.abs(days), 5), // mas atrasado = mas prioridad
+        });
+      }
+      // Hoy
+      else if (days === 0) {
+        out.push({
+          id: `reminder-today-${r.id}`,
+          severity: "critical",
+          icon: Bell,
+          title: `Hoy: ${r.title}`,
+          description: r.dueTime ? `Para hoy a las ${r.dueTime.slice(0, 5)}` : "Pendiente para hoy",
+          actionLabel: "Ver",
+          actionTarget: "reminders",
+          priority: 92,
+        });
+      }
+      // Proximos 1-3 dias
+      else if (days != null && days >= 1 && days <= 3) {
+        out.push({
+          id: `reminder-soon-${r.id}`,
+          severity: "urgent",
+          icon: Bell,
+          title: `Próximo: ${r.title}`,
+          description: `En ${days} día${days === 1 ? "" : "s"}`,
+          actionLabel: "Ver",
+          actionTarget: "reminders",
+          priority: 75 - days,
+        });
+      }
+      // Urgente sin fecha o futuro lejano
+      else if (r.priority === "urgent") {
+        out.push({
+          id: `reminder-urgent-${r.id}`,
+          severity: "urgent",
+          icon: Bell,
+          title: `Urgente: ${r.title}`,
+          description: days != null ? `En ${days} días` : "Sin fecha definida",
+          actionLabel: "Ver",
+          actionTarget: "reminders",
+          priority: 78,
+        });
+      }
+    }
+
     // Ordenar por prioridad descendente
     out.sort((a, b) => b.priority - a.priority);
 
     // Tope: 6 alertas para no spammear
     return out.slice(0, 6);
-  }, [debtsQuery.data, mySubsQuery.data, pendingAdminQuery.data, isAdmin]);
+  }, [debtsQuery.data, mySubsQuery.data, pendingAdminQuery.data, remindersQuery.data, isAdmin]);
 
   // --- Loading state ---
   const isLoading =
-    debtsQuery.isLoading || mySubsQuery.isLoading || pendingAdminQuery.isLoading;
+    debtsQuery.isLoading ||
+    mySubsQuery.isLoading ||
+    pendingAdminQuery.isLoading ||
+    remindersQuery.isLoading;
 
   if (isLoading) return null; // No mostrar nada hasta tener data
 
