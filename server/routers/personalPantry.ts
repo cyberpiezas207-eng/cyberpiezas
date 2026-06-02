@@ -23,7 +23,9 @@ import {
   listShoppingList,
   archivePantryItem,
   getPantryStats,
+  findPantryItemByNormalizedName,
 } from "../personalPantryDb";
+import { analyzePantryLine } from "../personalPantryEngine";
 
 // ----------------------------------------------------------------------------
 // Blindaje: solo el dueño (mismo patron que personalOperations / personalExpenses)
@@ -159,6 +161,102 @@ export const personalPantryRouter = router({
           price: input.price ?? null,
           expenseId: input.expenseId ?? null,
         });
+      }),
+
+    // Captura natural: PREVIEW (sin guardar) - usado por el FAB Universal
+    previewCapture: ownerOnlyProcedure
+      .input(z.object({ text: z.string() }))
+      .query(async ({ input }) => {
+        return analyzePantryLine(input.text);
+      }),
+
+    // Captura natural: QUICK CREATE - crea/actualiza segun el intent
+    quickCreate: ownerOnlyProcedure
+      .input(z.object({ text: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const detection = analyzePantryLine(input.text);
+        const userId = ctx.user.id;
+
+        if (!detection.productName) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "No detectamos el producto. Intenta: '[producto] [cantidad] [precio]'",
+          });
+        }
+
+        // Buscar producto existente por nombre normalizado
+        const existing = await findPantryItemByNormalizedName(
+          userId,
+          detection.productName,
+        );
+
+        // ---- Caso 1: mark_out (se acabo) ----
+        if (detection.intent === "mark_out") {
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `No tienes "${detection.productName}" en tu alacena. Agregalo primero.`,
+            });
+          }
+          const updated = await markPantryItemOut(userId, existing.id);
+          return {
+            action: "marked_out" as const,
+            item: updated,
+            detection,
+          };
+        }
+
+        // ---- Caso 2: mark_low (queda poco) ----
+        if (detection.intent === "mark_low") {
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `No tienes "${detection.productName}" en tu alacena. Agregalo primero.`,
+            });
+          }
+          const updated = await markPantryItemLow(userId, existing.id);
+          return {
+            action: "marked_low" as const,
+            item: updated,
+            detection,
+          };
+        }
+
+        // ---- Caso 3: add_or_restock ----
+        let item = existing;
+        let action: "added" | "restocked";
+
+        if (!item) {
+          // Producto nuevo: crear primero
+          item = await createPantryItem(userId, {
+            name: detection.productName,
+            unit: detection.unit ?? null,
+          });
+          action = "added";
+        } else {
+          action = "restocked";
+        }
+
+        // Si tenemos precio o tienda, registrar restock
+        if (
+          detection.totalPrice != null ||
+          detection.storeName != null ||
+          action === "added"
+        ) {
+          const restocked = await markPantryItemRestocked(userId, item.id, {
+            price: detection.totalPrice ?? null,
+            storeId: null, // No tenemos storeId aun (solo storeName); el restock lo manejara
+            expenseId: null,
+          });
+          if (restocked) item = restocked;
+        }
+
+        return {
+          action,
+          item,
+          detection,
+        };
       }),
   }),
 
