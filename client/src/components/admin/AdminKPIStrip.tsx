@@ -20,6 +20,7 @@ import {
   CreditCard,
   Calendar,
   PiggyBank,
+  Bell,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -71,11 +72,13 @@ export default function AdminKPIStrip() {
   const upcomingQuery = trpc.personalDebts.stats.upcoming.useQuery({
     daysAhead: 30,
   });
+  const remindersStatsQuery = trpc.personalReminders.stats.dashboard.useQuery();
 
   // --- Data extraction ---
   const dash = expensesDashQuery.data;
   const sum = debtSummaryQuery.data;
   const upcoming = upcomingQuery.data ?? [];
+  const rStats = remindersStatsQuery.data;
 
   const totalGastosMes = dash?.total ?? 0;
   const vsLastPct = dash?.vsLastMonth?.pct ?? null;
@@ -86,6 +89,11 @@ export default function AdminKPIStrip() {
 
   const nextPay = upcoming[0] ?? null;
   const nextDays = nextPay ? daysUntil(nextPay.nextDueDate) : null;
+
+  // Recordatorios: combinamos hoy + atrasados para mostrar "lo que toca ya"
+  const remindersToday = rStats?.todayCount ?? 0;
+  const remindersOverdue = rStats?.overdueCount ?? 0;
+  const remindersActionable = remindersToday + remindersOverdue;
 
   // --- Trend icon helper ---
   const TrendIcon = vsLastPct == null
@@ -158,18 +166,33 @@ export default function AdminKPIStrip() {
       value: fmt(ahorroDiario),
       hint: ahorroDiario > 0 ? "para cushion del mes" : "sin meta diaria",
     },
+    {
+      icon: Bell,
+      iconColor: remindersOverdue > 0 ? "text-rose-300" : "text-indigo-300",
+      iconBg: remindersOverdue > 0 ? "bg-rose-500/12" : "bg-indigo-500/12",
+      iconRing: remindersOverdue > 0 ? "ring-rose-400/20" : "ring-indigo-400/20",
+      label: "Recordatorios",
+      value: String(remindersActionable),
+      hint:
+        remindersActionable === 0
+          ? "sin pendientes hoy"
+          : remindersOverdue > 0
+            ? `${remindersToday} hoy · ${remindersOverdue} atrasado${remindersOverdue === 1 ? "" : "s"}`
+            : `${remindersToday} para hoy`,
+    },
   ];
 
   const isLoading =
     expensesDashQuery.isLoading ||
     debtSummaryQuery.isLoading ||
-    upcomingQuery.isLoading;
+    upcomingQuery.isLoading ||
+    remindersStatsQuery.isLoading;
 
   // --- Skeleton loading ---
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="h-[120px] rounded-xl bg-slate-800/50 border border-slate-700/50 animate-pulse"
@@ -181,7 +204,7 @@ export default function AdminKPIStrip() {
 
   // --- Render ---
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {cards.map((card, i) => (
         <div
           key={i}
