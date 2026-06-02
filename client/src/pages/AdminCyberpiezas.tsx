@@ -229,6 +229,9 @@ export default function AdminCyberpiezas() {
                     setLocation("/mis-suscripciones");
                   } else if (target === "admin_payments") {
                     setActiveTab("pagos");
+                  } else if (target === "reminders") {
+                    setGastosInitialSubTab("recordatorios");
+                    setShowGastos(true);
                   }
                 }}
               />
