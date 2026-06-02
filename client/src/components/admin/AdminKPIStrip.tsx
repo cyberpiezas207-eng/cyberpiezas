@@ -222,13 +222,13 @@ export default function AdminKPIStrip() {
             {card.trend && <div className="mt-1">{card.trend}</div>}
           </div>
 
-          <p className="relative text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400/80 mb-1">
+          <p className="relative text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">
             {card.label}
           </p>
           <p className="relative text-2xl font-black text-white tracking-tight tabular-nums leading-none">
             {card.value}
           </p>
-          <p className="relative text-[11px] text-slate-500 mt-1.5 truncate group-hover:text-slate-400 transition-colors">
+          <p className="relative text-[11px] text-slate-400 mt-1.5 truncate group-hover:text-slate-300 transition-colors">
             {card.hint}
           </p>
         </div>
