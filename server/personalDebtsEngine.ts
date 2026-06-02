@@ -56,6 +56,7 @@ export interface DebtLineDetection {
   dueDate: string | null;
   purchaseDate: string | null;
   nextPaymentDate: string | null;
+  endDate: string | null; // Fecha en que se termina de pagar (NUEVO V2.1)
 
   originalAmount: number | null;
   currentBalance: number | null;
@@ -316,6 +317,42 @@ function cleanConceptText(rest: string): string {
 }
 
 // ----------------------------------------------------------------------------
+// Helpers para deteccion de endDate (V2.1)
+// ----------------------------------------------------------------------------
+
+// Calcula meses entre dos fechas YMD (siempre positivo, "cuantos meses caben")
+function monthsBetweenYMD(startYMD: string, endYMD: string): number {
+  const [y1, m1] = startYMD.split("-").map(Number);
+  const [y2, m2] = endYMD.split("-").map(Number);
+  if (!y1 || !m1 || !y2 || !m2) return 0;
+  return (y2 - y1) * 12 + (m2 - m1);
+}
+
+// Si no tenemos startDate explicito pero si dueDay, asumimos hoy
+// (o el proximo mes si el dueDay ya paso este mes)
+function getDefaultStartDate(dueDay: number | null): string | null {
+  const now = new Date(Date.now() - 6 * 60 * 60 * 1000); // hora Mexico
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+
+  let targetMonth = m;
+  let targetYear = y;
+  if (dueDay != null && dueDay > 0) {
+    // Si el dueDay ya paso este mes, el plan arranca el proximo mes
+    if (dueDay < d) {
+      targetMonth += 1;
+      if (targetMonth > 12) {
+        targetMonth = 1;
+        targetYear += 1;
+      }
+    }
+  }
+  const day = dueDay && dueDay > 0 ? Math.min(dueDay, 28) : d;
+  return `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// ----------------------------------------------------------------------------
 // MOTOR PRINCIPAL
 // ----------------------------------------------------------------------------
 
@@ -339,6 +376,7 @@ export function analyzeDebtLine(
     dueDate: null,
     purchaseDate: null,
     nextPaymentDate: null,
+    endDate: null,
     originalAmount: null,
     currentBalance: null,
     isMsi: false,
@@ -429,7 +467,50 @@ export function analyzeDebtLine(
     addDateSpan(removedSpans, paymentDet);
   }
 
-  // 6d. Marcar keywords para limpieza
+  // 6d. Fecha de fin del plan (NUEVO V2.1)
+  // Detecta "termina/finaliza/acaba el [fecha]" o "hasta [fecha]" o "se termina de pagar [fecha]"
+  const endDet = findDateNearKeyword(
+    lower,
+    [
+      "se termina de pagar el",
+      "se termina de pagar",
+      "termina de pagar el",
+      "termina de pagar",
+      "se termina el",
+      "termina el",
+      "termina en",
+      "se acaba el",
+      "acaba el",
+      "acaba en",
+      "finaliza el",
+      "finaliza en",
+      "hasta el",
+      "hasta",
+    ],
+    { preferFuture: true },
+  );
+  if (endDet && endDet.ymd != null) {
+    result.endDate = endDet.ymd;
+    addDateSpan(removedSpans, endDet);
+
+    // Si tenemos dueDay/dueDate + endDate, podemos calcular totalInstallments
+    // contando meses entre la fecha de inicio del plan y endDate
+    if (result.totalInstallments == null) {
+      const startYMD =
+        result.nextPaymentDate ??
+        result.dueDate ??
+        getDefaultStartDate(result.dueDay);
+      if (startYMD) {
+        const monthsBetween = monthsBetweenYMD(startYMD, endDet.ymd);
+        if (monthsBetween > 0 && monthsBetween <= 120) {
+          // Cap a 10 anos por seguridad. +1 porque ambos meses cuentan.
+          result.totalInstallments = monthsBetween + 1;
+        }
+      }
+    }
+  }
+
+  // 6e. Marcar keywords para limpieza
   markKeywordSpansToRemove(lower, removedSpans);
 
   // 7. Numeros
