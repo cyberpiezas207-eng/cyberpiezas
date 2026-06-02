@@ -373,7 +373,7 @@ export default function AlertsCenter({ onNavigate }: Props) {
                 {alerts.length} alerta{alerts.length === 1 ? "" : "s"} pendiente
                 {alerts.length === 1 ? "" : "s"}
               </h3>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
                 {counts.critical > 0 && (
                   <span className="text-rose-400">
                     {counts.critical} crítica{counts.critical === 1 ? "" : "s"}
