@@ -31,6 +31,7 @@ import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTi
 import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
 import AlertsCenter from "@/components/admin/AlertsCenter";
 import DineroLibreCard from "@/components/admin/DineroLibreCard";
+import MonthInsightLine from "@/components/admin/MonthInsightLine";
 import QuickCaptureFab from "@/components/admin/QuickCaptureFab";
 
 export default function AdminCyberpiezas() {
@@ -166,15 +167,18 @@ export default function AdminCyberpiezas() {
                 <ShieldCheck className="w-5 h-5 text-indigo-300" />
               </div>
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-300/80 mb-0.5">
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-300 mb-0.5">
                   Panel de administracion
                 </div>
                 <h1 className="text-xl md:text-2xl font-black text-white tracking-tight leading-tight">
                   CyberPiezas Admin
                 </h1>
-                <p className="text-[12px] text-slate-400 mt-0.5">
+                <p className="text-[12px] text-slate-300 mt-0.5">
                   Suscriptores, accesos y operaciones de la plataforma
                 </p>
+                <div className="mt-2">
+                  <MonthInsightLine />
+                </div>
               </div>
             </div>
             <Button
