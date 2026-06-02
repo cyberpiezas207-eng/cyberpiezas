@@ -32,6 +32,7 @@ import {
   CreditCard,
   Fuel,
   Bell,
+  Package,
   AlertCircle,
   Wand2,
 } from "lucide-react";
@@ -95,6 +96,14 @@ const KIND_THEME: Record<
     chipText: "text-indigo-200",
     buttonBg: "bg-indigo-600 hover:bg-indigo-700",
   },
+  pantry: {
+    label: "Alacena",
+    icon: Package,
+    chipBg: "bg-amber-500/20",
+    chipBorder: "border-amber-400/50",
+    chipText: "text-amber-200",
+    buttonBg: "bg-amber-600 hover:bg-amber-700",
+  },
 };
 
 // ----------------------------------------------------------------------------
@@ -154,6 +163,10 @@ export default function QuickCaptureFab() {
     { text: debounced },
     { enabled: isOpen && activeKind === "reminder" && debounced.length > 0 },
   );
+  const previewPantry = trpc.personalPantry.items.previewCapture.useQuery(
+    { text: debounced },
+    { enabled: isOpen && activeKind === "pantry" && debounced.length > 0 },
+  );
 
   // --- Mutations ---
   const createGasto = trpc.personalExpenses.expenses.quickCreate.useMutation({
@@ -201,6 +214,27 @@ export default function QuickCaptureFab() {
     onError: (e) => toast.error(e.message || "No se pudo crear"),
   });
 
+  const createPantry = trpc.personalPantry.items.quickCreate.useMutation({
+    onSuccess: (res: any) => {
+      const productName = res?.item?.name ?? "Producto";
+      if (res?.action === "added") {
+        toast.success(`Agregado: ${productName}`);
+      } else if (res?.action === "restocked") {
+        toast.success(`Recargado: ${productName} al 100%`);
+      } else if (res?.action === "marked_low") {
+        toast.success(`Marcado bajo: ${productName}`);
+      } else if (res?.action === "marked_out") {
+        toast.success(`Marcado agotado: ${productName}`);
+      } else {
+        toast.success("Alacena actualizada");
+      }
+      utils.personalPantry.items.list.invalidate();
+      utils.personalPantry.stats.get.invalidate();
+      resetAndClose();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo crear"),
+  });
+
   function resetAndClose() {
     setText("");
     setDebounced("");
@@ -239,12 +273,20 @@ export default function QuickCaptureFab() {
     !!previewReminder.data.title &&
     (previewReminder.data.confidence ?? 0) >= 0.5;
 
-  const canCreate = canCreateGasto || canCreateDeuda || canCreateFuel || canCreateReminder;
+  const canCreatePantry =
+    activeKind === "pantry" &&
+    previewPantry.data != null &&
+    !!previewPantry.data.productName &&
+    (previewPantry.data.confidence ?? 0) >= 0.5;
+
+  const canCreate =
+    canCreateGasto || canCreateDeuda || canCreateFuel || canCreateReminder || canCreatePantry;
   const isLoading =
     createGasto.isPending ||
     createDeuda.isPending ||
     createFuel.isPending ||
-    createReminder.isPending;
+    createReminder.isPending ||
+    createPantry.isPending;
 
   function handleSubmit() {
     if (!text.trim() || !canCreate) return;
@@ -256,6 +298,8 @@ export default function QuickCaptureFab() {
       createFuel.mutate({ text: text.trim() });
     } else if (canCreateReminder) {
       createReminder.mutate({ text: text.trim() });
+    } else if (canCreatePantry) {
+      createPantry.mutate({ text: text.trim() });
     }
   }
 
@@ -327,7 +371,7 @@ export default function QuickCaptureFab() {
                   autoFocus
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="ej: pemex 500 · deuda coppel 990 · recordar pagar luz dia 12"
+                  placeholder="ej: pollo 100 pesos 2kg · deuda coppel 990 · recordar luz dia 12"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && canCreate && !isLoading) {
                       handleSubmit();
@@ -381,8 +425,8 @@ export default function QuickCaptureFab() {
                       ? "No estoy seguro. Elige tu:"
                       : "O cambia a:"}
                   </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {(["gasto", "deuda", "fuel", "reminder"] as const).map((k) => {
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    {(["gasto", "deuda", "fuel", "reminder", "pantry"] as const).map((k) => {
                       const theme = KIND_THEME[k];
                       const isActive = activeKind === k;
                       return (
@@ -605,6 +649,64 @@ export default function QuickCaptureFab() {
                     ) : (
                       <p className="text-xs text-slate-500">Sin deteccion</p>
                     ))}
+
+                  {/* ALACENA / PANTRY */}
+                  {activeKind === "pantry" &&
+                    (previewPantry.isLoading ? (
+                      <p className="text-xs text-slate-500">Analizando...</p>
+                    ) : previewPantry.data ? (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                          Detectado{" "}
+                          <span className="text-slate-600">
+                            ({Math.round((previewPantry.data.confidence ?? 0) * 100)}%)
+                          </span>
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          {previewPantry.data.productName ? (
+                            <span className="px-2 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-200">
+                              {previewPantry.data.productName}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-700 text-slate-400">
+                              sin producto
+                            </span>
+                          )}
+                          {previewPantry.data.intent === "mark_low" && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-300">
+                              ⚠ marcar bajo
+                            </span>
+                          )}
+                          {previewPantry.data.intent === "mark_out" && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-300">
+                              ✗ se acabo
+                            </span>
+                          )}
+                          {previewPantry.data.quantity != null && (
+                            <span className="px-2 py-0.5 rounded-md font-bold bg-slate-700 text-slate-200">
+                              {previewPantry.data.quantity} {previewPantry.data.unit ?? ""}
+                            </span>
+                          )}
+                          {previewPantry.data.totalPrice != null && (
+                            <span className="text-amber-300 font-black">
+                              {fmt(previewPantry.data.totalPrice)}
+                            </span>
+                          )}
+                          {previewPantry.data.unitPrice != null && previewPantry.data.unit && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-700 text-slate-300">
+                              {fmt(previewPantry.data.unitPrice)}/{previewPantry.data.unit}
+                            </span>
+                          )}
+                          {previewPantry.data.storeName && (
+                            <span className="px-2 py-0.5 rounded-md font-bold bg-slate-700 text-slate-200">
+                              {previewPantry.data.storeName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Sin deteccion</p>
+                    ))}
                 </div>
               )}
 
@@ -619,7 +721,9 @@ export default function QuickCaptureFab() {
                         ? "Necesito acreedor + concepto + monto. Intenta: 'deuda [acreedor] [concepto] [monto] [X/Y]'"
                         : activeKind === "fuel"
                           ? "Necesito monto. Intenta: 'pemex 500 gasolina'"
-                          : "Necesito titulo claro. Intenta: 'recordar [que] [cuando]'"}
+                          : activeKind === "reminder"
+                            ? "Necesito titulo claro. Intenta: 'recordar [que] [cuando]'"
+                            : "Necesito producto. Intenta: 'pollo 100 pesos 2 kg' o 'se acabo arroz'"}
                   </p>
                 </div>
               )}
