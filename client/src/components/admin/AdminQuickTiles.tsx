@@ -16,10 +16,11 @@ import {
   Boxes,
   Car,
   CreditCard,
+  Bell,
   ChevronRight,
 } from "lucide-react";
 
-export type SubModule = "gastos" | "alacena" | "vehiculo" | "deudas";
+export type SubModule = "gastos" | "alacena" | "vehiculo" | "deudas" | "recordatorios";
 
 interface Props {
   onOpenModule: (subTab: SubModule) => void;
@@ -86,6 +87,17 @@ const TILES: TileConfig[] = [
     glow: "bg-rose-500/[0.08]",
     hoverBorder: "hover:border-rose-500/40",
   },
+  {
+    key: "recordatorios",
+    icon: Bell,
+    label: "Recordatorios",
+    subtitle: "Pendientes, fechas y recurrencias",
+    iconColor: "text-indigo-300",
+    iconBg: "bg-indigo-500/15",
+    iconRing: "ring-indigo-400/30",
+    glow: "bg-indigo-500/[0.08]",
+    hoverBorder: "hover:border-indigo-500/40",
+  },
 ];
 
 // ----------------------------------------------------------------------------
@@ -112,7 +124,7 @@ export default function AdminQuickTiles({ onOpenModule }: Props) {
       </div>
 
       {/* Grid de tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {TILES.map((tile) => (
           <button
             key={tile.key}
