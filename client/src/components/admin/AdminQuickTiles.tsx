@@ -224,7 +224,7 @@ export default function AdminQuickTiles({ onOpenModule }: Props) {
   // --- Render ---
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 mb-2 px-1">
+      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400 mb-2 px-1">
         Control personal
       </p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -262,7 +262,7 @@ export default function AdminQuickTiles({ onOpenModule }: Props) {
             </p>
 
             {/* Hint */}
-            <p className="relative text-[10px] text-slate-500 mt-0.5 truncate">
+            <p className="relative text-[10px] text-slate-400 mt-0.5 truncate">
               {tile.hint}
             </p>
           </button>
