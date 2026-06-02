@@ -30,6 +30,7 @@ import AdminKPIStrip from "@/components/admin/AdminKPIStrip";
 import AdminQuickTiles, { type SubModule } from "@/components/admin/AdminQuickTiles";
 import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
 import AlertsCenter from "@/components/admin/AlertsCenter";
+import DineroLibreCard from "@/components/admin/DineroLibreCard";
 import QuickCaptureFab from "@/components/admin/QuickCaptureFab";
 
 export default function AdminCyberpiezas() {
@@ -235,6 +236,8 @@ export default function AdminCyberpiezas() {
                   }
                 }}
               />
+              {/* Dinero Libre Estimado - Resumen de Hoy (Commit A) */}
+              <DineroLibreCard />
               {/* KPI Strip (Commit 6) */}
               <AdminKPIStrip />
               {/* Tiles de navegacion a sub-modulos (Commit 7) */}
