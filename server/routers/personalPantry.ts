@@ -26,6 +26,8 @@ import {
   findPantryItemByNormalizedName,
 } from "../personalPantryDb";
 import { analyzePantryLine } from "../personalPantryEngine";
+import { createDetailedExpense } from "../personalExpensesCaptureDb";
+import { recordPantryItemPrice } from "../personalPantryPricesDb";
 
 // ----------------------------------------------------------------------------
 // Blindaje: solo el dueño (mismo patron que personalOperations / personalExpenses)
@@ -252,10 +254,58 @@ export const personalPantryRouter = router({
           if (restocked) item = restocked;
         }
 
+        // V3 (Alacena-3): Si hay precio, crear gasto + registrar precio historico
+        // El gasto se crea automaticamente vinculado a la compra. Si falla,
+        // no rompe el flujo - la alacena ya esta actualizada.
+        let createdExpenseId: number | null = null;
+        if (detection.totalPrice != null && detection.totalPrice > 0) {
+          try {
+            // Construir descripcion humana: "pollo (2 kg)"
+            const qtyLabel =
+              detection.quantity != null && detection.unit
+                ? ` (${detection.quantity} ${detection.unit})`
+                : "";
+            const description = `${detection.productName}${qtyLabel}`;
+
+            // 1. Crear gasto
+            const expense = await createDetailedExpense(userId, {
+              amount: detection.totalPrice,
+              description,
+              categoryId: null, // Que el sistema lo clasifique
+              storeId: null,
+              storeName: detection.storeName ?? null,
+              expenseDate: detection.purchaseDate ?? new Date().toISOString().slice(0, 10),
+              paymentMethod: "cash",
+              notes: "Generado automaticamente desde Alacena",
+            });
+            createdExpenseId = (expense as any)?.id ?? null;
+
+            // 2. Registrar entrada en historial de precios (vinculada al gasto)
+            if (detection.unitPrice != null && item?.id) {
+              await recordPantryItemPrice(userId, {
+                pantryItemId: item.id,
+                unitPrice: detection.unitPrice,
+                storeId: null,
+                expenseId: createdExpenseId,
+                quantity: detection.quantity ?? null,
+                unit: detection.unit ?? null,
+                purchasedAt: detection.purchaseDate ?? new Date().toISOString().slice(0, 10),
+                source: "capture",
+              } as any);
+            }
+          } catch (e) {
+            console.warn(
+              "[alacena->gasto] No se pudo crear gasto/precio asociado:",
+              e,
+            );
+          }
+        }
+
         return {
           action,
           item,
           detection,
+          createdExpenseId,
         };
       }),
   }),
