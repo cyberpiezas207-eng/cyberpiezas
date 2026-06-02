@@ -430,3 +430,60 @@ export async function getPantryStats(userId: number): Promise<PantryStats> {
   };
 }
 
+// ============================================================================
+// BUSQUEDA POR NOMBRE NORMALIZADO (para captura natural / fuzzy match)
+// ----------------------------------------------------------------------------
+// Estrategia: primero match exacto, luego LIKE con el nombre normalizado.
+// Retorna el item mas reciente que coincida (o null).
+// ============================================================================
+
+export async function findPantryItemByNormalizedName(
+  userId: number,
+  name: string,
+): Promise<PersonalPantryItem | null> {
+  const normalized = normalizeText(name).trim();
+  if (!normalized) return null;
+
+  const conn = await getDbOrThrow();
+
+  // 1. Match exacto primero
+  const exactRows = await conn
+    .select()
+    .from(personalPantryItems)
+    .where(
+      and(
+        eq(personalPantryItems.userId, userId),
+        eq(personalPantryItems.normalizedName, normalized),
+        isNull(personalPantryItems.deletedAt),
+        ne(personalPantryItems.status, "archived"),
+      ),
+    )
+    .orderBy(desc(personalPantryItems.updatedAt))
+    .limit(1);
+
+  if (exactRows.length > 0) {
+    return exactRows[0] as PersonalPantryItem;
+  }
+
+  // 2. Match LIKE: buscar productos que CONTENGAN el nombre buscado
+  // Ej: si busca "pollo", encuentra "pollo entero" o "pechuga de pollo"
+  const likeRows = await conn
+    .select()
+    .from(personalPantryItems)
+    .where(
+      and(
+        eq(personalPantryItems.userId, userId),
+        like(personalPantryItems.normalizedName, `%${normalized}%`),
+        isNull(personalPantryItems.deletedAt),
+        ne(personalPantryItems.status, "archived"),
+      ),
+    )
+    .orderBy(desc(personalPantryItems.updatedAt))
+    .limit(1);
+
+  if (likeRows.length > 0) {
+    return likeRows[0] as PersonalPantryItem;
+  }
+
+  return null;
+}
