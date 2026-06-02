@@ -6,6 +6,7 @@
 //   - "deuda"     -> personalDebts
 //   - "fuel"      -> personalVehicles.fuelLogs
 //   - "reminder"  -> personalReminders
+//   - "pantry"    -> personalPantry
 //
 // Scoring aditivo: cada keyword/pattern suma. El kind ganador es el mas alto.
 // Si todos quedan abajo del threshold, retorna "unknown" para que la UI
@@ -20,7 +21,7 @@
 // Tipos publicos
 // ----------------------------------------------------------------------------
 
-export type CaptureKind = "gasto" | "deuda" | "fuel" | "reminder" | "unknown";
+export type CaptureKind = "gasto" | "deuda" | "fuel" | "reminder" | "pantry" | "unknown";
 
 export interface IntentDetection {
   kind: CaptureKind;
@@ -183,6 +184,106 @@ const REMINDER_FUTURE_KEYWORDS = [
   "para el",
 ];
 
+// Senales ALACENA / PANTRY
+const PANTRY_HARD = [
+  "alacena",
+  "despensa",
+  "se acabo",
+  "se acabaron",
+  "se termino",
+  "se terminaron",
+  "ya no hay",
+  "queda poco",
+  "casi se acaba",
+  "compre",
+];
+
+const PANTRY_UNITS = [
+  "kilo",
+  "kilos",
+  "kg",
+  "gramos",
+  "gramo",
+  "litro",
+  "litros",
+  "ml",
+  "docena",
+  "docenas",
+  "manojo",
+  "manojos",
+  "paquete",
+  "paquetes",
+  "caja",
+  "cajas",
+  "bolsa",
+  "bolsas",
+  "lata",
+  "latas",
+];
+
+const PANTRY_PRODUCTS_HINTS = [
+  // Alimentos comunes mexicanos (no exhaustivo, solo hints)
+  "pollo",
+  "carne",
+  "res",
+  "puerco",
+  "pescado",
+  "huevo",
+  "huevos",
+  "leche",
+  "queso",
+  "yogurt",
+  "tortilla",
+  "tortillas",
+  "frijol",
+  "frijoles",
+  "arroz",
+  "azucar",
+  "sal",
+  "aceite",
+  "harina",
+  "pan",
+  "jamon",
+  "salchicha",
+  "atun",
+  "verduras",
+  "frutas",
+  "tomate",
+  "cebolla",
+  "papa",
+  "papas",
+  "limon",
+  "limones",
+  "naranja",
+  "naranjas",
+  "manzana",
+  "manzanas",
+  "platano",
+  "platanos",
+  "aguacate",
+  "chile",
+  "cafe",
+  "te",
+  "agua",
+  "refresco",
+  "cerveza",
+  "jugo",
+  "galletas",
+  "pasta",
+  "sopa",
+];
+
+const PANTRY_STORES_LOCAL = [
+  "verduleria",
+  "carniceria",
+  "pescaderia",
+  "tortilleria",
+  "panaderia",
+  "fruteria",
+  "mercado",
+  "tianguis",
+];
+
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
@@ -329,6 +430,52 @@ function scoreReminder(text: string, reasons: string[]): number {
   return Math.max(0, s);
 }
 
+function scorePantry(text: string, reasons: string[]): number {
+  let s = 0;
+
+  // Hard keywords (alacena, despensa, se acabo, queda poco, compre)
+  const hardHits = countMatches(text, PANTRY_HARD);
+  if (hardHits > 0) {
+    s += 0.5;
+    reasons.push("keyword de alacena");
+  }
+
+  // Unidades (kilo, litro, docena, bolsa, etc) - señal MUY fuerte para alacena
+  const unitHits = countMatches(text, PANTRY_UNITS);
+  if (unitHits > 0) {
+    s += 0.55;
+    reasons.push("unidad de medida");
+  }
+
+  // Productos comunes mexicanos (pollo, leche, huevo, etc)
+  const productHits = countMatches(text, PANTRY_PRODUCTS_HINTS);
+  if (productHits > 0) {
+    s += 0.4;
+    reasons.push("producto comestible");
+  }
+
+  // Tiendas locales especializadas (verduleria, carniceria, etc)
+  const storeHits = countMatches(text, PANTRY_STORES_LOCAL);
+  if (storeHits > 0) {
+    s += 0.35;
+    reasons.push("tienda especializada");
+  }
+
+  // Patron "medio/media kilo/litro/docena"
+  if (/\b(medio|media)\s+(kilo|litro|docena)\b/.test(text)) {
+    s += 0.4;
+    reasons.push("fraccion de unidad");
+  }
+
+  // Patron "N piezas/docenas/cajas" con palabras
+  if (/\b(una?|dos|tres|cuatro|cinco|seis)\s+(docena|manojo|paquete|caja|bolsa|lata)\b/.test(text)) {
+    s += 0.3;
+    reasons.push("cantidad en palabras");
+  }
+
+  return s;
+}
+
 function scoreGasto(text: string, reasons: string[]): number {
   let s = 0;
 
@@ -373,11 +520,13 @@ export function detectCaptureIntent(text: string): IntentDetection {
   const reasonsFuel: string[] = [];
   const reasonsGasto: string[] = [];
   const reasonsReminder: string[] = [];
+  const reasonsPantry: string[] = [];
 
   const scores = {
     deuda: scoreDeuda(lower, reasonsDeuda),
     fuel: scoreFuel(lower, reasonsFuel),
     reminder: scoreReminder(lower, reasonsReminder),
+    pantry: scorePantry(lower, reasonsPantry),
     gasto: scoreGasto(lower, reasonsGasto),
   };
 
@@ -418,7 +567,9 @@ export function detectCaptureIntent(text: string): IntentDetection {
         ? reasonsFuel
         : winner === "reminder"
           ? reasonsReminder
-          : reasonsGasto;
+          : winner === "pantry"
+            ? reasonsPantry
+            : reasonsGasto;
 
   return {
     kind: winner,
