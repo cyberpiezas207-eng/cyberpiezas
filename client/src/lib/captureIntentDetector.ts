@@ -2,9 +2,10 @@
 // CAPTURE INTENT DETECTOR (frontend, pure function)
 // ----------------------------------------------------------------------------
 // Clasifica una captura de texto natural en uno de los cerebros disponibles:
-//   - "gasto"  -> personalExpenses
-//   - "deuda"  -> personalDebts
-//   - "fuel"   -> personalVehicles.fuelLogs
+//   - "gasto"     -> personalExpenses
+//   - "deuda"     -> personalDebts
+//   - "fuel"      -> personalVehicles.fuelLogs
+//   - "reminder"  -> personalReminders
 //
 // Scoring aditivo: cada keyword/pattern suma. El kind ganador es el mas alto.
 // Si todos quedan abajo del threshold, retorna "unknown" para que la UI
@@ -19,7 +20,7 @@
 // Tipos publicos
 // ----------------------------------------------------------------------------
 
-export type CaptureKind = "gasto" | "deuda" | "fuel" | "unknown";
+export type CaptureKind = "gasto" | "deuda" | "fuel" | "reminder" | "unknown";
 
 export interface IntentDetection {
   kind: CaptureKind;
@@ -106,6 +107,80 @@ const FUEL_METER = [
   "kilometraje",
   "odometro",
   "marcador",
+];
+
+// Senales RECORDATORIO
+const REMINDER_HARD = [
+  "recordar",
+  "recordame",
+  "recuerdame",
+  "no olvidar",
+  "no olvido",
+  "no se olvide",
+  "acordarme",
+  "acuerdame",
+];
+
+const REMINDER_EVENT = [
+  "cita",
+  "junta",
+  "reunion",
+  "reunión",
+  "evento",
+  "consulta",
+  "appointment",
+  "llamar",
+  "llamada",
+  "visita",
+  "entrega",
+  "vencimiento",
+  "vence",
+];
+
+const REMINDER_RECURRENCE = [
+  "cada dia",
+  "diario",
+  "cada semana",
+  "semanal",
+  "cada mes",
+  "mensual",
+  "cada año",
+  "anual",
+  "todos los",
+];
+
+const REMINDER_TIME_OF_DAY = [
+  "manana",
+  "tarde",
+  "noche",
+  "mediodia",
+  "medianoche",
+  "am",
+  "pm",
+];
+
+const REMINDER_WEEKDAYS = [
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+];
+
+const REMINDER_FUTURE_KEYWORDS = [
+  "mañana",
+  "manana",
+  "pasado mañana",
+  "en 1 semana",
+  "en una semana",
+  "en 2 semanas",
+  "el proximo",
+  "el próximo",
+  "la proxima",
+  "la próxima",
+  "para el",
 ];
 
 // ----------------------------------------------------------------------------
@@ -199,6 +274,61 @@ function scoreFuel(text: string, reasons: string[]): number {
   return s;
 }
 
+function scoreReminder(text: string, reasons: string[]): number {
+  let s = 0;
+
+  // Hard keywords (recordar, recordame, no olvidar)
+  // Estas son senales muy fuertes - si dice "recordame", casi seguro es recordatorio
+  const hardHits = countMatches(text, REMINDER_HARD);
+  if (hardHits > 0) {
+    s += 0.7;
+    reasons.push("verbo de recordatorio");
+  }
+
+  // Eventos de calendario (cita, junta, llamar, etc)
+  const eventHits = countMatches(text, REMINDER_EVENT);
+  if (eventHits > 0) {
+    s += 0.45;
+    reasons.push("evento de calendario");
+  }
+
+  // Recurrencia (cada dia, semanal, mensual)
+  const recHits = countMatches(text, REMINDER_RECURRENCE);
+  if (recHits > 0) {
+    s += 0.3;
+    reasons.push("recurrencia temporal");
+  }
+
+  // Dia de la semana (lunes, martes, etc)
+  const wdHits = countMatches(text, REMINDER_WEEKDAYS);
+  if (wdHits > 0) {
+    s += 0.25;
+    reasons.push("dia de la semana");
+  }
+
+  // Tiempo futuro (mañana, proximo, en X semanas)
+  const futHits = countMatches(text, REMINDER_FUTURE_KEYWORDS);
+  if (futHits > 0) {
+    s += 0.3;
+    reasons.push("referencia a futuro");
+  }
+
+  // Hora del dia con keywords (am, pm, mañana, tarde, noche)
+  if (/\b\d{1,2}\s*(am|pm)\b/i.test(text) || /\ba\s+las?\s+\d{1,2}/i.test(text)) {
+    s += 0.2;
+    reasons.push("hora del dia");
+  }
+
+  // Penalizacion suave si hay senal de monto explicito (numero grande)
+  // Un recordatorio raramente menciona cantidades de dinero (eso es gasto)
+  const hasLargeAmount = /\b\d{3,}\b/.test(text);
+  if (hasLargeAmount) {
+    s -= 0.15;
+  }
+
+  return Math.max(0, s);
+}
+
 function scoreGasto(text: string, reasons: string[]): number {
   let s = 0;
 
@@ -242,10 +372,12 @@ export function detectCaptureIntent(text: string): IntentDetection {
   const reasonsDeuda: string[] = [];
   const reasonsFuel: string[] = [];
   const reasonsGasto: string[] = [];
+  const reasonsReminder: string[] = [];
 
   const scores = {
     deuda: scoreDeuda(lower, reasonsDeuda),
     fuel: scoreFuel(lower, reasonsFuel),
+    reminder: scoreReminder(lower, reasonsReminder),
     gasto: scoreGasto(lower, reasonsGasto),
   };
 
@@ -284,7 +416,9 @@ export function detectCaptureIntent(text: string): IntentDetection {
       ? reasonsDeuda
       : winner === "fuel"
         ? reasonsFuel
-        : reasonsGasto;
+        : winner === "reminder"
+          ? reasonsReminder
+          : reasonsGasto;
 
   return {
     kind: winner,
