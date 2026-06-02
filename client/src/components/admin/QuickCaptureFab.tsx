@@ -31,6 +31,7 @@ import {
   Wallet,
   CreditCard,
   Fuel,
+  Bell,
   AlertCircle,
   Wand2,
 } from "lucide-react";
@@ -85,6 +86,14 @@ const KIND_THEME: Record<
     chipBorder: "border-cyan-400/50",
     chipText: "text-cyan-200",
     buttonBg: "bg-cyan-600 hover:bg-cyan-700",
+  },
+  reminder: {
+    label: "Recordatorio",
+    icon: Bell,
+    chipBg: "bg-indigo-500/20",
+    chipBorder: "border-indigo-400/50",
+    chipText: "text-indigo-200",
+    buttonBg: "bg-indigo-600 hover:bg-indigo-700",
   },
 };
 
@@ -141,6 +150,10 @@ export default function QuickCaptureFab() {
     { text: debounced },
     { enabled: isOpen && activeKind === "fuel" && debounced.length > 0 },
   );
+  const previewReminder = trpc.personalReminders.reminders.previewCapture.useQuery(
+    { text: debounced },
+    { enabled: isOpen && activeKind === "reminder" && debounced.length > 0 },
+  );
 
   // --- Mutations ---
   const createGasto = trpc.personalExpenses.expenses.quickCreate.useMutation({
@@ -178,6 +191,16 @@ export default function QuickCaptureFab() {
     onError: (e) => toast.error(e.message || "No se pudo crear"),
   });
 
+  const createReminder = trpc.personalReminders.reminders.quickCreate.useMutation({
+    onSuccess: () => {
+      toast.success("Recordatorio creado");
+      utils.personalReminders.reminders.list.invalidate();
+      utils.personalReminders.stats.dashboard.invalidate();
+      resetAndClose();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo crear"),
+  });
+
   function resetAndClose() {
     setText("");
     setDebounced("");
@@ -210,9 +233,18 @@ export default function QuickCaptureFab() {
     previewFuel.data != null &&
     ((previewFuel.data as any).amountPaid ?? 0) > 0;
 
-  const canCreate = canCreateGasto || canCreateDeuda || canCreateFuel;
+  const canCreateReminder =
+    activeKind === "reminder" &&
+    previewReminder.data != null &&
+    !!previewReminder.data.title &&
+    (previewReminder.data.confidence ?? 0) >= 0.5;
+
+  const canCreate = canCreateGasto || canCreateDeuda || canCreateFuel || canCreateReminder;
   const isLoading =
-    createGasto.isPending || createDeuda.isPending || createFuel.isPending;
+    createGasto.isPending ||
+    createDeuda.isPending ||
+    createFuel.isPending ||
+    createReminder.isPending;
 
   function handleSubmit() {
     if (!text.trim() || !canCreate) return;
@@ -222,6 +254,8 @@ export default function QuickCaptureFab() {
       createDeuda.mutate({ text: text.trim() });
     } else if (canCreateFuel) {
       createFuel.mutate({ text: text.trim() });
+    } else if (canCreateReminder) {
+      createReminder.mutate({ text: text.trim() });
     }
   }
 
@@ -293,7 +327,7 @@ export default function QuickCaptureFab() {
                   autoFocus
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="ej: pemex 500 · deuda coppel 990 4/12 · gasolina 600"
+                  placeholder="ej: pemex 500 · deuda coppel 990 · recordar pagar luz dia 12"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && canCreate && !isLoading) {
                       handleSubmit();
@@ -347,8 +381,8 @@ export default function QuickCaptureFab() {
                       ? "No estoy seguro. Elige tu:"
                       : "O cambia a:"}
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["gasto", "deuda", "fuel"] as const).map((k) => {
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {(["gasto", "deuda", "fuel", "reminder"] as const).map((k) => {
                       const theme = KIND_THEME[k];
                       const isActive = activeKind === k;
                       return (
@@ -513,6 +547,64 @@ export default function QuickCaptureFab() {
                     ) : (
                       <p className="text-xs text-slate-500">Sin deteccion</p>
                     ))}
+
+                  {/* RECORDATORIO */}
+                  {activeKind === "reminder" &&
+                    (previewReminder.isLoading ? (
+                      <p className="text-xs text-slate-500">Analizando...</p>
+                    ) : previewReminder.data ? (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                          Detectado{" "}
+                          <span className="text-slate-600">
+                            ({Math.round((previewReminder.data.confidence ?? 0) * 100)}%)
+                          </span>
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          {previewReminder.data.title ? (
+                            <span className="px-2 py-0.5 rounded-md font-bold bg-indigo-500/20 text-indigo-200">
+                              {previewReminder.data.title}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-700 text-slate-400">
+                              sin titulo
+                            </span>
+                          )}
+                          {previewReminder.data.dueDate && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-700 text-slate-200">
+                              📅 {previewReminder.data.dueDate}
+                            </span>
+                          )}
+                          {previewReminder.data.dueDay != null && !previewReminder.data.dueDate && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-700 text-slate-200">
+                              📅 dia {previewReminder.data.dueDay}
+                            </span>
+                          )}
+                          {previewReminder.data.dueTime && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-700 text-slate-200">
+                              🕐 {previewReminder.data.dueTime}
+                            </span>
+                          )}
+                          {previewReminder.data.isRecurring && previewReminder.data.recurrencePattern && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                              🔁 {previewReminder.data.recurrencePattern}
+                            </span>
+                          )}
+                          {previewReminder.data.priority && previewReminder.data.priority !== "normal" && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-300">
+                              {previewReminder.data.priority}
+                            </span>
+                          )}
+                          {previewReminder.data.tags && previewReminder.data.tags.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-700 text-cyan-300">
+                              #{previewReminder.data.tags.join(" #")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Sin deteccion</p>
+                    ))}
                 </div>
               )}
 
@@ -525,7 +617,9 @@ export default function QuickCaptureFab() {
                       ? "Necesito un monto. Intenta: '[tienda] [producto] [precio]'"
                       : activeKind === "deuda"
                         ? "Necesito acreedor + concepto + monto. Intenta: 'deuda [acreedor] [concepto] [monto] [X/Y]'"
-                        : "Necesito monto. Intenta: 'pemex 500 gasolina'"}
+                        : activeKind === "fuel"
+                          ? "Necesito monto. Intenta: 'pemex 500 gasolina'"
+                          : "Necesito titulo claro. Intenta: 'recordar [que] [cuando]'"}
                   </p>
                 </div>
               )}
