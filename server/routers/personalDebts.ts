@@ -37,6 +37,38 @@ import {
   getPaidDebtsStats,
   getDebtInsights,
 } from "../personalDebtsInsightsDb";
+import { createReminder } from "../personalRemindersDb";
+
+// Helper: crea recordatorio asociado a una deuda recien creada
+// Se llama despues de crear una deuda con dueDate. Si falla, NO rompe
+// la creacion de la deuda - el recordatorio es bonus, no critico.
+async function tryCreateDebtReminder(
+  userId: number,
+  debt: any,
+): Promise<void> {
+  try {
+    const dueDate = debt?.nextDueDate;
+    if (!dueDate) return; // sin fecha, no hay nada que recordar
+
+    const creditor = debt?.creditorName || "acreedor";
+    const concept = debt?.title || "pago";
+    const amount = Number(debt?.installmentAmount ?? 0);
+    const amountText = amount > 0 ? ` ($${Math.round(amount).toLocaleString("es-MX")})` : "";
+
+    await createReminder(userId, {
+      title: `Pagar ${creditor}: ${concept}${amountText}`,
+      description: `Recordatorio automatico generado desde tu deuda con ${creditor}`,
+      dueDate: dueDate,
+      priority: "normal",
+      sourceModule: "debt",
+      sourceId: debt.id,
+      tags: ["deuda", "auto"],
+    });
+  } catch (e) {
+    // Log pero no rompemos el flujo - la deuda ya esta creada
+    console.warn("[debts->reminders] No se pudo crear recordatorio asociado:", e);
+  }
+}
 
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user || ctx.user.openId !== ENV.ownerOpenId) {
@@ -167,7 +199,10 @@ export const personalDebtsRouter = router({
     create: ownerOnlyProcedure
       .input(createDebtSchema)
       .mutation(async ({ ctx, input }) => {
-        return await createDebt(ctx.user.id, input);
+        const debt = await createDebt(ctx.user.id, input);
+        // Auto-recordatorio si la deuda tiene fecha de vencimiento
+        await tryCreateDebtReminder(ctx.user.id, debt);
+        return debt;
       }),
 
     update: ownerOnlyProcedure
@@ -274,6 +309,9 @@ export const personalDebtsRouter = router({
           linkedAssetName: isPurchase ? detection.conceptName : null,
           assetStatus: isPurchase ? "owned" : null,
         });
+
+        // Auto-recordatorio si la deuda tiene fecha de vencimiento
+        await tryCreateDebtReminder(ctx.user.id, debt);
 
         return { debt, detection };
       }),
