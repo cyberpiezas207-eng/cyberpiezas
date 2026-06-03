@@ -270,8 +270,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-rose-950/60 via-slate-800 to-slate-800/90 border border-rose-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-rose-500/20 ring-1 ring-rose-400/30 flex items-center justify-center mb-3">
-            <CreditCard className="w-4 h-4 text-rose-300" />
+          <div className="w-11 h-11 rounded-xl bg-rose-500/20 ring-2 ring-rose-400/50 flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20">
+            <CreditCard className="w-5 h-5 text-rose-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Deuda total
@@ -289,8 +289,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-slate-800 to-slate-800/90 border border-amber-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 ring-1 ring-amber-400/30 flex items-center justify-center mb-3">
-            <Wallet className="w-4 h-4 text-amber-300" />
+          <div className="w-11 h-11 rounded-xl bg-amber-500/20 ring-2 ring-amber-400/50 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
+            <Wallet className="w-5 h-5 text-amber-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Por pagar este mes
@@ -309,8 +309,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-orange-950/60 via-slate-800 to-slate-800/90 border border-orange-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-orange-500/20 ring-1 ring-orange-400/30 flex items-center justify-center mb-3">
-            <Calendar className="w-4 h-4 text-orange-300" />
+          <div className="w-11 h-11 rounded-xl bg-orange-500/20 ring-2 ring-orange-400/50 flex items-center justify-center mb-3 shadow-lg shadow-orange-500/20">
+            <Calendar className="w-5 h-5 text-orange-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Proximo pago
@@ -336,8 +336,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-indigo-950/60 via-slate-800 to-slate-800/90 border border-indigo-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/30 flex items-center justify-center mb-3">
-            <Sparkles className="w-4 h-4 text-indigo-300" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/20 ring-2 ring-indigo-400/50 flex items-center justify-center mb-3 shadow-lg shadow-indigo-500/20">
+            <Sparkles className="w-5 h-5 text-indigo-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Ahorro diario
