@@ -14,6 +14,7 @@ import { Plus, Wallet, Star, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } fr
 import CreateWalletModal from "./CreateWalletModal";
 import WalletMovementModal from "./WalletMovementModal";
 import TransferWalletsModal from "./TransferWalletsModal";
+import WalletDetailModal from "./WalletDetailModal";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("es-MX", {
@@ -36,6 +37,9 @@ export default function WalletsPanel() {
   // Wallets-2C: estado para el modal de transferencia
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferFromId, setTransferFromId] = useState<number | null>(null);
+
+  // Wallets-2D: estado para modal de detalle de bolsillo
+  const [detailWalletId, setDetailWalletId] = useState<number | null>(null);
 
   function openMovementModal(wallet: any, action: "deposit" | "withdraw") {
     setSelectedWallet(wallet);
@@ -164,8 +168,13 @@ export default function WalletsPanel() {
                     key={w.id}
                     className="flex flex-col gap-2 p-2.5 rounded-lg bg-slate-800/60 border border-slate-700 hover:border-slate-600 transition-colors"
                   >
-                    {/* Fila 1: info del bolsillo */}
-                    <div className="flex items-center gap-3">
+                    {/* Fila 1: info del bolsillo - Wallets-2D: clickeable */}
+                    <button
+                      type="button"
+                      onClick={() => setDetailWalletId(w.id)}
+                      className="flex items-center gap-3 w-full text-left rounded-md hover:bg-slate-700/30 -m-1 p-1 transition-colors"
+                      title="Ver detalle e historial"
+                    >
                       <span
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
                         style={{
@@ -198,7 +207,7 @@ export default function WalletsPanel() {
                       >
                         {fmt(balance)}
                       </p>
-                    </div>
+                    </button>
                     {/* Fila 2: botones rapidos Wallets-2B */}
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
@@ -248,6 +257,14 @@ export default function WalletsPanel() {
           setShowTransfer(false);
           setTransferFromId(null);
         }}
+      />
+
+      {/* Wallets-2D: modal de detalle de bolsillo con historial */}
+      <WalletDetailModal
+        open={detailWalletId != null}
+        walletId={detailWalletId}
+        allWallets={wallets}
+        onClose={() => setDetailWalletId(null)}
       />
     </>
   );
