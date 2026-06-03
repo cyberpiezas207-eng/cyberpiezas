@@ -27,6 +27,7 @@ import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
 import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
 import TodayActionCard from "@/components/admin/TodayActionCard";
 import DebtStrategiesPanel from "@/components/admin/DebtStrategiesPanel";
+import MonthCalendarPanel from "@/components/admin/MonthCalendarPanel";
 import {
   CreditCard,
   Wallet,
@@ -209,6 +210,14 @@ export default function PersonalDebtsTab() {
 
       {/* Plan de pago del mes (panel asesor) */}
       <MonthPaymentPlan
+        year={year}
+        month={month}
+        onPay={(id) => setPayingDebtId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
+      />
+
+      {/* Calendario mensual visual */}
+      <MonthCalendarPanel
         year={year}
         month={month}
         onPay={(id) => setPayingDebtId(id)}
