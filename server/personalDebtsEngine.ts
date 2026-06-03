@@ -585,9 +585,11 @@ export function analyzeDebtLine(
     result.intent === "new_debt" ||
     result.intent === "purchase_installment"
   ) {
-    // "aun debo N" / "todavia debo N" / "debo N"
+    // V2.3: "debo N" con variantes flexibles (orden libre + palabras temporales)
+    // Detecta: "debo 1247", "aun debo 1247", "todavia debo 1247",
+    //          "debo aun 1247", "debo todavia 1247", "debo todavia aun 1247"
     const remainMatch = lower.match(
-      /\b(?:aun |todavia )?debo\s+(\d+(?:[.,]\d+)?)\b/,
+      /\b(?:aun\s+|todavia\s+)?debo(?:\s+(?:aun|todavia))*\s+(\d+(?:[.,]\d+)?)\b/,
     );
     if (remainMatch) {
       const val = parseFloat(remainMatch[1].replace(",", "."));
@@ -602,8 +604,12 @@ export function analyzeDebtLine(
       }
     }
 
-    // "pague N" -> pago inicial (no es el monto principal)
-    const paidMatch = lower.match(/\bpague\s+(\d+(?:[.,]\d+)?)\b/);
+    // V2.3: "pague N" con variantes flexibles
+    // Detecta: "pague 538", "pague hoy 538", "pague ayer 538", "ya pague 538",
+    //          "le pague 538", "ya le pague 538", "pague el lunes 538"
+    const paidMatch = lower.match(
+      /\b(?:ya\s+)?(?:le\s+)?pague(?:\s+(?:hoy|ayer|ya|el\s+\w+))?\s+(\d+(?:[.,]\d+)?)\b/,
+    );
     if (paidMatch) {
       const paid = parseFloat(paidMatch[1].replace(",", "."));
       if (paid > 0 && paid < 10_000_000) {
@@ -618,6 +624,21 @@ export function analyzeDebtLine(
             Math.round((result.currentBalance + paid) * 100) / 100;
         }
       }
+    }
+
+    // V2.3: Si tenemos currentBalance + totalInstallments pero NO installmentAmount,
+    // calcular la cuota mensual automatica = balance / meses restantes.
+    // Ejemplo: "debo 1247 en 2 meses" -> cuota = 1247 / 2 = 623.50/mes
+    if (
+      result.currentBalance != null &&
+      result.currentBalance > 0 &&
+      result.totalInstallments != null &&
+      result.totalInstallments > 0 &&
+      result.installmentAmount == null
+    ) {
+      result.installmentAmount =
+        Math.round((result.currentBalance / result.totalInstallments) * 100) /
+        100;
     }
   }
 
@@ -645,13 +666,19 @@ export function analyzeDebtLine(
     (result.intent === "ambiguous" && result.totalInstallments != null)
   ) {
     if (moneyNums.length > 0 && result.totalInstallments != null) {
-      result.installmentAmount = moneyNums[0].value;
-      result.originalAmount =
-        Math.round(result.installmentAmount * result.totalInstallments * 100) / 100;
-      const pagados = result.currentInstallment ?? 0;
-      const restantes = result.totalInstallments - pagados;
-      result.currentBalance =
-        Math.round(result.installmentAmount * restantes * 100) / 100;
+      // V2.3: Si V2.3 ya calculo currentBalance/originalAmount/installmentAmount,
+      // NO sobrescribir. Solo entrar a la logica clasica si NADA esta asignado.
+      const v23AlreadyAssigned =
+        result.currentBalance != null && result.installmentAmount != null;
+      if (!v23AlreadyAssigned) {
+        result.installmentAmount = moneyNums[0].value;
+        result.originalAmount =
+          Math.round(result.installmentAmount * result.totalInstallments * 100) / 100;
+        const pagados = result.currentInstallment ?? 0;
+        const restantes = result.totalInstallments - pagados;
+        result.currentBalance =
+          Math.round(result.installmentAmount * restantes * 100) / 100;
+      }
     } else if (moneyNums.length > 0) {
       // V2.2: Solo asignar si no fueron seteados por detectores especificos previos
       if (result.originalAmount == null) {
