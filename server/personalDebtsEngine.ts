@@ -245,7 +245,15 @@ function detectIntent(text: string): DebtCaptureIntent {
   const hasNewDebtSignal =
     text.includes("compre") ||
     text.includes("compra a meses") ||
-    text.includes("msi");
+    text.includes("msi") ||
+    // V2.5: variantes mexicanas
+    /\bsaque\s+(?:el|la|los|las|un|una|unos|unas|mi|mis)?\s*\w+/.test(text) ||
+    text.includes("meti a") ||
+    text.includes("meti al") ||
+    text.includes("lo meti") ||
+    text.includes("la meti") ||
+    text.includes("lo puse") ||
+    text.includes("la puse");
 
   // Si hay senal fuerte de NEW_DEBT, le da prioridad sobre payment/partial_payment
   if (hasDebtKeyword || hasNewDebtSignal) {
@@ -254,7 +262,17 @@ function detectIntent(text: string): DebtCaptureIntent {
     if (text.includes("vendi") || text.includes("venta de") || text.includes("vendido")) {
       return "asset_sale";
     }
-    if (text.includes("compra a meses") || text.includes("compre") || text.includes("msi")) {
+    if (
+      text.includes("compra a meses") ||
+      text.includes("compre") ||
+      text.includes("msi") ||
+      // V2.5: si dijo "saque", "meti a", "puse" + indicio de meses, es compra a meses
+      (/\bsaque\b/.test(text) &&
+        (/\b\d+\s+(?:meses|msi|pagos)\b/.test(text) ||
+          /\ba\s+\d+\s+(?:meses|msi)\b/.test(text))) ||
+      (/\b(?:meti|puse)\b/.test(text) &&
+        /\b\d+\s+(?:meses|msi)\b/.test(text))
+    ) {
       return "purchase_installment";
     }
     return "new_debt";
@@ -355,8 +373,13 @@ function extractConcept(
 function cleanConceptText(rest: string): string {
   const STOP_WORDS = new Set([
     "deuda", "debo", "tengo", "compre", "compra",
-    "pague", "pago", "pagar", "pagara", "pagaran", "pagamos",
+    "pague", "pago", "pagar", "pagara", "pagaran", "pagamos", "pagados",
     "abone", "abono", "vendi",
+    // V2.5: verbos mexicanos de compra/deuda
+    "saque", "saco", "sacamos", "meti", "meto", "metimos",
+    "puse", "puso", "pusimos",
+    "llevo", "llevamos", "faltan", "falta", "quedan", "queda",
+    "restan", "resta",
     "voy", "de", "del", "a", "al", "el", "la", "los", "las",
     "para", "con", "en", "es", "mi", "y", "o",
     "msi", "meses", "mes", "mensual", "mensuales",
@@ -492,6 +515,90 @@ export function analyzeDebtLine(
       result.totalInstallments = msiCount;
       if (result.intent === "purchase_installment") {
         result.currentInstallment = 0;
+      }
+    }
+  }
+
+  // V2.5: PATRONES MEXICANOS DE AVANCE Y SALDO
+  // -------------------------------------------
+  // A) "me faltan N pagos" / "faltan N pagos" / "me restan N pagos"
+  //    Si tengo totalInstallments, calculo currentInstallment = total - faltan
+  if (
+    result.currentInstallment == null &&
+    (result.intent === "new_debt" ||
+      result.intent === "purchase_installment" ||
+      result.intent === "ambiguous")
+  ) {
+    const remainPagosMatch = lower.match(
+      /\b(?:me\s+)?(?:faltan|restan|quedan)\s+(\d+)\s+pagos?\b/,
+    );
+    if (remainPagosMatch) {
+      const faltan = parseInt(remainPagosMatch[1], 10);
+      if (faltan >= 0 && faltan <= 100) {
+        if (result.totalInstallments != null && result.totalInstallments > 0) {
+          // Si conozco total, calculo pagados
+          result.currentInstallment = Math.max(
+            0,
+            result.totalInstallments - faltan,
+          );
+        } else {
+          // Si no, asumo que faltan = total y current = 0 como fallback no destructivo
+          // Mejor no asumir nada. Solo dejar la senal.
+        }
+        const idx = remainPagosMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + remainPagosMatch[0].length,
+        });
+      }
+    }
+  }
+
+  // B) "ya llevo pagados N" / "llevo N pagos" / "ya pague N"
+  //    -> currentInstallment = N
+  if (
+    result.currentInstallment == null &&
+    (result.intent === "new_debt" ||
+      result.intent === "purchase_installment" ||
+      result.intent === "ambiguous")
+  ) {
+    const llevoMatch = lower.match(
+      /\b(?:ya\s+)?llevo\s+(?:pagados?\s+)?(\d+)\s*(?:pagos?|cuotas?|mensualidades?)?\b/,
+    );
+    if (llevoMatch) {
+      const n = parseInt(llevoMatch[1], 10);
+      if (n >= 0 && n <= 100) {
+        result.currentInstallment = n;
+        const idx = llevoMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + llevoMatch[0].length,
+        });
+      }
+    }
+  }
+
+  // C) "me quedan N" / "todavia me quedan N" donde N es monto grande
+  //    -> currentBalance = N (cuidando que NO sea "me quedan 3 pagos")
+  if (
+    result.currentBalance == null &&
+    (result.intent === "new_debt" ||
+      result.intent === "purchase_installment" ||
+      result.intent === "ambiguous")
+  ) {
+    const quedaMontoMatch = lower.match(
+      /\b(?:todavia\s+)?me\s+quedan\s+(\d+(?:[.,]\d+)?)\b(?!\s*(?:pagos?|cuotas?|meses?))/,
+    );
+    if (quedaMontoMatch) {
+      const val = parseFloat(quedaMontoMatch[1].replace(",", "."));
+      // Solo asignar si parece monto, no numero pequeno de cuotas
+      if (val >= 100 && val < 10_000_000) {
+        result.currentBalance = val;
+        const idx = quedaMontoMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + quedaMontoMatch[0].length,
+        });
       }
     }
   }
