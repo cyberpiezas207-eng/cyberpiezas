@@ -23,6 +23,8 @@ import DebtInsightsPanel from "@/components/admin/DebtInsightsPanel";
 import PaidDebtsSection from "@/components/admin/PaidDebtsSection";
 import CompleteDebtModal from "@/components/admin/CompleteDebtModal";
 import EditDebtModal from "@/components/admin/EditDebtModal";
+import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
+import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
 import {
   CreditCard,
   Wallet,
@@ -194,6 +196,17 @@ export default function PersonalDebtsTab() {
 
       {/* Stats */}
       <StatsCards year={year} month={month} />
+
+      {/* Plan de pago del mes (panel asesor) */}
+      <MonthPaymentPlan
+        year={year}
+        month={month}
+        onPay={(id) => setPayingDebtId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
+      />
+
+      {/* KPIs de presion financiera */}
+      <DebtKPIsPanel year={year} month={month} />
 
       {/* Insights inteligentes */}
       <DebtInsightsPanel year={year} month={month} />
