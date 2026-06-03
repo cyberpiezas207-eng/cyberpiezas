@@ -32,6 +32,7 @@ import PaymentCalendarPanel from "@/components/admin/PaymentCalendarPanel";
 import AlertsCenter from "@/components/admin/AlertsCenter";
 import DineroLibreCard from "@/components/admin/DineroLibreCard";
 import MonthInsightLine from "@/components/admin/MonthInsightLine";
+import WalletsPanel from "@/components/admin/WalletsPanel";
 import QuickCaptureFab from "@/components/admin/QuickCaptureFab";
 
 export default function AdminCyberpiezas() {
@@ -242,6 +243,8 @@ export default function AdminCyberpiezas() {
               />
               {/* Dinero Libre Estimado - Resumen de Hoy (Commit A) */}
               <DineroLibreCard />
+              {/* Bolsillos (Modo Esposa Fase A - Wallets-2) */}
+              <WalletsPanel />
               {/* KPI Strip (Commit 6) */}
               <AdminKPIStrip />
               {/* Tiles de navegacion a sub-modulos (Commit 7) */}
