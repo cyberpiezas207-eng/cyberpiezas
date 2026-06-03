@@ -27,6 +27,8 @@ import {
   RefreshCw,
   Minus,
   LineChart,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -98,10 +100,24 @@ export default function PersonalPantryTab() {
   });
   const shoppingQuery = trpc.personalPantry.shoppingList.list.useQuery();
 
+  // Alacena-3: comparacion de precios (ultimo vs penultimo) para mostrar
+  // tendencia en cada card. Se ejecuta solo cuando hay items cargados.
+  const itemIdsForPriceCompare = (itemsQuery.data ?? []).map((i: any) => i.id);
+  const priceCompareQuery = trpc.personalPantryPrices.compareForItems.useQuery(
+    { itemIds: itemIdsForPriceCompare },
+    { enabled: itemIdsForPriceCompare.length > 0 },
+  );
+
+  // Map para acceso rapido: itemId -> comparacion
+  const priceCompareByItem = new Map<number, any>(
+    (priceCompareQuery.data ?? []).map((c: any) => [c.itemId, c]),
+  );
+
   const refreshAll = () => {
     utils.personalPantry.stats.get.invalidate();
     utils.personalPantry.items.list.invalidate();
     utils.personalPantry.shoppingList.list.invalidate();
+    utils.personalPantryPrices.compareForItems.invalidate();
   };
 
   const createItem = trpc.personalPantry.items.create.useMutation({
@@ -376,6 +392,11 @@ export default function PersonalPantryTab() {
                 const lastPrice = item.lastPurchasePrice
                   ? Number(item.lastPurchasePrice)
                   : null;
+                // Alacena-3: comparacion de precios
+                const priceCompare = priceCompareByItem.get(item.id);
+                const changePct = priceCompare?.changePercent ?? null;
+                const priceUnit = priceCompare?.unit ?? null;
+                const unitPriceFromCompare = priceCompare?.lastPrice ?? null;
                 return (
                   <div
                     key={item.id}
@@ -401,13 +422,41 @@ export default function PersonalPantryTab() {
                             >
                               {statusLabel(item.status)}
                             </span>
+                            {/* Alacena-3: Chip de precio prominente */}
+                            {lastPrice !== null && (
+                              <span className="text-[11px] font-black bg-amber-500/15 text-amber-200 px-2 py-0.5 rounded-md tabular-nums">
+                                {fmt(lastPrice)}
+                                {priceUnit && unitPriceFromCompare !== null && (
+                                  <span className="text-amber-300/70 font-bold ml-0.5">
+                                    {" "}/ {priceUnit}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                            {/* Alacena-3: Badge de comparacion (subio/bajo) */}
+                            {changePct !== null && changePct !== 0 && (
+                              <span
+                                className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                  changePct < 0
+                                    ? "bg-emerald-500/15 text-emerald-300"
+                                    : "bg-rose-500/15 text-rose-300"
+                                }`}
+                                title={`Antes: ${fmt(priceCompare.previousPrice ?? 0)}`}
+                              >
+                                {changePct < 0 ? (
+                                  <TrendingDown className="w-3 h-3" />
+                                ) : (
+                                  <TrendingUp className="w-3 h-3" />
+                                )}
+                                {Math.abs(changePct)}%
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-400 truncate mt-0.5">
                             {cat?.name ?? "Sin categoria"}
-                            {store && ` · ultima en ${store.name}`}
-                            {lastPrice !== null && ` · ${fmt(lastPrice)}`}
+                            {store && ` · ${store.name}`}
                             {item.timesPurchased > 0 &&
-                              ` · comprado ${item.timesPurchased}x`}
+                              ` · ${item.timesPurchased} compra${item.timesPurchased === 1 ? "" : "s"}`}
                           </p>
                         </div>
                       </div>
