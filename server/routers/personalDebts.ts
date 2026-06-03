@@ -70,6 +70,41 @@ async function tryCreateDebtReminder(
   }
 }
 
+// Helper: calcula el proximo nextDueDate cuando solo tenemos dueDay
+// Si el dia ya paso este mes, va al mes siguiente.
+// Maneja meses con menos dias (ej: dia 31 en febrero -> usa ultimo dia)
+function computeNextDueDateFromDay(day: number): string | null {
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+
+  // Hora Mexico (UTC-6)
+  const now = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const todayDay = now.getDate();
+  let targetMonth = now.getMonth();
+  let targetYear = now.getFullYear();
+
+  // Si el dia objetivo ya paso este mes, ir al siguiente
+  if (day < todayDay) {
+    targetMonth += 1;
+    if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear += 1;
+    }
+  }
+
+  // Manejar dias que no existen en el mes destino (ej: dia 31 en febrero)
+  const lastDayOfTargetMonth = new Date(
+    targetYear,
+    targetMonth + 1,
+    0,
+  ).getDate();
+  const useDay = Math.min(day, lastDayOfTargetMonth);
+
+  const yyyy = targetYear;
+  const mm = String(targetMonth + 1).padStart(2, "0");
+  const dd = String(useDay).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user || ctx.user.openId !== ENV.ownerOpenId) {
     throw new TRPCError({
@@ -209,7 +244,17 @@ export const personalDebtsRouter = router({
       .input(updateDebtSchema)
       .mutation(async ({ ctx, input }) => {
         const { id, ...rest } = input;
-        return await updateDebt(ctx.user.id, id, rest);
+        // Si se actualizo dueDay pero no se mando nextDueDate, calcularlo
+        // para que stats.monthSummary cuente la deuda correctamente
+        const data: any = { ...rest };
+        if (
+          data.dueDay != null &&
+          data.nextDueDate === undefined
+        ) {
+          const computed = computeNextDueDateFromDay(data.dueDay);
+          if (computed) data.nextDueDate = computed;
+        }
+        return await updateDebt(ctx.user.id, id, data);
       }),
 
     archive: ownerOnlyProcedure
@@ -288,6 +333,17 @@ export const personalDebtsRouter = router({
         }
 
         const isPurchase = detection.intent === "purchase_installment";
+
+        // Calcular nextDueDate: si el detector ya devolvio una fecha, usarla.
+        // Si NO hay fecha exacta pero SI hay dueDay (ej: "paga el 4"),
+        // calcular automaticamente el proximo dia N del mes.
+        // Esto es CRITICO para que stats.monthSummary cuente la deuda.
+        let computedNextDue: string | null =
+          detection.dueDate ?? detection.nextPaymentDate ?? null;
+        if (computedNextDue == null && detection.dueDay != null) {
+          computedNextDue = computeNextDueDateFromDay(detection.dueDay);
+        }
+
         const debt = await createDebt(ctx.user.id, {
           creditorName: detection.creditorName,
           title: detection.conceptName,
@@ -297,7 +353,7 @@ export const personalDebtsRouter = router({
           currentInstallment: detection.currentInstallment ?? 0,
           totalInstallments: detection.totalInstallments,
           dueDay: detection.dueDay,
-          nextDueDate: detection.dueDate ?? detection.nextPaymentDate ?? null,
+          nextDueDate: computedNextDue,
           startDate: detection.purchaseDate ?? undefined,
           isInstallmentPurchase: isPurchase,
           installmentPlanType: detection.isMsi
