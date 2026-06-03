@@ -26,6 +26,7 @@ import EditDebtModal from "@/components/admin/EditDebtModal";
 import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
 import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
 import TodayActionCard from "@/components/admin/TodayActionCard";
+import DebtStrategiesPanel from "@/components/admin/DebtStrategiesPanel";
 import {
   CreditCard,
   Wallet,
@@ -216,6 +217,9 @@ export default function PersonalDebtsTab() {
 
       {/* KPIs de presion financiera */}
       <DebtKPIsPanel year={year} month={month} />
+
+      {/* Estrategias de liquidacion (solo si hay 2+ deudas activas) */}
+      <DebtStrategiesPanel onEdit={(id) => setEditingDebtId(id)} />
 
       {/* Insights inteligentes */}
       <DebtInsightsPanel year={year} month={month} />
