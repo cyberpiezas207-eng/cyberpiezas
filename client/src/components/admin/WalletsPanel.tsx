@@ -10,8 +10,9 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Plus, Wallet, Star } from "lucide-react";
+import { Plus, Wallet, Star, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import CreateWalletModal from "./CreateWalletModal";
+import WalletMovementModal from "./WalletMovementModal";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("es-MX", {
@@ -24,6 +25,17 @@ function fmt(n: number): string {
 
 export default function WalletsPanel() {
   const [showCreate, setShowCreate] = useState(false);
+
+  // Wallets-2B: estado para el modal de movimientos (deposit/withdraw)
+  const [selectedWallet, setSelectedWallet] = useState<any | null>(null);
+  const [modalAction, setModalAction] = useState<"deposit" | "withdraw">(
+    "deposit",
+  );
+
+  function openMovementModal(wallet: any, action: "deposit" | "withdraw") {
+    setSelectedWallet(wallet);
+    setModalAction(action);
+  }
 
   const walletsQuery = trpc.personalWallets.wallets.list.useQuery();
   const wallets = (walletsQuery.data ?? []) as any[];
@@ -129,40 +141,62 @@ export default function WalletsPanel() {
                 return (
                   <div
                     key={w.id}
-                    className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/60 border border-slate-700 hover:border-slate-600 transition-colors"
+                    className="flex flex-col gap-2 p-2.5 rounded-lg bg-slate-800/60 border border-slate-700 hover:border-slate-600 transition-colors"
                   >
-                    <span
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-                      style={{
-                        backgroundColor: (w.color || "#fbbf24") + "22",
-                        border: `1px solid ${w.color || "#fbbf24"}`,
-                      }}
-                    >
-                      {w.icon || "👛"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="text-sm font-bold text-slate-100 truncate">
-                          {w.name}
+                    {/* Fila 1: info del bolsillo */}
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+                        style={{
+                          backgroundColor: (w.color || "#fbbf24") + "22",
+                          border: `1px solid ${w.color || "#fbbf24"}`,
+                        }}
+                      >
+                        {w.icon || "👛"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-bold text-slate-100 truncate">
+                            {w.name}
+                          </p>
+                          {w.isDefault === 1 && (
+                            <Star
+                              className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0"
+                              aria-label="Default"
+                            />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {w.ownerName || w.walletType}
                         </p>
-                        {w.isDefault === 1 && (
-                          <Star
-                            className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0"
-                            aria-label="Default"
-                          />
-                        )}
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate">
-                        {w.ownerName || w.walletType}
+                      <p
+                        className={`text-sm font-black tabular-nums shrink-0 ${
+                          isNeg ? "text-rose-400" : "text-slate-100"
+                        }`}
+                      >
+                        {fmt(balance)}
                       </p>
                     </div>
-                    <p
-                      className={`text-sm font-black tabular-nums shrink-0 ${
-                        isNeg ? "text-rose-400" : "text-slate-100"
-                      }`}
-                    >
-                      {fmt(balance)}
-                    </p>
+                    {/* Fila 2: botones rapidos Wallets-2B */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openMovementModal(w, "deposit")}
+                        className="flex items-center justify-center gap-1 py-1.5 text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md transition-colors"
+                      >
+                        <ArrowDownCircle className="w-3.5 h-3.5" />
+                        Depositar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openMovementModal(w, "withdraw")}
+                        className="flex items-center justify-center gap-1 py-1.5 text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-md transition-colors"
+                      >
+                        <ArrowUpCircle className="w-3.5 h-3.5" />
+                        Retirar
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -174,6 +208,14 @@ export default function WalletsPanel() {
       <CreateWalletModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
+      />
+
+      {/* Wallets-2B: modal de depositos y retiros */}
+      <WalletMovementModal
+        open={!!selectedWallet}
+        wallet={selectedWallet}
+        defaultAction={modalAction}
+        onClose={() => setSelectedWallet(null)}
       />
     </>
   );
