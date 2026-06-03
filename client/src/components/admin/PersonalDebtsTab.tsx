@@ -25,6 +25,7 @@ import CompleteDebtModal from "@/components/admin/CompleteDebtModal";
 import EditDebtModal from "@/components/admin/EditDebtModal";
 import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
 import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
+import TodayActionCard from "@/components/admin/TodayActionCard";
 import {
   CreditCard,
   Wallet,
@@ -193,6 +194,14 @@ export default function PersonalDebtsTab() {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Card "Hoy que hago" - asesor del dia ARRIBA DE TODO */}
+      <TodayActionCard
+        year={year}
+        month={month}
+        onPay={(id) => setPayingDebtId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
+      />
 
       {/* Stats */}
       <StatsCards year={year} month={month} />
