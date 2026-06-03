@@ -356,17 +356,26 @@ function cleanConceptText(rest: string): string {
   const STOP_WORDS = new Set([
     "deuda", "debo", "tengo", "compre", "compra",
     "pague", "pago", "abone", "abono", "vendi",
-    "voy", "de", "a", "el", "la", "los", "las",
-    "para", "con", "en", "es", "mi",
-    "msi", "meses", "sin", "intereses",
+    "voy", "de", "del", "a", "al", "el", "la", "los", "las",
+    "para", "con", "en", "es", "mi", "y", "o",
+    "msi", "meses", "mes", "mensual", "mensuales",
+    "sin", "intereses",
     "vence", "tarjeta", "prestamo",
     "dia", "dias",
+    // V2.4: palabras de fecha relativa que dejaba el cerebro
+    "este", "esta", "esto",
+    "proximo", "proxima", "siguiente",
+    "ano", "anos", "año", "años",
+    "termina", "empezo", "empieza", "empece",
+    "comenzo", "comence", "acaba", "finaliza",
+    "inicie", "iniciamos", "comenzamos",
+    "desde", "hasta",
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "septiembre", "setiembre", "octubre",
     "noviembre", "diciembre",
     "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago",
     "sep", "sept", "oct", "nov", "dic",
-    "hoy", "manana",
+    "hoy", "manana", "ayer",
   ]);
 
   const tokens = rest
@@ -487,10 +496,18 @@ export function analyzeDebtLine(
   }
 
   // 6. FECHAS usando dateEngine
-  // 6a. Vencimiento
+  // 6a. Vencimiento (V2.4: detecta "pago el N", "paga el N", "se paga el N")
   const dueDateDet = findDateNearKeyword(
     lower,
-    ["vence el", "vence"],
+    [
+      "vence el",
+      "vence",
+      "pago el",
+      "paga el",
+      "se paga el",
+      "que pago el",
+      "que paga el",
+    ],
     { preferFuture: true },
   );
   if (dueDateDet) {
@@ -572,6 +589,50 @@ export function analyzeDebtLine(
     }
   }
 
+  // 6e. Fecha de inicio del plan (V2.4)
+  // Detecta "empezo en/el [fecha]" / "comence en/el [fecha]" / "desde [fecha]"
+  // Usamos purchaseDate como contenedor (es el campo que ya guarda startDate
+  // en la BD via createDebt)
+  if (result.purchaseDate == null) {
+    const startDet = findDateNearKeyword(
+      lower,
+      [
+        "lo empezo el",
+        "lo empezo en",
+        "empezo el",
+        "empezo en",
+        "empece el",
+        "empece en",
+        "comence el",
+        "comence en",
+        "comenze el",
+        "comenze en",
+        "comenzo el",
+        "comenzo en",
+        "inicie el",
+        "inicie en",
+        "iniciamos el",
+        "iniciamos en",
+        "desde el",
+        "desde",
+      ],
+      { preferFuture: false },
+    );
+    if (startDet && startDet.ymd != null) {
+      result.purchaseDate = startDet.ymd;
+      addDateSpan(removedSpans, startDet);
+
+      // V2.4: Si tenemos startDate + endDate, recalcular totalInstallments
+      // con mas precision (preferir startDate sobre dueDate)
+      if (result.endDate != null && result.totalInstallments == null) {
+        const monthsBetween = monthsBetweenYMD(startDet.ymd, result.endDate);
+        if (monthsBetween > 0 && monthsBetween <= 120) {
+          result.totalInstallments = monthsBetween + 1;
+        }
+      }
+    }
+  }
+
   // 6e. Marcar keywords para limpieza
   markKeywordSpansToRemove(lower, removedSpans);
 
@@ -639,6 +700,33 @@ export function analyzeDebtLine(
       result.installmentAmount =
         Math.round((result.currentBalance / result.totalInstallments) * 100) /
         100;
+    }
+  }
+
+  // V2.4: Detectar "N al mes" / "N mensual" / "N/mes" / "N por mes"
+  // como installmentAmount (cuota mensual). Ejemplos que ahora funcionan:
+  //   "coppel 950 al mes 12 pagos"
+  //   "deuda nu 1200 mensual"
+  //   "$500 por mes en 6 cuotas"
+  if (
+    result.installmentAmount == null &&
+    (result.intent === "new_debt" ||
+      result.intent === "purchase_installment" ||
+      result.intent === "ambiguous")
+  ) {
+    const monthlyMatch = lower.match(
+      /\b(\d+(?:[.,]\d+)?)\s*(?:al\s+mes|mensual(?:es)?|\/\s*mes|por\s+mes|cada\s+mes)\b/,
+    );
+    if (monthlyMatch) {
+      const val = parseFloat(monthlyMatch[1].replace(",", "."));
+      if (val > 0 && val < 1_000_000) {
+        result.installmentAmount = val;
+        const idx = monthlyMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + monthlyMatch[0].length,
+        });
+      }
     }
   }
 
