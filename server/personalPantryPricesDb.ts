@@ -9,7 +9,7 @@
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
 import { getDbOrThrow } from "./db";
 import {
   personalPantryItemPrices,
@@ -188,4 +188,83 @@ export async function getItemPriceStats(
     byStore,
     cheapestStoreId: cheapest?.storeId ?? null,
   };
+}
+
+// ============================================================================
+// COMPARACION DE LOS 2 PRECIOS MAS RECIENTES POR ITEM (Alacena-3)
+// ----------------------------------------------------------------------------
+// Para cada itemId, devuelve:
+//   - lastPrice: precio unitario mas reciente
+//   - previousPrice: precio anterior (penultimo)
+//   - changePercent: porcentaje de cambio (positivo = mas caro, negativo = mas barato)
+//   - unit: unidad del ultimo precio (kg, l, etc)
+//
+// Una sola query SQL agrupada en TypeScript. Eficiente para 10-50 items.
+// ============================================================================
+
+export interface ItemPriceComparison {
+  itemId: number;
+  lastPrice: number;
+  previousPrice: number | null;
+  changePercent: number | null; // null si no hay precio anterior
+  unit: string | null;
+}
+
+export async function compareLatestPricesForItems(
+  userId: number,
+  itemIds: number[],
+): Promise<ItemPriceComparison[]> {
+  if (itemIds.length === 0) return [];
+
+  const conn = await getDbOrThrow();
+
+  // Una sola query: TODOS los precios de esos items, ordenados por item y fecha desc
+  const rows = await conn
+    .select()
+    .from(personalPantryItemPrices)
+    .where(
+      and(
+        eq(personalPantryItemPrices.userId, userId),
+        inArray(personalPantryItemPrices.pantryItemId, itemIds),
+      ),
+    )
+    .orderBy(
+      asc(personalPantryItemPrices.pantryItemId),
+      desc(personalPantryItemPrices.purchasedAt),
+      desc(personalPantryItemPrices.id),
+    );
+
+  // Agrupar por item, tomar los 2 mas recientes de cada uno
+  const byItem = new Map<number, typeof rows>();
+  for (const row of rows) {
+    const existing = byItem.get(row.pantryItemId) ?? [];
+    if (existing.length < 2) {
+      existing.push(row);
+      byItem.set(row.pantryItemId, existing);
+    }
+  }
+
+  // Calcular comparaciones
+  const result: ItemPriceComparison[] = [];
+  for (const [itemId, prices] of byItem.entries()) {
+    const last = prices[0];
+    const prev = prices[1] ?? null;
+    const lastUnit = Number(last.unitPrice);
+    const prevUnit = prev ? Number(prev.unitPrice) : null;
+
+    const changePercent =
+      prevUnit != null && prevUnit > 0
+        ? Math.round(((lastUnit - prevUnit) / prevUnit) * 100)
+        : null;
+
+    result.push({
+      itemId,
+      lastPrice: lastUnit,
+      previousPrice: prevUnit,
+      changePercent,
+      unit: last.unit ?? null,
+    });
+  }
+
+  return result;
 }
