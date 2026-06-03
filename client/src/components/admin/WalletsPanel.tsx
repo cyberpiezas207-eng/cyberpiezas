@@ -10,9 +10,10 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Plus, Wallet, Star, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Plus, Wallet, Star, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from "lucide-react";
 import CreateWalletModal from "./CreateWalletModal";
 import WalletMovementModal from "./WalletMovementModal";
+import TransferWalletsModal from "./TransferWalletsModal";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("es-MX", {
@@ -32,9 +33,18 @@ export default function WalletsPanel() {
     "deposit",
   );
 
+  // Wallets-2C: estado para el modal de transferencia
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferFromId, setTransferFromId] = useState<number | null>(null);
+
   function openMovementModal(wallet: any, action: "deposit" | "withdraw") {
     setSelectedWallet(wallet);
     setModalAction(action);
+  }
+
+  function openTransferModal(fromId: number | null = null) {
+    setTransferFromId(fromId);
+    setShowTransfer(true);
   }
 
   const walletsQuery = trpc.personalWallets.wallets.list.useQuery();
@@ -103,6 +113,17 @@ export default function WalletsPanel() {
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Nuevo</span>
             </button>
+            {/* Wallets-2C: boton de transferencia (solo si hay 2+ bolsillos) */}
+            {wallets.length >= 2 && (
+              <button
+                onClick={() => openTransferModal()}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold bg-slate-700 hover:bg-slate-600 text-amber-300 border border-amber-500/40 rounded-lg transition-colors"
+                title="Transferir entre bolsillos"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Transferir</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -216,6 +237,17 @@ export default function WalletsPanel() {
         wallet={selectedWallet}
         defaultAction={modalAction}
         onClose={() => setSelectedWallet(null)}
+      />
+
+      {/* Wallets-2C: modal de transferencia entre bolsillos */}
+      <TransferWalletsModal
+        open={showTransfer}
+        wallets={wallets}
+        defaultFromId={transferFromId}
+        onClose={() => {
+          setShowTransfer(false);
+          setTransferFromId(null);
+        }}
       />
     </>
   );
