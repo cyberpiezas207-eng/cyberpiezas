@@ -691,7 +691,7 @@ function DebtCard({
           onEdit();
         }
       }}
-      className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800/60 border border-slate-700 hover:border-slate-500 shadow-md p-4 cursor-pointer transition-colors"
+      className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800/60 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/80 shadow-md p-4 cursor-pointer transition-all"
       title="Click para editar esta deuda"
     >
       <div className="flex items-start gap-3">
@@ -849,7 +849,10 @@ function DebtCard({
                   Sin proxima fecha exacta
                 </span>
               ) : (
-                <span className="text-slate-500">sin fecha de vencimiento</span>
+                <span className="inline-flex items-center gap-1 text-amber-300/80 italic">
+                  <Calendar className="w-3 h-3" />
+                  Click para agregar fecha de pago
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1.5">
