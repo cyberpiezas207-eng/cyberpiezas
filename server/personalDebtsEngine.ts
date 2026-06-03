@@ -355,7 +355,8 @@ function extractConcept(
 function cleanConceptText(rest: string): string {
   const STOP_WORDS = new Set([
     "deuda", "debo", "tengo", "compre", "compra",
-    "pague", "pago", "abone", "abono", "vendi",
+    "pague", "pago", "pagar", "pagara", "pagaran", "pagamos",
+    "abone", "abono", "vendi",
     "voy", "de", "del", "a", "al", "el", "la", "los", "las",
     "para", "con", "en", "es", "mi", "y", "o",
     "msi", "meses", "mes", "mensual", "mensuales",
