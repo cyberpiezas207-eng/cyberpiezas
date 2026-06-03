@@ -14,6 +14,7 @@ import { ENV } from "../_core/env";
 import {
   listItemPriceHistory,
   getItemPriceStats,
+  compareLatestPricesForItems,
 } from "../personalPantryPricesDb";
 
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -46,5 +47,17 @@ export const personalPantryPricesRouter = router({
     .input(z.object({ pantryItemId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
       return await getItemPriceStats(ctx.user.id, input.pantryItemId);
+    }),
+
+  // Alacena-3: compara los 2 ultimos precios por item (para mostrar tendencia
+  // en las cards de la lista de alacena: subio/bajo/igual + % de cambio)
+  compareForItems: ownerOnlyProcedure
+    .input(
+      z.object({
+        itemIds: z.array(z.number().int().positive()).max(100),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return await compareLatestPricesForItems(ctx.user.id, input.itemIds);
     }),
 });
