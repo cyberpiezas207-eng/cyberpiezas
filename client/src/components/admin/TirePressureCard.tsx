@@ -20,7 +20,7 @@
 // ============================================================================
 
 import { useState } from "react";
-import { trpc } from "../../utils/trpc";
+import { trpc } from "@/lib/trpc";
 
 interface TirePressureCardProps {
   vehicleId: number;
