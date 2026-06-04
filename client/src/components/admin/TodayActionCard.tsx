@@ -51,7 +51,7 @@ function nowMexico(): Date {
 }
 
 function daysUntil(ymd: string | null): number | null {
-  if (!ymd) return null;
+  if (typeof ymd !== "string" || ymd.length < 10) return null;
   const [y, m, d] = ymd.split("-").map(Number);
   if (!y || !m || !d) return null;
   const target = new Date(y, m - 1, d);
@@ -66,7 +66,7 @@ function isInMonth(
   year: number,
   month: number,
 ): boolean {
-  if (!ymd) return false;
+  if (typeof ymd !== "string" || ymd.length < 10) return false;
   const [y, m] = ymd.split("-").map(Number);
   return y === year && m === month;
 }
