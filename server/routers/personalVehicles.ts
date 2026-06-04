@@ -30,6 +30,20 @@ import {
 } from "../personalVehicleDb";
 import { analyzeFuelLine } from "../personalVehicleEngine";
 import { createDetailedExpense } from "../personalExpensesCaptureDb";
+import {
+  setTankReading,
+  getTankState,
+  listTankReadings,
+  applyAutoRefillReading,
+} from "../personalVehicleTankDb";
+import {
+  createMaintenance,
+  bulkInitialMaintenance,
+  listMaintenance,
+  deleteMaintenance,
+  getVehicleHealth,
+  getPressureRecommendation,
+} from "../personalVehicleHealthDb";
 
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.user || ctx.user.openId !== ENV.ownerOpenId) {
@@ -290,6 +304,195 @@ export const personalVehiclesRouter = router({
           input.year,
           input.month,
         );
+      }),
+  }),
+
+  // --------------------------------------------------------------------------
+  // CEREBRO DE TANQUE
+  // --------------------------------------------------------------------------
+  tank: router({
+    // Estado actual del tanque (% + km restantes + factores gasolinera)
+    getState: ownerOnlyProcedure
+      .input(z.object({ vehicleId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return await getTankState(ctx.user.id, input.vehicleId);
+      }),
+
+    // Guardar lectura manual del tanque (boton rapido o input exacto)
+    setReading: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          tankPercent: z.number().min(0).max(100),
+          odometerAtReading: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional(),
+          source: z
+            .enum(["quick_button", "exact_input", "auto_refill"])
+            .optional(),
+          notes: z.string().max(500).nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return await setTankReading(ctx.user.id, input);
+      }),
+
+    // Historial de lecturas
+    listReadings: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          limit: z.number().int().min(1).max(100).optional(),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        return await listTankReadings(
+          ctx.user.id,
+          input.vehicleId,
+          input.limit,
+        );
+      }),
+
+    // Aplicar refill automatico (sube tanque tras carga gasolina)
+    // Util cuando la UI quiere disparar manualmente esto despues de un fuelLog
+    applyRefill: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          litersAdded: z.number().positive(),
+          odometerAtFill: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await applyAutoRefillReading(
+          ctx.user.id,
+          input.vehicleId,
+          input.litersAdded,
+          input.odometerAtFill ?? null,
+        );
+        return { success: true };
+      }),
+  }),
+
+  // --------------------------------------------------------------------------
+  // SALUD MECANICA + MINI-CEREBRO DE PRESION
+  // --------------------------------------------------------------------------
+  health: router({
+    // Score 0-100 + items (llantas, aceite, afinacion, etc)
+    getScore: ownerOnlyProcedure
+      .input(z.object({ vehicleId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        return await getVehicleHealth(ctx.user.id, input.vehicleId);
+      }),
+
+    // Registrar UN mantenimiento
+    createMaintenance: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          maintenanceType: z.enum([
+            "tire_pressure",
+            "oil_change",
+            "tune_up",
+            "air_filter",
+            "brakes",
+            "alignment",
+            "other",
+          ]),
+          performedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          odometerAtService: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional(),
+          cost: z.number().int().nonnegative().nullable().optional(),
+          serviceProvider: z.string().max(120).nullable().optional(),
+          notes: z.string().max(500).nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return await createMaintenance(ctx.user.id, input);
+      }),
+
+    // Captura inicial: muchos mantenimientos de golpe
+    // (modal "Cuentale al cerebro lo que ya tienes")
+    bulkInitial: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          items: z
+            .array(
+              z.object({
+                maintenanceType: z.enum([
+                  "tire_pressure",
+                  "oil_change",
+                  "tune_up",
+                  "air_filter",
+                  "brakes",
+                  "alignment",
+                  "other",
+                ]),
+                performedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+                odometerAtService: z
+                  .number()
+                  .int()
+                  .nonnegative()
+                  .nullable()
+                  .optional(),
+                notes: z.string().max(500).nullable().optional(),
+              }),
+            )
+            .min(1)
+            .max(20),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return await bulkInitialMaintenance(ctx.user.id, input);
+      }),
+
+    // Listar historial completo de mantenimientos del vehiculo
+    listMaintenance: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          limit: z.number().int().min(1).max(500).optional(),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        return await listMaintenance(
+          ctx.user.id,
+          input.vehicleId,
+          input.limit,
+        );
+      }),
+
+    // Borrar un mantenimiento (hard delete, son pocos registros)
+    deleteMaintenance: ownerOnlyProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        return await deleteMaintenance(ctx.user.id, input.id);
+      }),
+
+    // Mini-cerebro de presion: recomienda PSI segun contexto
+    recommendPressure: ownerOnlyProcedure
+      .input(
+        z.object({
+          vehicleId: z.number().int().positive(),
+          loadLevel: z.enum(["light", "normal", "heavy"]).optional(),
+          terrain: z.enum(["city", "highway", "mixed", "rough"]).optional(),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        return await getPressureRecommendation(ctx.user.id, input);
       }),
   }),
 });
