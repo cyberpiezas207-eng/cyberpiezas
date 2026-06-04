@@ -78,6 +78,40 @@ function formatDueLabel(ymd: string | null | undefined, time: string | null | un
   return `${ymd}${timeLabel}`;
 }
 
+// Bug1-Deudas: formato de dinero MXN sin decimales para los items de deuda
+function fmtMoney(n: number): string {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(Math.round(n));
+}
+
+// Bug1-Deudas: estilo del badge segun la clasificacion (badgeKind viene del backend)
+const DEBT_BADGE_STYLE: Record<
+  string,
+  { bg: string; border: string; text: string }
+> = {
+  overdue: { bg: "bg-rose-500/15", border: "border-rose-500/50", text: "text-rose-300" },
+  due_soon: { bg: "bg-amber-500/15", border: "border-amber-500/50", text: "text-amber-300" },
+  due_later: { bg: "bg-sky-500/15", border: "border-sky-500/50", text: "text-sky-300" },
+  no_date: { bg: "bg-violet-500/15", border: "border-violet-500/50", text: "text-violet-300" },
+};
+
+// Bug1-Deudas: texto del badge. Para deudas con fecha usa daysUntil; sin fecha es fijo.
+function debtBadgeLabel(
+  badgeKind: string,
+  dueDate: string | null | undefined,
+): string {
+  if (badgeKind === "no_date") return "Deuda sin fecha";
+  const days = daysUntil(dueDate);
+  if (days == null) return "Deuda";
+  if (days < 0) return `Atrasada ${Math.abs(days)} dias`;
+  if (days === 0) return "Vence hoy";
+  if (days === 1) return "Vence mañana";
+  return `En ${days} dias`;
+}
+
 const PRIORITY_LABEL: Record<string, string> = {
   urgent: "Urgente",
   high: "Importante",
@@ -407,9 +441,20 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
   const isToday = days === 0;
   const isDone = reminder.status === "done";
 
+  // Bug1-Deudas: items sintetizados desde el modulo Deudas (solo lectura)
+  const isDebt = reminder.kind === "debt";
+  const debtStyle = isDebt
+    ? DEBT_BADGE_STYLE[reminder.badgeKind] ?? DEBT_BADGE_STYLE.no_date
+    : null;
+  // Para deudas el border-left sigue el color del badge
+  let debtBorderClass = "border-l-violet-500";
+  if (reminder.badgeKind === "overdue") debtBorderClass = "border-l-rose-500";
+  else if (reminder.badgeKind === "due_soon") debtBorderClass = "border-l-amber-500";
+  else if (reminder.badgeKind === "due_later") debtBorderClass = "border-l-sky-500";
+
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700 border-l-4 ${urgencyClass} p-3 ${isDone ? "opacity-60" : ""}`}
+      className={`relative overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700 border-l-4 ${isDebt ? debtBorderClass : urgencyClass} p-3 ${isDone ? "opacity-60" : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -433,6 +478,13 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
                 {RECURRENCE_LABEL[reminder.recurrencePattern] || reminder.recurrencePattern}
               </span>
             )}
+            {isDebt && debtStyle && (
+              <span
+                className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${debtStyle.bg} ${debtStyle.border} ${debtStyle.text}`}
+              >
+                {debtBadgeLabel(reminder.badgeKind, reminder.dueDate)}
+              </span>
+            )}
           </div>
 
           {/* Description */}
@@ -444,19 +496,32 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
 
           {/* Meta row */}
           <div className="flex items-center gap-2 flex-wrap text-[11px]">
-            <span
-              className={`inline-flex items-center gap-1 ${
-                isOverdue
-                  ? "text-rose-300 font-bold"
-                  : isToday
-                    ? "text-amber-300 font-bold"
-                    : "text-slate-400"
-              }`}
-            >
-              <CalendarClock className="w-3 h-3" />
-              {dueLabel}
-            </span>
-            {reminder.tags?.length > 0 &&
+            {isDebt ? (
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span>{reminder.icon ?? "💳"}</span>
+                <span className="text-rose-300 font-bold">
+                  {fmtMoney(Number(reminder.amount ?? 0))}
+                </span>
+                {reminder.creditorName && (
+                  <span className="text-slate-500">· {reminder.creditorName}</span>
+                )}
+              </span>
+            ) : (
+              <span
+                className={`inline-flex items-center gap-1 ${
+                  isOverdue
+                    ? "text-rose-300 font-bold"
+                    : isToday
+                      ? "text-amber-300 font-bold"
+                      : "text-slate-400"
+                }`}
+              >
+                <CalendarClock className="w-3 h-3" />
+                {dueLabel}
+              </span>
+            )}
+            {!isDebt &&
+              reminder.tags?.length > 0 &&
               reminder.tags.map((tag: string) => (
                 <span
                   key={tag}
@@ -469,7 +534,7 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
         </div>
 
         {/* Actions */}
-        {!isDone && (
+        {!isDone && !isDebt && (
           <div className="flex items-center gap-1 shrink-0 relative">
             <Button
               size="sm"
