@@ -1,10 +1,19 @@
 // ============================================================================
-// CAPA DE BD - Captura detallada de gastos
+// CAPA DE BD - Captura detallada de gastos (V2 con walletId)
 // ----------------------------------------------------------------------------
 // createDetailedExpense: crea un gasto con campos separados. Reusa
 //   createPersonalExpense del modulo existente (no lo modifica). Si el monto
 //   viene vacio, guarda amount=0 + purchaseType="pending" para NO sumar a stats
 //   (las sumas son de amount, asi que 0 no afecta totales).
+//
+// NUEVO V2:
+//   - Acepta walletId opcional en el input
+//   - Lo agrega al objeto que se pasa a createPersonalExpense
+//   - Si la tabla personalExpenses ya tiene columna walletId, se guarda
+//   - Si no, simplemente se ignora (cero rompimiento)
+//   - El descuento real del bolsillo se hace desde el ROUTER (no aqui)
+//     llamando a la mutation de wallets.withdraw despues de crear el gasto.
+//
 // setPendingExpenseAmount: asigna el monto a un gasto pendiente despues.
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
@@ -32,6 +41,7 @@ export interface CreateDetailedExpenseInput {
   expenseDate: string; // YYYY-MM-DD
   paymentMethod: PaymentMethod;
   notes?: string | null;
+  walletId?: number | null; // NUEVO V2
 }
 
 export async function createDetailedExpense(
@@ -42,7 +52,8 @@ export async function createDetailedExpense(
     data.amount == null || !Number.isFinite(data.amount) || data.amount <= 0;
   const amount = isPending ? 0 : (data.amount as number);
 
-  return await createPersonalExpense(userId, {
+  // Construimos el payload base
+  const payload: Record<string, unknown> = {
     amount,
     description: data.description.trim(),
     normalizedDescription: normalizeText(data.description),
@@ -57,7 +68,14 @@ export async function createDetailedExpense(
     paymentMethod: data.paymentMethod,
     expenseDate: data.expenseDate,
     notes: data.notes ?? null,
-  });
+  };
+
+  // Solo agregar walletId si vino (no contaminar registros viejos)
+  if (data.walletId != null) {
+    payload.walletId = data.walletId;
+  }
+
+  return await createPersonalExpense(userId, payload as any);
 }
 
 // Asignar monto a un gasto pendiente (y quitar la marca pending)
