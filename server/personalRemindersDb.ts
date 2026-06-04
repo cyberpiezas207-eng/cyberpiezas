@@ -24,6 +24,9 @@ import {
   personalReminders,
   type RecurrencePattern as SchemaRecurrencePattern,
 } from "./personalRemindersSchema";
+// Bug1-Deudas: la tabla de Deudas se lee en modo solo-lectura para mezclar
+// sus vencimientos en la lista de recordatorios. NO se escribe nada aqui.
+import { personalDebts } from "./personalDebtsSchema";
 
 // ----------------------------------------------------------------------------
 // Tipos
@@ -148,6 +151,166 @@ export function parseTags(raw: string | null | undefined): string[] {
   }
 }
 
+// ============================================================================
+// BUG1-DEUDAS: integracion de Deudas en la lista de Recordatorios
+// ----------------------------------------------------------------------------
+// El corcho de Recordatorios LEE la gaveta de Deudas (solo lectura) y muestra
+// los vencimientos como items sinteticos. NO se insertan filas en la tabla de
+// recordatorios. NO se modifica nada de Deudas.
+// ============================================================================
+
+export type DebtBadgeKind = "overdue" | "due_soon" | "due_later" | "no_date";
+
+export interface DebtReminderItem {
+  kind: "debt";
+  id: number; // negativo (debtId * -1) para nunca chocar con ids reales
+  debtId: number;
+  title: string;
+  creditorName: string;
+  amount: number;
+  icon: string | null;
+  color: string | null;
+  dueDate: string | null; // fecha efectiva de vencimiento (o null si sin fecha)
+  dueTime: null;
+  badgeKind: DebtBadgeKind;
+  status: "pending";
+  priority: "normal";
+  isRecurring: false;
+  recurrencePattern: null;
+  tags: string[];
+  description: null;
+  isReadOnly: true;
+}
+
+// Dias desde hoy hasta una fecha YMD (negativo = ya paso)
+function daysUntilYMD(ymd: string): number {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const target = new Date(y, m - 1, d, 12, 0, 0);
+  const today = nowMexico();
+  today.setHours(12, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Fecha efectiva de vencimiento. Usa nextDueDate; si no hay, calcula la
+// proxima ocurrencia del dia del mes (dueDay). Si no hay ninguno, null.
+function resolveEffectiveDueDate(
+  nextDueDate: string | null,
+  dueDay: number | null,
+): string | null {
+  if (nextDueDate) return nextDueDate;
+  if (dueDay == null) return null;
+  const now = nowMexico();
+  const todayDay = now.getDate();
+  const clampDay = (y: number, mo: number, day: number): number => {
+    const last = new Date(y, mo + 1, 0).getDate(); // ultimo dia del mes
+    return Math.min(day, last);
+  };
+  let y = now.getFullYear();
+  let mo = now.getMonth(); // 0-based
+  let day = clampDay(y, mo, dueDay);
+  if (day < todayDay) {
+    mo += 1;
+    if (mo > 11) {
+      mo = 0;
+      y += 1;
+    }
+    day = clampDay(y, mo, dueDay);
+  }
+  return `${y}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// Clasifica una deuda en su badge segun la fecha efectiva.
+// Devuelve null si vence en mas de 30 dias (no se muestra).
+function classifyDebt(effectiveDate: string | null): DebtBadgeKind | null {
+  if (!effectiveDate) return "no_date";
+  const days = daysUntilYMD(effectiveDate);
+  if (days < 0) return "overdue";
+  if (days <= 7) return "due_soon";
+  if (days <= 30) return "due_later";
+  return null;
+}
+
+// Que deudas se muestran en cada pestana.
+// Decision Q2: en "Hoy" y "Todos" se ven TODAS las calificadas.
+function debtPassesFilter(
+  badgeKind: DebtBadgeKind,
+  filter: ReminderFilter,
+): boolean {
+  switch (filter) {
+    case "today":
+    case "pending":
+    case "all":
+      return true;
+    case "upcoming":
+      return badgeKind === "due_soon";
+    case "overdue":
+      return badgeKind === "overdue";
+    case "done":
+      return false;
+    default:
+      return false;
+  }
+}
+
+// Lee las deudas activas con saldo y las devuelve como items de recordatorio.
+// Criterio: status active, saldo > 0, y (vence <= 30 dias O atrasada O sin
+// fecha). Solo lectura, sin escribir nada.
+export async function listActiveDebtsAsReminderItems(
+  userId: number,
+  filter: ReminderFilter = "pending",
+): Promise<DebtReminderItem[]> {
+  if (filter === "done") return [];
+
+  const conn = await getDbOrThrow();
+  const rows = await conn
+    .select()
+    .from(personalDebts)
+    .where(
+      and(
+        eq(personalDebts.userId, userId),
+        isNull(personalDebts.deletedAt),
+        eq(personalDebts.status, "active"),
+        sql`${personalDebts.currentBalance} > 0`,
+      ),
+    );
+
+  const items: DebtReminderItem[] = [];
+  for (const d of rows) {
+    const balance = Number(d.currentBalance);
+    if (!Number.isFinite(balance) || balance <= 0) continue;
+
+    const effectiveDate = resolveEffectiveDueDate(
+      d.nextDueDate ?? null,
+      d.dueDay ?? null,
+    );
+    const badgeKind = classifyDebt(effectiveDate);
+    if (badgeKind == null) continue; // vence en mas de 30 dias
+    if (!debtPassesFilter(badgeKind, filter)) continue;
+
+    items.push({
+      kind: "debt",
+      id: -d.id,
+      debtId: d.id,
+      title: d.title,
+      creditorName: d.creditorName,
+      amount: balance,
+      icon: d.icon ?? null,
+      color: d.color ?? null,
+      dueDate: effectiveDate,
+      dueTime: null,
+      badgeKind,
+      status: "pending",
+      priority: "normal",
+      isRecurring: false,
+      recurrencePattern: null,
+      tags: [],
+      description: null,
+      isReadOnly: true,
+    });
+  }
+  return items;
+}
+
 // ----------------------------------------------------------------------------
 // LIST con filtros
 // ----------------------------------------------------------------------------
@@ -231,10 +394,29 @@ export async function listReminders(
     )
     .limit(limit);
 
-  return rows.map((r) => ({
+  // Recordatorios reales (marcados con kind para distinguirlos en el frontend)
+  const reminderItems = rows.map((r) => ({
     ...r,
+    kind: "reminder" as const,
     tags: parseTags(r.tags),
   }));
+
+  // Bug1-Deudas: traer deudas calificadas (solo lectura) y mezclarlas
+  const debtItems = await listActiveDebtsAsReminderItems(userId, filter);
+
+  // Orden unificado: con fecha primero (mas urgente/atrasada arriba), sin
+  // fecha al final. En empate se respeta el orden de insercion (deudas antes).
+  const combined: any[] = [...debtItems, ...reminderItems];
+  combined.sort((a, b) => {
+    const da = a.dueDate as string | null;
+    const db = b.dueDate as string | null;
+    if (da && db) return da < db ? -1 : da > db ? 1 : 0;
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return 0;
+  });
+
+  return combined.slice(0, limit);
 }
 
 // ----------------------------------------------------------------------------
