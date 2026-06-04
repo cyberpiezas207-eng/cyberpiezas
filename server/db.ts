@@ -85,8 +85,8 @@ import { personalPantryMigrations } from "./personalPantrySchema";
 import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
 import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { personalVehicleMigrations } from "./personalVehicleSchema";
+import { personalVehicleMaintenanceMigrations } from "./personalVehicleMaintenanceSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
-import { personalWalletsMigrations } from "./personalWalletsSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
@@ -217,15 +217,10 @@ export async function runStartupMigrations(): Promise<void> {
     ...personalExpensesMigrations,
     ...personalPantryMigrations,
     ...personalPantryPricesMigrations,
-    // V3 (Fix 02-jun-2026): Agregadas las 3 migraciones que faltaban en el array.
-    // Estaban importadas arriba pero NO se ejecutaban -> las tablas nunca se
-    // creaban en Railway -> el frontend pedia personalDebts/Reminders/Vehicles
-    // y fallaba con 500. Ahora si.
-    ...personalDebtsMigrations,
     ...personalRemindersMigrations,
+    ...personalDebtsMigrations,
     ...personalVehicleMigrations,
-    // Wallets-1 (Modo Esposa Fase A): bolsillos + movimientos
-    ...personalWalletsMigrations,
+    ...personalVehicleMaintenanceMigrations,
     // Columna para persistir aceptación de términos y condiciones por usuario
     // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
     "ALTER TABLE `users` ADD COLUMN `termsAcceptedAt` timestamp NULL DEFAULT NULL",
