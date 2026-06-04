@@ -325,6 +325,7 @@ function DayEventsList({
   onEdit: (debtId: number) => void;
 }) {
   if (!day || day.events.length === 0) return null;
+  if (typeof day.date !== "string" || day.date.length < 10) return null;
 
   const [y, m, d] = day.date.split("-").map(Number);
   const dateLabel = `${d} ${MONTHS_ES[m - 1]} ${y}`;
