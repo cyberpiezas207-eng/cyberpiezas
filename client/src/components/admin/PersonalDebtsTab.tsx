@@ -74,14 +74,14 @@ function nowMexico(): Date {
 }
 
 function formatDay(ymd: string | null): string {
-  if (!ymd) return "—";
+  if (typeof ymd !== "string" || ymd.length < 10) return "—";
   const parts = ymd.split("-");
   if (parts.length !== 3) return ymd;
   return `${parts[2]}/${parts[1]}`;
 }
 
 function daysUntil(ymd: string | null): number | null {
-  if (!ymd) return null;
+  if (typeof ymd !== "string" || ymd.length < 10) return null;
   const due = new Date(ymd + "T12:00:00");
   const now = nowMexico();
   now.setHours(12, 0, 0, 0);
