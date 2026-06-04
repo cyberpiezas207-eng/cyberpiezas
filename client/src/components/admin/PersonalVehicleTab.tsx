@@ -32,7 +32,15 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Brain,
 } from "lucide-react";
+
+// ----------------------------------------------------------------------------
+// Componentes del Cerebro del Coche (Sub-commit 4)
+// ----------------------------------------------------------------------------
+import { TankStateCard } from "./TankStateCard";
+import { VehicleHealthCard } from "./VehicleHealthCard";
+import { TirePressureCard } from "./TirePressureCard";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("es-MX", {
@@ -102,6 +110,39 @@ export default function PersonalVehicleTab() {
     <div className="space-y-5">
       {/* Hero card del vehiculo */}
       <VehicleHeroCard vehicleId={activeVehicle.id} />
+
+      {/* ===================================================================
+          CEREBRO DEL COCHE (Sub-commit 4: tanque + salud + presion)
+          =================================================================== */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500/30 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-indigo-300" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Cerebro del coche</h3>
+            <p className="text-[10px] text-slate-500">
+              Tanque, salud mecanica y presion en tiempo real
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Columna izquierda: tanque + presion */}
+          <div className="space-y-4">
+            <TankStateCard vehicleId={activeVehicle.id} />
+            <TirePressureCard vehicleId={activeVehicle.id} />
+          </div>
+
+          {/* Columna derecha: salud */}
+          <div>
+            <VehicleHealthCard
+              vehicleId={activeVehicle.id}
+              currentOdometer={activeVehicle.currentOdometer ?? null}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Captura rapida */}
       <QuickFuelCapture
@@ -318,6 +359,59 @@ function FirstVehicleSetup({ onCreated }: { onCreated: () => void }) {
 // VEHICLE HERO CARD - card grande con stats globales del vehiculo
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// MiniTankFromBrain - Mini-card del tanque que usa el Cerebro de Tanque
+// ----------------------------------------------------------------------------
+// Reemplaza la mini-card estatica "Tanque lleno". Muestra el % actual real.
+// ----------------------------------------------------------------------------
+function MiniTankFromBrain({
+  vehicleId,
+  fallbackLiters,
+}: {
+  vehicleId: number;
+  fallbackLiters: number | null;
+}) {
+  const { data, isLoading } = trpc.personalVehicles.tank.getState.useQuery({
+    vehicleId,
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-3">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+          <Fuel className="w-3 h-3" />
+          Tanque
+        </div>
+        <p className="text-lg font-black text-white mt-1 leading-tight">--</p>
+        <p className="text-[10px] text-slate-500">cargando...</p>
+      </div>
+    );
+  }
+
+  const { state, levelLabel } = data;
+  const color =
+    levelLabel.semantic === "danger"
+      ? "text-rose-300"
+      : levelLabel.semantic === "warning"
+        ? "text-amber-300"
+        : "text-emerald-300";
+
+  return (
+    <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-3">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+        <Fuel className="w-3 h-3" />
+        Tanque
+      </div>
+      <p className={"text-lg font-black mt-1 leading-tight " + color}>
+        {state.currentPercent}%
+      </p>
+      <p className="text-[10px] text-slate-500">
+        {state.kmRemainingMin}-{state.kmRemainingMax} km restantes
+      </p>
+    </div>
+  );
+}
+
 function VehicleHeroCard({ vehicleId }: { vehicleId: number }) {
   const statsQuery = trpc.personalVehicles.stats.dashboard.useQuery({
     vehicleId,
@@ -382,20 +476,7 @@ function VehicleHeroCard({ vehicleId }: { vehicleId: number }) {
             <p className="text-[10px] text-slate-500">km</p>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-3">
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              <Fuel className="w-3 h-3" />
-              Tanque lleno
-            </div>
-            <p className="text-lg font-black text-white mt-1 leading-tight">
-              {stats?.estimatedRangeKm
-                ? `~${stats.estimatedRangeKm.toLocaleString("es-MX")}`
-                : "—"}
-            </p>
-            <p className="text-[10px] text-slate-500">
-              {tankLiters ? `${tankLiters}L · km estimados` : "necesita capacidad"}
-            </p>
-          </div>
+          <MiniTankFromBrain vehicleId={vehicle.id} fallbackLiters={tankLiters} />
 
           <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-3">
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
