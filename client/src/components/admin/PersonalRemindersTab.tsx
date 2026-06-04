@@ -40,6 +40,7 @@ import {
   MoreVertical,
   Sparkles,
   CalendarClock,
+  ArrowRight,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -370,9 +371,14 @@ function QuickReminderCapture({ onCreated }: { onCreated: () => void }) {
 interface ReminderCardProps {
   reminder: any;
   onActionDone: () => void;
+  onNavigateToDebts?: () => void;
 }
 
-function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
+function ReminderCard({
+  reminder,
+  onActionDone,
+  onNavigateToDebts,
+}: ReminderCardProps) {
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const utils = trpc.useUtils();
@@ -454,7 +460,21 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700 border-l-4 ${isDebt ? debtBorderClass : urgencyClass} p-3 ${isDone ? "opacity-60" : ""}`}
+      role={isDebt && onNavigateToDebts ? "button" : undefined}
+      tabIndex={isDebt && onNavigateToDebts ? 0 : undefined}
+      onClick={isDebt && onNavigateToDebts ? onNavigateToDebts : undefined}
+      onKeyDown={(e) => {
+        if (
+          isDebt &&
+          onNavigateToDebts &&
+          (e.key === "Enter" || e.key === " ")
+        ) {
+          e.preventDefault();
+          onNavigateToDebts();
+        }
+      }}
+      title={isDebt && onNavigateToDebts ? "Ir a la pestana Deudas" : undefined}
+      className={`relative overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700 border-l-4 ${isDebt ? debtBorderClass : urgencyClass} p-3 ${isDone ? "opacity-60" : ""} ${isDebt && onNavigateToDebts ? "cursor-pointer hover:bg-slate-800/90 transition-colors" : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -532,6 +552,14 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
               ))}
           </div>
         </div>
+
+        {/* Bug1.1-Deudas: afford de navegacion a la pestana Deudas */}
+        {isDebt && onNavigateToDebts && (
+          <div className="flex items-center gap-1 shrink-0 text-[11px] font-bold text-indigo-300">
+            ver en Deudas
+            <ArrowRight className="w-3 h-3" />
+          </div>
+        )}
 
         {/* Actions */}
         {!isDone && !isDebt && (
@@ -643,7 +671,11 @@ function ReminderCard({ reminder, onActionDone }: ReminderCardProps) {
 // Componente principal
 // ----------------------------------------------------------------------------
 
-export default function PersonalRemindersTab() {
+export default function PersonalRemindersTab({
+  onNavigateToDebts,
+}: {
+  onNavigateToDebts?: () => void;
+} = {}) {
   const [filter, setFilter] = useState<Filter>("today");
 
   const listQuery = trpc.personalReminders.reminders.list.useQuery(
@@ -741,6 +773,7 @@ export default function PersonalRemindersTab() {
               key={reminder.id}
               reminder={reminder}
               onActionDone={() => listQuery.refetch()}
+              onNavigateToDebts={onNavigateToDebts}
             />
           ))}
         </div>
