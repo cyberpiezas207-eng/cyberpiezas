@@ -39,7 +39,7 @@ function fmt(n: number): string {
 }
 
 function daysUntil(ymd: string | null | undefined): number | null {
-  if (!ymd) return null;
+  if (typeof ymd !== "string" || ymd.length < 10) return null;
   const parts = ymd.split("-").map(Number);
   if (parts.length !== 3) return null;
   const target = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
