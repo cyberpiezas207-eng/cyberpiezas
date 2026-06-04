@@ -1,15 +1,27 @@
 // ============================================================================
 // SCHEMA - Modulo Vehiculo personal
 // ----------------------------------------------------------------------------
-// 2 tablas:
-//   - personalVehicles       : carros/motos del usuario (Chevy Pop, etc)
-//   - personalVehicleFuelLogs: cada carga de gasolina (monto, precio/L, etc)
+// 3 tablas:
+//   - personalVehicles            : carros/motos del usuario (Chevy Pop, etc)
+//   - personalVehicleFuelLogs     : cada carga de gasolina
+//   - personalVehicleTankReadings : lecturas manuales del % de tanque (NUEVO)
+//
+// CAMPOS NUEVOS en personalVehicles (Cerebro de Tanque Mediano):
+//   - lastKnownTankPercent       : 0-100, lo que David dijo "estoy en X%"
+//   - lastKnownTankAt            : timestamp de cuando dijo eso
+//   - lastKnownOdometerAtTank    : odometro registrado en ese momento
+//
+// El motor calcula el % actual del tanque a partir de:
+//   1. Ultimo % conocido + odometro de ese momento
+//   2. Odometro actual del vehiculo (km manejados desde entonces)
+//   3. Litros cargados desde entonces (suben el tanque)
 //
 // Convenciones:
 //   - userId en todo para multiusuario futuro
 //   - Soft delete con deletedAt
 //   - Decimales: dinero 12,2 / precio/litro 8,3 (Pemex usa 3 decimales)
 //   - Migraciones con CREATE TABLE IF NOT EXISTS (idempotentes)
+//   - ALTER TABLE con catch de errno 1060 (columna ya existe)
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -47,6 +59,15 @@ export const personalVehicles = mysqlTable("personalVehicles", {
 
   // Ultimo odometro conocido (en km)
   currentOdometer: int("currentOdometer").default(0),
+
+  // ----------------- CEREBRO DE TANQUE (NUEVO) -----------------
+  // Ultima lectura manual del tanque que dio el usuario (0-100)
+  lastKnownTankPercent: int("lastKnownTankPercent"),
+  // Timestamp de esa ultima lectura
+  lastKnownTankAt: timestamp("lastKnownTankAt"),
+  // Odometro registrado en el momento de esa lectura (para calcular km manejados despues)
+  lastKnownOdometerAtTank: int("lastKnownOdometerAtTank"),
+  // -------------------------------------------------------------
 
   // Para UI: emoji + color
   icon: varchar("icon", { length: 8 }).default("🚗"),
@@ -126,7 +147,51 @@ export type NewPersonalVehicleFuelLog =
   typeof personalVehicleFuelLogs.$inferInsert;
 
 // ----------------------------------------------------------------------------
-// MIGRACIONES - CREATE TABLE IF NOT EXISTS (idempotentes)
+// TABLA 3: personalVehicleTankReadings (NUEVO - Cerebro de Tanque)
+// ----------------------------------------------------------------------------
+// Historial de lecturas manuales del tanque. Cada vez que el usuario dice
+// "estoy en 50%", "tanque lleno", etc, se guarda aqui. Sirve para:
+//   - Auditoria (ver historial de lecturas)
+//   - Calculos retroactivos si llegara a hacer falta
+//   - Stats de "cuantas veces dejo el tanque casi vacio" en el futuro
+//
+// La lectura MAS RECIENTE se cachea ademas en personalVehicles para evitar
+// queries innecesarias.
+// ----------------------------------------------------------------------------
+export const personalVehicleTankReadings = mysqlTable(
+  "personalVehicleTankReadings",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    userId: int("userId").notNull(),
+    vehicleId: int("vehicleId").notNull(),
+
+    // % que dijo el usuario (0-100)
+    tankPercent: int("tankPercent").notNull(),
+
+    // Odometro en ese momento (puede ser null si no lo dio)
+    odometerAtReading: int("odometerAtReading"),
+
+    // Como dio la lectura: boton rapido o input exacto o auto al cargar
+    source: mysqlEnum("source", ["quick_button", "exact_input", "auto_refill"])
+      .default("quick_button")
+      .notNull(),
+
+    notes: text("notes"),
+
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+);
+
+export type PersonalVehicleTankReading =
+  typeof personalVehicleTankReadings.$inferSelect;
+export type NewPersonalVehicleTankReading =
+  typeof personalVehicleTankReadings.$inferInsert;
+
+// ----------------------------------------------------------------------------
+// MIGRACIONES - CREATE TABLE IF NOT EXISTS + ALTER TABLE (idempotentes)
+// ----------------------------------------------------------------------------
+// IMPORTANTE: Los ALTER TABLE deben ejecutarse con catch del errno 1060
+// (columna ya existe) en el runStartupMigrations de db.ts.
 // ----------------------------------------------------------------------------
 export const personalVehicleMigrations = [
   `CREATE TABLE IF NOT EXISTS \`personalVehicles\` (
@@ -139,6 +204,9 @@ export const personalVehicleMigrations = [
     \`plate\` varchar(20) DEFAULT NULL,
     \`tankCapacityLiters\` decimal(6,2) DEFAULT NULL,
     \`currentOdometer\` int(11) DEFAULT 0,
+    \`lastKnownTankPercent\` int(11) DEFAULT NULL,
+    \`lastKnownTankAt\` timestamp NULL DEFAULT NULL,
+    \`lastKnownOdometerAtTank\` int(11) DEFAULT NULL,
     \`icon\` varchar(8) DEFAULT '🚗',
     \`color\` varchar(16) DEFAULT '#6366f1',
     \`isDefault\` tinyint(1) DEFAULT 0,
@@ -175,5 +243,26 @@ export const personalVehicleMigrations = [
     KEY \`personalVehicleFuelLogs_userId_idx\` (\`userId\`),
     KEY \`personalVehicleFuelLogs_vehicleId_idx\` (\`vehicleId\`),
     KEY \`personalVehicleFuelLogs_fillDate_idx\` (\`fillDate\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // ALTER TABLE para vehiculos existentes (catch errno 1060 si ya existen)
+  `ALTER TABLE \`personalVehicles\` ADD COLUMN \`lastKnownTankPercent\` int(11) DEFAULT NULL`,
+  `ALTER TABLE \`personalVehicles\` ADD COLUMN \`lastKnownTankAt\` timestamp NULL DEFAULT NULL`,
+  `ALTER TABLE \`personalVehicles\` ADD COLUMN \`lastKnownOdometerAtTank\` int(11) DEFAULT NULL`,
+
+  // Tabla nueva de lecturas de tanque
+  `CREATE TABLE IF NOT EXISTS \`personalVehicleTankReadings\` (
+    \`id\` int(11) NOT NULL AUTO_INCREMENT,
+    \`userId\` int(11) NOT NULL,
+    \`vehicleId\` int(11) NOT NULL,
+    \`tankPercent\` int(11) NOT NULL,
+    \`odometerAtReading\` int(11) DEFAULT NULL,
+    \`source\` enum('quick_button','exact_input','auto_refill') NOT NULL DEFAULT 'quick_button',
+    \`notes\` text,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    KEY \`personalVehicleTankReadings_userId_idx\` (\`userId\`),
+    KEY \`personalVehicleTankReadings_vehicleId_idx\` (\`vehicleId\`),
+    KEY \`personalVehicleTankReadings_createdAt_idx\` (\`createdAt\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
