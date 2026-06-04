@@ -50,7 +50,7 @@ function nowMexico(): Date {
 }
 
 function daysUntil(ymd: string | null): number | null {
-  if (!ymd) return null;
+  if (typeof ymd !== "string" || ymd.length < 10) return null;
   const [y, m, d] = ymd.split("-").map(Number);
   if (!y || !m || !d) return null;
   const target = new Date(y, m - 1, d);
@@ -256,7 +256,7 @@ export default function MonthPaymentPlan({
 
   // Filtrar deudas con vencimiento ESTE mes
   const debtsThisMonth = debts.filter((d) => {
-    if (!d.nextDueDate) return false;
+    if (typeof d.nextDueDate !== "string" || d.nextDueDate.length < 10) return false;
     const [y, m] = d.nextDueDate.split("-").map(Number);
     return y === year && m === month;
   });
