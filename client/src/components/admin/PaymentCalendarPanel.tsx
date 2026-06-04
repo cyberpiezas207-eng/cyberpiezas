@@ -92,7 +92,7 @@ export default function PaymentCalendarPanel() {
   const byDay = useMemo(() => {
     const map = new Map<number, DebtLite[]>();
     for (const d of debts) {
-      if (!d.nextDueDate) continue;
+      if (typeof d.nextDueDate !== "string" || d.nextDueDate.length < 10) continue;
       const parts = d.nextDueDate.split("-").map(Number);
       if (parts.length !== 3) continue;
       const [y, m, day] = parts;
