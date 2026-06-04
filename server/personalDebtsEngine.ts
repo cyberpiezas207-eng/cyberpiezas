@@ -298,6 +298,48 @@ function detectIntent(text: string): DebtCaptureIntent {
 function detectCreditor(text: string): { keyword: string | null; name: string | null } {
   for (const ck of CREDITOR_KEYWORDS) {
     if (text.includes(ck.keyword)) {
+      // V2.6: Si el matched keyword es generico (prestamo/tarjeta/credito) y NO va
+      // acompanado de un nombre especifico (ej: "tarjeta nu", "credito bancomer"),
+      // tratar de encontrar el nombre real del acreedor en el texto.
+      // Caso: "prestamo didi 15500" -> creditor real es "Didi", no "Prestamo personal"
+      const GENERIC_KEYWORDS = new Set(["prestamo", "tarjeta", "credito"]);
+      if (GENERIC_KEYWORDS.has(ck.keyword)) {
+        // Buscar nombre propio despues del keyword generico
+        // Pattern: "(generic) <nombre>" donde nombre es 1-2 palabras no-STOP-WORD ni numeros
+        const idx = text.indexOf(ck.keyword);
+        const after = text.slice(idx + ck.keyword.length).trim();
+        const tokens = after.split(/\s+/).filter((t) => t.length > 0);
+
+        // Tomar hasta 2 tokens consecutivos que sean palabras no-numero no-STOP-WORD
+        // Como STOP_WORDS aun no esta definido aqui, uso un mini set inline
+        const MINI_STOPS = new Set([
+          "de", "del", "a", "al", "el", "la", "los", "las",
+          "para", "con", "en", "es", "mi", "y", "o",
+          "que", "este", "esta", "ese", "esa",
+          "pago", "pagar", "vence", "cada", "veces", "vez",
+        ]);
+
+        const candidate: string[] = [];
+        for (const tok of tokens) {
+          if (candidate.length >= 2) break;
+          if (/^\d+([.,]\d+)?$/.test(tok)) break; // numero, parar
+          if (MINI_STOPS.has(tok)) {
+            if (candidate.length > 0) break; // ya empezamos, parar
+            else continue; // saltar conectores iniciales
+          }
+          if (tok.length < 2) break;
+          candidate.push(tok);
+        }
+
+        if (candidate.length > 0) {
+          const realName = candidate
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(" ");
+          // Mantener keyword original para spans (para que se remueva correctamente)
+          return { keyword: ck.keyword, name: realName };
+        }
+        // Si no encontramos nombre real, usar el generico
+      }
       return { keyword: ck.keyword, name: ck.name };
     }
   }
@@ -386,6 +428,12 @@ function cleanConceptText(rest: string): string {
     "sin", "intereses",
     "vence", "tarjeta", "prestamo",
     "dia", "dias",
+    // V2.6: frecuencia y conteo (prestamos informales)
+    "cada", "veces", "vez",
+    "quincena", "quincenas", "quincenal", "quincenales",
+    "semana", "semanas", "semanal", "semanales",
+    "diaria", "diario", "diarias", "diarios",
+    "anual", "anuales", "anualmente",
     // V2.4: palabras de fecha relativa que dejaba el cerebro
     "este", "esta", "esto",
     "proximo", "proxima", "siguiente",
@@ -515,6 +563,46 @@ export function analyzeDebtLine(
       result.totalInstallments = msiCount;
       if (result.intent === "purchase_installment") {
         result.currentInstallment = 0;
+      }
+    }
+  }
+
+  // V2.6: PATRON "N veces" (prestamos informales)
+  // "pago cada 15 dias 2 veces" -> totalInstallments = 2
+  // Solo aplica si totalInstallments aun es null Y N esta entre 1 y 100
+  if (result.totalInstallments == null) {
+    const vecesMatch = lower.match(/\b(\d+)\s+veces?\b/);
+    if (vecesMatch) {
+      const n = parseInt(vecesMatch[1], 10);
+      if (n >= 1 && n <= 100) {
+        result.totalInstallments = n;
+        const idx = vecesMatch.index ?? 0;
+        removedSpans.push({
+          start: idx,
+          end: idx + vecesMatch[0].length,
+        });
+      }
+    }
+  }
+
+  // V2.6: PATRON "cada N dias" / "cada quincena" / "cada semana"
+  // Limpiar del concepto para que no contamine. NO se guarda en BD
+  // (no hay columna paymentFrequency aun)
+  {
+    const freqRegexes = [
+      /\bcada\s+\d+\s+dias?\b/,
+      /\bcada\s+quincenas?\b/,
+      /\bcada\s+semanas?\b/,
+      /\bcada\s+meses?\b/,
+      /\bquincenal(?:mente)?\b/,
+      /\bsemanal(?:mente)?\b/,
+      /\bmensual(?:mente)?\b/,
+    ];
+    for (const re of freqRegexes) {
+      const m = lower.match(re);
+      if (m) {
+        const idx = m.index ?? 0;
+        removedSpans.push({ start: idx, end: idx + m[0].length });
       }
     }
   }
