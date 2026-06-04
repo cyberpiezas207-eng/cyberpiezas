@@ -110,6 +110,51 @@ function toNum(v: any): number {
   return parseFloat(v) || 0;
 }
 
+// DEFENSIVO: normaliza un valor de fecha a string YYYY-MM-DD o null
+// Drizzle DEBERIA devolver strings (mode: "string" en schema) pero por
+// las dudas, si llega un Date object lo convertimos.
+function toYMD(v: any): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    // Validar formato basico antes de retornar
+    if (v.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(v)) {
+      return v.slice(0, 10);
+    }
+    return null;
+  }
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, "0");
+    const d = String(v.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return null;
+}
+
+// DEFENSIVO: normaliza un row de personalDebts asegurando que las fechas
+// sean strings YYYY-MM-DD o null (nunca Date object ni objeto extrano).
+// Esto evita que el frontend truene con "t.split is not a function" si
+// drizzle por algun motivo devuelve fechas como Date.
+function normalizeDebtRow(d: any): any {
+  if (!d) return d;
+  return {
+    ...d,
+    nextDueDate: toYMD(d.nextDueDate),
+    startDate: toYMD(d.startDate),
+    endDate: toYMD(d.endDate),
+    assetSoldAt: toYMD(d.assetSoldAt),
+  };
+}
+
+function normalizePaymentRow(p: any): any {
+  if (!p) return p;
+  return {
+    ...p,
+    paymentDate: toYMD(p.paymentDate),
+  };
+}
+
 // ============================================================================
 // CRUD: DEUDAS
 // ============================================================================
@@ -138,7 +183,7 @@ export async function listDebts(
     .where(and(...conditions))
     .orderBy(asc(personalDebts.nextDueDate), desc(personalDebts.createdAt));
 
-  return rows;
+  return rows.map(normalizeDebtRow);
 }
 
 export async function getDebtById(
@@ -159,7 +204,7 @@ export async function getDebtById(
     )
     .limit(1);
 
-  return rows[0] ?? null;
+  return rows[0] ? normalizeDebtRow(rows[0]) : null;
 }
 
 export async function createDebt(
@@ -463,7 +508,7 @@ export async function recordPayment(
     throw new Error("No se pudo leer el pago/deuda despues de registrar");
   }
 
-  return { payment: paymentRows[0], debt: updatedDebt };
+  return { payment: normalizePaymentRow(paymentRows[0]), debt: updatedDebt };
 }
 
 export async function listPayments(
@@ -507,7 +552,7 @@ export async function listPayments(
     ? await baseQuery.limit(filters.limit)
     : await baseQuery.limit(500);
 
-  return rows;
+  return rows.map(normalizePaymentRow);
 }
 
 // softDeletePayment: revierte el pago restaurando saldo y cuota de la deuda.
@@ -683,7 +728,7 @@ export async function getMonthSummary(
   const { first, last } = monthRange(year, month);
 
   // Deudas activas
-  const activeDebts = await db
+  const rawActiveDebts = await db
     .select()
     .from(personalDebts)
     .where(
@@ -693,6 +738,8 @@ export async function getMonthSummary(
         isNull(personalDebts.deletedAt),
       ),
     );
+  // Normalizar fechas para uso interno (evita Date objects)
+  const activeDebts = rawActiveDebts.map(normalizeDebtRow);
 
   const totalCurrentBalance = activeDebts.reduce(
     (acc, d) => acc + toNum(d.currentBalance),
@@ -787,7 +834,7 @@ export async function getUpcomingPayments(
   const today = todayYMD();
   const limit = addDaysYMD(today, daysAhead);
 
-  const rows = await db
+  const rawRows = await db
     .select()
     .from(personalDebts)
     .where(
@@ -798,6 +845,7 @@ export async function getUpcomingPayments(
         isNotNull(personalDebts.nextDueDate),
       ),
     );
+  const rows = rawRows.map(normalizeDebtRow);
 
   // Filtrar por rango y mapear
   const result = rows
