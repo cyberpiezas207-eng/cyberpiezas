@@ -61,6 +61,7 @@ const MONTHS_ES = [
 ];
 
 function monthLabel(ym: string): string {
+  if (typeof ym !== "string" || ym.length < 7) return String(ym ?? "");
   const [y, m] = ym.split("-");
   const mi = parseInt(m, 10) - 1;
   if (mi < 0 || mi > 11) return ym;
