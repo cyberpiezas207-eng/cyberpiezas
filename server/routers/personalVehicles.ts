@@ -202,7 +202,9 @@ export const personalVehiclesRouter = router({
             categoryId: input.expenseCategoryId ?? null,
             storeId: null,
             storeName: detection.storeName,
-            expenseDate: undefined as any, // createDetailedExpense usa la fecha del input
+            expenseDate: new Date(Date.now() - 6 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10), // V2: fecha hoy Mexico (UTC-6) para evitar NULL en INSERT
             paymentMethod: "cash",
             notes: input.text,
           } as any);
