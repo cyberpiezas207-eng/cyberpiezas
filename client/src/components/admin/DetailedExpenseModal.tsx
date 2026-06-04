@@ -1,16 +1,30 @@
 // ============================================================================
-// MODAL "Captura detallada" de gasto
+// MODAL "Captura detallada" de gasto (V2 - Wallets-3 Lite)
 // ----------------------------------------------------------------------------
-// Campos: descripcion, monto opcional, categoria, tienda, fecha, metodo de pago.
-// + V3: BOLSILLO (opcional) - si se selecciona, descuenta automaticamente del
-//   wallet despues de crear el gasto. Trazabilidad por notas "Gasto: X".
+// Campos: descripcion, monto opcional, categoria, tienda, fecha, metodo de pago,
+//         BOLSILLO opcional (NUEVO V2).
+//
 // Si el monto va vacio -> se guarda como pendiente (no afecta stats).
-// Self-contained: hace su propia mutation y refresca queries al guardar.
+//
+// NUEVO V2:
+//   - Selector visual de bolsillo (opcional)
+//   - Auto-default al bolsillo marcado como default
+//   - Vista previa del saldo despues del gasto
+//   - Warning si el gasto excede el saldo (NO bloquea, solo avisa)
+//   - Si hay bolsillo + monto > 0: hace 2 mutations en cadena:
+//       1) crear gasto detallado
+//       2) wallets.withdraw del bolsillo seleccionado
+//   - Si el gasto es pendiente o no hay bolsillo: solo crea gasto (igual que antes)
+//
+// NUNCA mezcla con POS de clientes (boutique/vet/abarrotes). Vive 100% en
+// cuarto privado (ownerOnly en ambos routers).
+//
+// Self-contained: hace sus propias mutations y refresca queries al guardar.
 // Overlay propio con cierre por ESC, X o clic fuera.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +38,9 @@ import {
   Tag,
   Store,
   CreditCard,
-  PiggyBank,
-  ArrowDown,
-  AlertCircle,
+  Banknote,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 
 interface Props {
@@ -46,15 +60,6 @@ const PAYMENT_OPTIONS: {
   { value: "other", label: "Otro", icon: "📝" },
 ];
 
-// Formateador de pesos para preview
-const fmtMXN = (n: number) =>
-  new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-
 // Morelos = UTC-6 todo el ano
 function todayMexicoYMD(): string {
   const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
@@ -62,6 +67,10 @@ function todayMexicoYMD(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function fmtMoney(n: number): string {
+  return `$${n.toLocaleString("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
@@ -76,8 +85,7 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
     "cash" | "debit" | "credit" | "transfer" | "other"
   >("cash");
   const [notes, setNotes] = useState("");
-  // V3: estado para wallet seleccionado
-  const [walletId, setWalletId] = useState<number | "">("");
+  const [walletId, setWalletId] = useState<number | "">(""); // NUEVO V2
 
   // Cerrar con ESC
   useEffect(() => {
@@ -90,115 +98,115 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
 
   const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
   const storesQuery = trpc.personalExpenses.stores.list.useQuery();
-  // V3: listar wallets disponibles
-  const walletsQuery = trpc.personalWallets.wallets.list.useQuery();
+  const walletsQuery = trpc.personalWallets.wallets.list.useQuery(); // NUEVO V2
 
   const categories = categoriesQuery.data ?? [];
   const stores = storesQuery.data ?? [];
-  const wallets = (walletsQuery.data ?? []) as any[];
+  const wallets = walletsQuery.data ?? [];
 
-  // V3: mutation aparte para retirar del wallet
-  const withdrawFromWallet =
-    trpc.personalWallets.wallets.withdraw.useMutation();
+  // Auto-default: pre-seleccionar bolsillo default al cargar (solo una vez)
+  useEffect(() => {
+    if (walletId === "" && wallets.length > 0) {
+      const def = wallets.find((w: any) => w.isDefault);
+      if (def) {
+        setWalletId(def.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets.length]);
 
-  const parsedAmount = (() => {
+  // ----- Mutations -----
+  const createDetailed = trpc.personalExpensesCapture.createDetailed.useMutation();
+  const withdrawWallet = trpc.personalWallets.wallets.withdraw.useMutation();
+
+  const parsedAmount = useMemo(() => {
     const n = Number(amountStr.replace(",", "."));
     return Number.isFinite(n) && n > 0 ? n : 0;
-  })();
+  }, [amountStr]);
 
   const isPending = parsedAmount === 0;
-
-  // V3: wallet seleccionada actual
-  const selectedWallet =
-    walletId === "" ? null : wallets.find((w) => w.id === walletId) ?? null;
-
-  // V3: saldo despues del retiro (preview)
-  const walletBalanceAfter =
-    selectedWallet && parsedAmount > 0
-      ? Number(selectedWallet.balance ?? 0) - parsedAmount
-      : null;
-
-  const createDetailed =
-    trpc.personalExpensesCapture.createDetailed.useMutation({
-      onSuccess: async (_createdExpense) => {
-        // V3: si seleccionaste un wallet Y hay monto valido, descontar
-        let walletWarning: string | null = null;
-        let walletSuccess = false;
-
-        if (walletId !== "" && !isPending && parsedAmount > 0) {
-          try {
-            await withdrawFromWallet.mutateAsync({
-              walletId: walletId as number,
-              amount: parsedAmount,
-              description: `Gasto: ${description.trim().slice(0, 200)}`,
-              category: "gasto",
-              occurredAt: expenseDate,
-            });
-            walletSuccess = true;
-          } catch (e: any) {
-            walletWarning =
-              e?.message || "No se pudo descontar del bolsillo";
-          }
-        }
-
-        // Mensajes contextuales
-        if (walletSuccess) {
-          toast.success(
-            `Gasto guardado y ${fmtMXN(parsedAmount)} descontado de ${selectedWallet?.name}`,
-          );
-        } else if (walletWarning) {
-          toast.warning(
-            `Gasto guardado, pero el bolsillo: ${walletWarning}`,
-          );
-        } else if (isPending) {
-          toast.success(
-            "Gasto guardado como pendiente (asigna monto cuando lo sepas)",
-          );
-        } else {
-          toast.success("Gasto guardado");
-        }
-
-        // Invalidar queries de gastos
-        utils.personalExpenses.stats.dashboard.invalidate();
-        utils.personalExpenses.expenses.list.invalidate();
-        // V3: invalidar tambien queries de wallets si hubo descuento
-        if (walletSuccess) {
-          utils.personalWallets.wallets.list.invalidate();
-          utils.personalWallets.movements.list.invalidate();
-        }
-
-        onSaved?.();
-        onClose();
-      },
-      onError: (e) => toast.error(e.message || "No se pudo guardar"),
-    });
-
-  const canSave =
-    description.trim().length > 0 &&
-    !createDetailed.isPending &&
-    !withdrawFromWallet.isPending;
+  const canSave = description.trim().length > 0 && !createDetailed.isPending;
 
   const selectedStore =
-    storeId === "" ? null : stores.find((s) => s.id === storeId) ?? null;
+    storeId === "" ? null : stores.find((s: any) => s.id === storeId) ?? null;
 
-  // V3: validacion: si se selecciono wallet pero el gasto es pendiente, advertir
-  const walletWithPendingWarning =
-    walletId !== "" && isPending && description.trim().length > 0;
+  // ----- Wallet helpers -----
+  const selectedWallet = useMemo(() => {
+    if (walletId === "") return null;
+    return wallets.find((w: any) => w.id === walletId) ?? null;
+  }, [walletId, wallets]);
 
-  function handleSave() {
+  const currentBalance = selectedWallet
+    ? Number(selectedWallet.balance ?? 0)
+    : 0;
+
+  const balanceAfter = selectedWallet ? currentBalance - parsedAmount : 0;
+
+  const insufficientFunds =
+    selectedWallet != null && !isPending && balanceAfter < 0;
+
+  const willWithdraw =
+    selectedWallet != null && !isPending && parsedAmount > 0;
+
+  // ----- Submit con cadena de 2 mutations -----
+  async function handleSave() {
     if (!canSave) return;
-    createDetailed.mutate({
-      description: description.trim(),
-      amount: isPending ? null : parsedAmount,
-      categoryId: categoryId === "" ? null : categoryId,
-      storeId: storeId === "" ? null : storeId,
-      storeName: selectedStore?.name ?? null,
-      expenseDate,
-      paymentMethod,
-      notes: notes.trim() ? notes.trim() : null,
-    });
+
+    try {
+      // 1) Crear gasto detallado
+      await createDetailed.mutateAsync({
+        description: description.trim(),
+        amount: isPending ? null : parsedAmount,
+        categoryId: categoryId === "" ? null : categoryId,
+        storeId: storeId === "" ? null : storeId,
+        storeName: selectedStore?.name ?? null,
+        expenseDate,
+        paymentMethod,
+        notes: notes.trim() ? notes.trim() : null,
+        walletId: walletId === "" ? null : walletId,
+      } as any);
+
+      // 2) Si aplica, descontar del bolsillo
+      if (willWithdraw && walletId !== "") {
+        try {
+          await withdrawWallet.mutateAsync({
+            walletId: walletId,
+            amount: parsedAmount,
+            description: `Gasto: ${description.trim()}`,
+            category: selectedStore?.name ?? null,
+            occurredAt: expenseDate,
+          });
+        } catch (err: any) {
+          // El gasto ya se creo. Avisamos del fallo del bolsillo pero no rompemos.
+          toast.warning(
+            `Gasto guardado, pero no se pudo descontar del bolsillo: ${err?.message ?? "error"}`,
+          );
+        }
+      }
+
+      // Toast de exito y refrescar caches
+      if (isPending) {
+        toast.success("Gasto pendiente guardado (asigna monto despues)");
+      } else if (willWithdraw) {
+        toast.success(
+          `Gasto guardado y descontado de "${selectedWallet?.name ?? "bolsillo"}"`,
+        );
+      } else {
+        toast.success("Gasto guardado");
+      }
+
+      utils.personalExpenses.stats.dashboard.invalidate();
+      utils.personalExpenses.expenses.list.invalidate();
+      utils.personalWallets.wallets.list.invalidate();
+
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo guardar");
+    }
   }
 
+  // ----- Renderizado -----
   return (
     <div
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3"
@@ -215,11 +223,10 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
               <FileText className="w-5 h-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white">
-                Captura detallada
-              </h2>
+              <h2 className="text-lg font-bold text-white">Captura detallada</h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Para gastos que no caben en la captura rapida o que aun no tienes monto.
+                Para gastos que no caben en la captura rapida o que aun no
+                tienes monto.
               </p>
             </div>
           </div>
@@ -279,16 +286,12 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
             </div>
           </div>
 
-          {/* V3: BOLSILLO (opcional) - SOLO si hay wallets */}
+          {/* ============= NUEVO V2: Selector de Bolsillo ============= */}
           {wallets.length > 0 && (
-            <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-950/30 via-slate-800 to-slate-800/80 border border-emerald-500/30">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1 mb-1">
-                <PiggyBank className="w-3 h-3" />
-                Sale del bolsillo (opcional)
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <Banknote className="w-3 h-3" /> Bolsillo (opcional)
               </label>
-              <p className="text-[10px] text-slate-400 mb-2">
-                Si seleccionas un bolsillo, se descontara el monto automaticamente.
-              </p>
               <select
                 value={walletId === "" ? "" : String(walletId)}
                 onChange={(e) =>
@@ -296,51 +299,45 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
                     e.target.value === "" ? "" : Number(e.target.value),
                   )
                 }
-                className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 mt-1 text-sm"
               >
-                <option value="">No descontar de ningun bolsillo</option>
-                {wallets.map((w) => (
+                <option value="">Sin bolsillo</option>
+                {wallets.map((w: any) => (
                   <option key={w.id} value={w.id}>
-                    {w.icon} {w.name} · {fmtMXN(Number(w.balance ?? 0))}
+                    {w.icon ?? "💼"} {w.name} · {fmtMoney(Number(w.balance ?? 0))}
                   </option>
                 ))}
               </select>
 
-              {/* Preview saldo despues */}
-              {selectedWallet && walletBalanceAfter != null && (
-                <div className="mt-2 p-2.5 rounded-lg bg-slate-900/60 border border-slate-700">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-slate-400">Saldo despues:</span>
-                    <div className="flex items-center gap-1 font-bold tabular-nums">
-                      <span className="text-slate-500">
-                        {fmtMXN(Number(selectedWallet.balance ?? 0))}
-                      </span>
-                      <ArrowDown className="w-3 h-3 text-rose-400" />
-                      <span
-                        className={
-                          walletBalanceAfter < 0
-                            ? "text-rose-300"
-                            : "text-emerald-300"
-                        }
-                      >
-                        {fmtMXN(walletBalanceAfter)}
-                      </span>
-                    </div>
+              {/* Vista previa del saldo despues del gasto */}
+              {selectedWallet && !isPending && (
+                <div
+                  className={`mt-2 px-3 py-2 rounded-lg text-[11px] flex items-center justify-between ${
+                    insufficientFunds
+                      ? "bg-rose-500/10 border border-rose-500/30 text-rose-200"
+                      : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {insufficientFunds ? (
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      Saldo despues: <b>{fmtMoney(balanceAfter)}</b>
+                    </span>
                   </div>
-                  {walletBalanceAfter < 0 && (
-                    <p className="text-[10px] text-rose-300 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      El bolsillo quedara en negativo (se permite)
-                    </p>
+                  {insufficientFunds && (
+                    <span className="text-[10px] opacity-80">
+                      excede el saldo
+                    </span>
                   )}
                 </div>
               )}
-
-              {/* Warning si gasto es pendiente pero hay wallet */}
-              {walletWithPendingWarning && (
-                <p className="text-[10px] text-amber-300 mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  Sin monto, no se puede descontar del bolsillo todavia.
+              {selectedWallet && isPending && (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Sin monto = no se descuenta del bolsillo aun.
                 </p>
               )}
             </div>
@@ -354,12 +351,14 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
             <select
               value={categoryId === "" ? "" : String(categoryId)}
               onChange={(e) =>
-                setCategoryId(e.target.value === "" ? "" : Number(e.target.value))
+                setCategoryId(
+                  e.target.value === "" ? "" : Number(e.target.value),
+                )
               }
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 mt-1 text-sm"
             >
               <option value="">Sin clasificar</option>
-              {categories.map((c) => (
+              {categories.map((c: any) => (
                 <option key={c.id} value={c.id}>
                   {c.icon} {c.name}
                 </option>
@@ -380,7 +379,7 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 mt-1 text-sm"
             >
               <option value="">Sin tienda</option>
-              {stores.map((s) => (
+              {stores.map((s: any) => (
                 <option key={s.id} value={s.id}>
                   {s.icon} {s.name}
                 </option>
@@ -428,22 +427,22 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
 
           {/* Resumen */}
           <Card className="bg-slate-800 border border-slate-700">
-            <CardContent className="p-3 text-xs text-slate-300 space-y-1">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3 text-xs text-slate-300">
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-slate-400">Resumen:</span>
                 {isPending ? (
                   <span className="font-bold text-amber-400">⏳ Pendiente</span>
                 ) : (
                   <span className="font-bold text-orange-400">
-                    {fmtMXN(parsedAmount)}
+                    ${parsedAmount.toLocaleString("es-MX")}
                   </span>
                 )}
               </div>
-              {selectedWallet && !isPending && (
-                <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-700/60">
-                  <span className="text-slate-400">Sale de:</span>
-                  <span className="font-bold text-emerald-300">
-                    {selectedWallet.icon} {selectedWallet.name}
+              {willWithdraw && selectedWallet && (
+                <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-700/50">
+                  <span className="text-slate-400">Se descontara de:</span>
+                  <span className="font-medium text-cyan-300">
+                    {selectedWallet.icon ?? "💼"} {selectedWallet.name}
                   </span>
                 </div>
               )}
@@ -454,10 +453,10 @@ export default function DetailedExpenseModal({ onClose, onSaved }: Props) {
           <div className="flex items-center gap-2 pt-1">
             <Button
               onClick={handleSave}
-              disabled={!canSave}
+              disabled={!canSave || createDetailed.isPending || withdrawWallet.isPending}
               className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
             >
-              {createDetailed.isPending || withdrawFromWallet.isPending
+              {createDetailed.isPending || withdrawWallet.isPending
                 ? "Guardando..."
                 : "Guardar gasto"}
             </Button>
