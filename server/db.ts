@@ -87,6 +87,7 @@ import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { personalVehicleMigrations } from "./personalVehicleSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
 import { personalServicesMigrations } from "./personalServicesSchema";
+import { personalAnimalsMigrations } from "./personalAnimalsSchema";
 import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { TRPCError } from "@trpc/server";
 
@@ -219,6 +220,7 @@ export async function runStartupMigrations(): Promise<void> {
     ...personalPantryMigrations,
     ...personalPantryPricesMigrations,
     ...personalServicesMigrations,
+    ...personalAnimalsMigrations,
     // Columna para persistir aceptación de términos y condiciones por usuario
     // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
     "ALTER TABLE `users` ADD COLUMN `termsAcceptedAt` timestamp NULL DEFAULT NULL",
