@@ -238,6 +238,22 @@ export async function listTankReadings(
 }
 
 // ----------------------------------------------------------------------------
+// STORE BRAIN: factores de honestidad por gasolinera del vehiculo
+// ----------------------------------------------------------------------------
+// Carga las cargas del vehiculo y deja que el engine agrupe por storeName y
+// calcule, para cada gasolinera, si da litro completo o "baja" litros.
+// Scope por userId + vehicleId (no hay fuga entre cuartos del edificio).
+// ----------------------------------------------------------------------------
+
+export async function listStoreFactorsForVehicle(
+  userId: number,
+  vehicleId: number,
+): Promise<StoreHonestyFactor[]> {
+  const fuelLogs = await loadFuelLogsForEngine(userId, vehicleId, 60);
+  return listStoreFactors(fuelLogs);
+}
+
+// ----------------------------------------------------------------------------
 // AUTO refill: cuando se carga gasolina, sube el tanque automaticamente
 // ----------------------------------------------------------------------------
 // Esta funcion NO es llamada desde el router directamente. Se llama desde
