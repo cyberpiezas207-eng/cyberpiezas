@@ -56,6 +56,11 @@ export const personalDebts = mysqlTable("personalDebts", {
     .notNull()
     .default("0.00"),
   installmentAmount: decimal("installmentAmount", { precision: 12, scale: 2 }),
+  // Primer pago distinto del resto (ej: primero 1027, luego 1257). null = todos iguales.
+  firstInstallmentAmount: decimal("firstInstallmentAmount", {
+    precision: 12,
+    scale: 2,
+  }),
 
   // Avance
   currentInstallment: int("currentInstallment").default(0),
@@ -63,6 +68,8 @@ export const personalDebts = mysqlTable("personalDebts", {
 
   // Fechas y vencimiento
   dueDay: int("dueDay"), // 1-31, dia del mes en que vence
+  // Cada cuantos dias vence. null = mensual (usa dueDay). 14 = cada 14 dias, 7 = semanal.
+  frequencyDays: int("frequencyDays"),
   nextDueDate: date("nextDueDate", { mode: "string" }),
   startDate: date("startDate", { mode: "string" }),
   endDate: date("endDate", { mode: "string" }),
@@ -175,9 +182,11 @@ export const personalDebtsMigrations = [
     \`originalAmount\` decimal(12,2) DEFAULT NULL,
     \`currentBalance\` decimal(12,2) NOT NULL DEFAULT '0.00',
     \`installmentAmount\` decimal(12,2) DEFAULT NULL,
+    \`firstInstallmentAmount\` decimal(12,2) DEFAULT NULL,
     \`currentInstallment\` int(11) DEFAULT 0,
     \`totalInstallments\` int(11) DEFAULT NULL,
     \`dueDay\` int(11) DEFAULT NULL,
+    \`frequencyDays\` int(11) DEFAULT NULL,
     \`nextDueDate\` date DEFAULT NULL,
     \`startDate\` date DEFAULT NULL,
     \`endDate\` date DEFAULT NULL,
