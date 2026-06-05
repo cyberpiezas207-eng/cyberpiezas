@@ -55,6 +55,42 @@ const STORE_KEYWORDS: Array<{ keyword: string; name: string }> = [
   { keyword: "bp ", name: "BP" }, // espacio para evitar match con "bpx" o palabras
 ];
 
+// Palabras que NO son nombre de sucursal: marcas, unidades, verbos comunes,
+// tipos de gasolina y conectores. Lo que sobre se toma como apodo del lugar.
+// (sin acentos por convencion del proyecto)
+const STORE_STOPWORDS = new Set<string>([
+  // conectores
+  "de", "del", "la", "el", "las", "los", "al", "en", "con", "por", "para",
+  "un", "una", "mi", "su",
+  // verbos/acciones tipicas al capturar
+  "gaste", "gasto", "puse", "pague", "pago", "cargue", "carga", "cargar",
+  "lleno", "llene", "meti", "eche", "voy", "fui", "marca", "marco", "esta",
+  // unidades / palabras de medida
+  "pesos", "peso", "litro", "litros", "lt", "lts", "tanque", "tank",
+  "km", "kms", "kilometros", "kilometro", "odometro", "odom", "mil",
+  // combustible / tipos
+  "gasolina", "gas", "diesel", "magna", "premium", "verde", "roja", "regular",
+]);
+
+// Toma el texto y, ya detectada la marca, junta hasta 3 palabras "raras"
+// (no marca, no stopword, no numero) como apodo del lugar. Asi "pemex 3 marias"
+// guarda "Pemex marias" y el cerebro puede separar sucursales.
+function extractStoreNickname(lower: string, brandKeyword: string): string {
+  const brandWords = new Set(brandKeyword.split(/\s+/).filter(Boolean));
+  const picked: string[] = [];
+  for (const rawTok of lower.split(/\s+/)) {
+    // dejar solo letras (asi "3marias" -> "marias", "marias," -> "marias")
+    const letters = rawTok.replace(/[^a-z]/g, "");
+    if (letters.length < 3) continue;
+    if (brandWords.has(letters)) continue;
+    if (STORE_STOPWORDS.has(letters)) continue;
+    if (picked.includes(letters)) continue;
+    picked.push(letters);
+    if (picked.length >= 3) break;
+  }
+  return picked.join(" ");
+}
+
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
@@ -152,11 +188,12 @@ export function analyzeFuelLine(text: string): FuelLineDetection {
 
   if (!lower) return result;
 
-  // 1. Tienda
+  // 1. Tienda (marca) + apodo de sucursal si se alcanza a leer
   for (const sk of STORE_KEYWORDS) {
     if (lower.includes(sk.keyword)) {
       result.storeKeyword = sk.keyword;
-      result.storeName = sk.name;
+      const nickname = extractStoreNickname(lower, sk.keyword);
+      result.storeName = nickname ? `${sk.name} ${nickname}` : sk.name;
       break;
     }
   }
