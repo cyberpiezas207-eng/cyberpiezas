@@ -1,3 +1,4 @@
+// >>> ESTE ARCHIVO VA EN: server/routers/personalExpenses.ts <<<
 // ============================================================================
 // ROUTER tRPC - Gastos personales (PRIVADO del propietario)
 // ----------------------------------------------------------------------------
