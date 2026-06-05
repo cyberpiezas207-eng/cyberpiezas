@@ -396,7 +396,16 @@ export interface VehicleStats {
   daysSinceLastFill: number | null;
   estimatedRangeKm: number | null; // km con tanque lleno (proyeccion)
   currentOdometer: number;
+  // Stats-honestos: cuantas cargas tienen un tramo de km medido (odometro
+  // contra la anterior) y si hay suficientes datos para confiar en el rinde.
+  measuredKmFills: number;
+  statsReliable: boolean;
 }
+
+// Stats-honestos: minimos para considerar el rinde/costo confiables. Con menos
+// que esto, la UI muestra "pocos datos" en vez de un numero enganoso.
+const MIN_MEASURED_FILLS = 2; // al menos 2 tramos medidos entre cargas
+const MIN_TOTAL_KM = 50; // y al menos 50 km medidos en total
 
 export async function getVehicleStats(
   userId: number,
@@ -423,6 +432,7 @@ export async function getVehicleStats(
       totalSpent: sql<string>`COALESCE(SUM(${personalVehicleFuelLogs.amountPaid}), 0)`,
       totalLiters: sql<string>`COALESCE(SUM(${personalVehicleFuelLogs.liters}), 0)`,
       totalKm: sql<string>`COALESCE(SUM(${personalVehicleFuelLogs.kmSinceLast}), 0)`,
+      measuredKmFills: sql<number>`COUNT(${personalVehicleFuelLogs.kmSinceLast})`,
       avgPrice: sql<string>`COALESCE(AVG(${personalVehicleFuelLogs.pricePerLiter}), 0)`,
     })
     .from(personalVehicleFuelLogs)
@@ -433,6 +443,9 @@ export async function getVehicleStats(
   const totalSpent = Number(r?.totalSpent ?? 0);
   const totalLiters = Number(r?.totalLiters ?? 0);
   const totalKm = Number(r?.totalKm ?? 0);
+  const measuredKmFills = Number(r?.measuredKmFills ?? 0);
+  const statsReliable =
+    measuredKmFills >= MIN_MEASURED_FILLS && totalKm >= MIN_TOTAL_KM;
   const avgPricePerLiter =
     Number(r?.avgPrice ?? 0) > 0 ? Number(r.avgPrice) : null;
 
@@ -478,13 +491,17 @@ export async function getVehicleStats(
     ? Number(vehicle.tankCapacityLiters)
     : null;
   const estimatedRangeKm =
-    tank && avgKmPerLiter ? Math.round(tank * avgKmPerLiter) : null;
+    tank && avgKmPerLiter && statsReliable
+      ? Math.round(tank * avgKmPerLiter)
+      : null;
 
   return {
     fillCount,
     totalSpent: Math.round(totalSpent * 100) / 100,
     totalLiters: Math.round(totalLiters * 1000) / 1000,
     totalKm,
+    measuredKmFills,
+    statsReliable,
     avgKmPerLiter,
     avgCostPerKm,
     avgPricePerLiter:
