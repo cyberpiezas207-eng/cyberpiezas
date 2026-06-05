@@ -246,6 +246,11 @@ export async function createDebt(
     currentBalance: String(currentBalance),
     installmentAmount:
       data.installmentAmount != null ? String(data.installmentAmount) : null,
+    firstInstallmentAmount:
+      data.firstInstallmentAmount != null
+        ? String(data.firstInstallmentAmount)
+        : null,
+    frequencyDays: data.frequencyDays ?? null,
     currentInstallment: data.currentInstallment ?? 0,
     totalInstallments: data.totalInstallments ?? null,
     dueDay: data.dueDay ?? null,
@@ -316,6 +321,15 @@ export async function updateDebt(
   if (data.installmentAmount !== undefined) {
     updateData.installmentAmount =
       data.installmentAmount != null ? String(data.installmentAmount) : null;
+  }
+  if (data.firstInstallmentAmount !== undefined) {
+    updateData.firstInstallmentAmount =
+      data.firstInstallmentAmount != null
+        ? String(data.firstInstallmentAmount)
+        : null;
+  }
+  if (data.frequencyDays !== undefined) {
+    updateData.frequencyDays = data.frequencyDays;
   }
   if (data.currentInstallment !== undefined) {
     updateData.currentInstallment = data.currentInstallment;
@@ -408,7 +422,8 @@ export async function setDebtStatus(
 
 // recordPayment: registra pago Y ajusta currentBalance + currentInstallment.
 // Si la deuda queda en cero o se completaron las cuotas, marca como "paid".
-// Si no es parcial, avanza la siguiente fecha de vencimiento (un mes).
+// Si no es parcial, avanza la siguiente fecha de vencimiento (un mes, o
+// frequencyDays dias si la deuda es quincenal/semanal).
 export async function recordPayment(
   userId: number,
   data: {
@@ -479,14 +494,21 @@ export async function recordPayment(
     newStatus = "paid";
   }
 
-  // Calcular siguiente nextDueDate si no esta liquidada y no es parcial
+  // Calcular siguiente nextDueDate si no esta liquidada y no es parcial.
+  // V3: si la deuda tiene frequencyDays (quincenal/semanal), avanzar esos
+  // dias; si no, avanzar un mes manteniendo el dia (comportamiento clasico).
   let newNextDueDate: string | null = debt.nextDueDate ?? null;
   if (
     !isPartial &&
     newStatus === "active" &&
     debt.nextDueDate != null
   ) {
-    newNextDueDate = nextMonthSameDayYMD(debt.nextDueDate, debt.dueDay);
+    const freq = Number((debt as any).frequencyDays ?? 0);
+    if (freq > 0) {
+      newNextDueDate = addDaysYMD(debt.nextDueDate, freq);
+    } else {
+      newNextDueDate = nextMonthSameDayYMD(debt.nextDueDate, debt.dueDay);
+    }
   }
 
   // Actualizar deuda
