@@ -1091,6 +1091,15 @@ export function analyzeDebtLine(
     }
     if (result.totalInstallments != null) confidence += 0.1;
     if (result.dueDay != null || result.dueDate != null) confidence += 0.05;
+    // Un prestamo se identifica por acreedor + monto aunque no tenga "concepto"
+    // (ej: "deuda didi 1017"). Compensamos para que pueda crearse directo.
+    if (
+      result.conceptName == null &&
+      result.creditorName != null &&
+      (result.installmentAmount != null || result.originalAmount != null)
+    ) {
+      confidence += 0.1;
+    }
   } else {
     if (result.amount != null) confidence += 0.35;
   }
