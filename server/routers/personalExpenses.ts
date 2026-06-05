@@ -187,6 +187,11 @@ export const personalExpensesRouter = router({
           categoryId: z.number().int().positive().nullable().optional(),
           // Tienda forzada por el cliente (mismo criterio que categoryId).
           storeId: z.number().int().positive().nullable().optional(),
+          // Cerebro de precios: cantidad + unidad + precio por unidad.
+          // Si vienen cantidad y precio, el total = cantidad * precio.
+          quantity: z.number().positive().nullable().optional(),
+          unit: z.string().max(20).nullable().optional(),
+          unitPrice: z.number().positive().nullable().optional(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
@@ -195,7 +200,15 @@ export const personalExpensesRouter = router({
           input.text,
         );
 
-        if (!analysis.amount || analysis.amount <= 0) {
+        // Si el cliente da cantidad y precio por unidad, el total se calcula
+        // solo (cantidad * precio) y gana sobre el monto detectado del texto.
+        const structuredAmount =
+          input.quantity != null && input.unitPrice != null
+            ? input.quantity * input.unitPrice
+            : null;
+        const effectiveAmount = structuredAmount ?? analysis.amount;
+
+        if (!effectiveAmount || effectiveAmount <= 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "No detecte un monto. Escribe algo como: gasolina pemex 500",
@@ -232,7 +245,7 @@ export const personalExpensesRouter = router({
             : "otro";
 
         const expense = await createPersonalExpense(ctx.user.id, {
-          amount: analysis.amount,
+          amount: effectiveAmount,
           description: analysis.cleanDescription || input.text,
           normalizedDescription: analysis.normalizedDescription,
           categoryId,
@@ -251,6 +264,9 @@ export const personalExpensesRouter = router({
               : null,
           detectedItemsJson:
             analysis.possibleItems.length > 0 ? analysis.possibleItems : null,
+          quantity: input.quantity ?? null,
+          unit: input.unit ?? null,
+          unitPrice: input.unitPrice ?? null,
         });
 
         return {
