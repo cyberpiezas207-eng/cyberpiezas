@@ -223,6 +223,28 @@ export function analyzeFuelLine(text: string): FuelLineDetection {
   );
   if (amountCandidate) result.amountPaid = amountCandidate.value;
 
+  // 5b. Fallback de odometro: si no se detecto por keyword ("km"/"odometro"),
+  // el entero grande restante (>= 10000) que no sea monto/precio/tanque es casi
+  // seguro el odometro. Asi funciona aunque escribas natural y sin "km"
+  // (ej: "pemex 200 22.55 217030" o "puse 200 a 22.55 odometro marca 217030").
+  if (result.odometerReading == null) {
+    const usedNow = new Set<number>();
+    if (result.tankPercentBefore != null) usedNow.add(result.tankPercentBefore);
+    if (result.pricePerLiter != null) usedNow.add(result.pricePerLiter);
+    if (result.amountPaid != null) usedNow.add(result.amountPaid);
+    const bigInts = extractNumbers(lower)
+      .filter(
+        (n) =>
+          !n.hasDecimal &&
+          Number.isInteger(n.value) &&
+          n.value >= 10000 &&
+          !usedNow.has(n.value),
+      )
+      .map((n) => n.value)
+      .sort((a, b) => b - a);
+    if (bigInts.length > 0) result.odometerReading = bigInts[0];
+  }
+
   // 6. Computar litros
   if (
     result.amountPaid != null &&
