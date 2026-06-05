@@ -194,6 +194,9 @@ export default function PersonalVehicleTab() {
         month={month}
       />
 
+      {/* Cerebro de gasolineras: factor por sucursal */}
+      <StoreBrainPanel vehicleId={currentVehicle.id} />
+
       {/* Lista de cargas */}
       <FuelLogsList
         vehicleId={currentVehicle.id}
@@ -818,6 +821,108 @@ function QuickFuelCapture({
             Crear gasto personal vinculado (categoria Gasolina si existe)
           </span>
         </label>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// STORE BRAIN PANEL - cerebro de gasolineras (factor por sucursal)
+// ============================================================================
+
+const STORE_STATUS_STYLE: Record<
+  string,
+  { dot: string; chip: string }
+> = {
+  good: {
+    dot: "bg-emerald-400",
+    chip: "bg-emerald-500/15 border-emerald-400/30 text-emerald-200",
+  },
+  average: {
+    dot: "bg-amber-400",
+    chip: "bg-amber-500/15 border-amber-400/30 text-amber-200",
+  },
+  suspicious: {
+    dot: "bg-rose-400",
+    chip: "bg-rose-500/15 border-rose-400/30 text-rose-200",
+  },
+  learning: {
+    dot: "bg-slate-400",
+    chip: "bg-slate-600/30 border-slate-500/40 text-slate-300",
+  },
+  unknown: {
+    dot: "bg-slate-600",
+    chip: "bg-slate-700/30 border-slate-600/40 text-slate-400",
+  },
+};
+
+function StoreBrainPanel({ vehicleId }: { vehicleId: number }) {
+  const query = trpc.personalVehicles.stats.stores.useQuery({ vehicleId });
+  const stores = query.data ?? [];
+
+  if (query.isLoading) {
+    return <div className="h-20 rounded-2xl bg-slate-800/40 animate-pulse" />;
+  }
+
+  return (
+    <Card className="bg-slate-800/60 border border-slate-700">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/30 flex items-center justify-center">
+            <Store className="w-4 h-4 text-indigo-300" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-white leading-tight">
+              Gasolineras
+            </h3>
+            <p className="text-[10px] text-slate-400">
+              aprende cuales te dan litro completo
+            </p>
+          </div>
+        </div>
+
+        {stores.length === 0 ? (
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Aun no hay gasolineras. Captura cargas escribiendo el lugar (ej:{" "}
+            <span className="text-slate-300 font-mono">
+              pemex 3marias 200 22.5
+            </span>
+            ) y, con 2+ cargas con odometro en la misma, aqui te dire si te dan
+            litro completo o te bajan litros.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {stores.map((st) => {
+              const style =
+                STORE_STATUS_STYLE[st.status] ?? STORE_STATUS_STYLE.unknown;
+              return (
+                <div
+                  key={st.storeName}
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/50 border border-slate-700/60"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">
+                        {st.storeName}
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {st.measurementsCount} carga(s) medida(s)
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full border whitespace-nowrap ${style.chip}`}
+                  >
+                    {st.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
