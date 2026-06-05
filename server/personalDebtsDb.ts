@@ -110,6 +110,16 @@ function toNum(v: any): number {
   return parseFloat(v) || 0;
 }
 
+// Monto que se debe pagar de una deuda en su proximo vencimiento:
+// la cuota si es a plazos, o el saldo completo si es de un solo pago
+// (ej: prestamo "unico" sin cuota mensual). Asi una deuda de un solo pago
+// con vencimiento este mes SI cuenta en "Por pagar este mes".
+function dueAmountFor(d: any): number {
+  const inst = toNum(d.installmentAmount);
+  if (inst > 0) return inst;
+  return toNum(d.currentBalance);
+}
+
 // DEFENSIVO: normaliza un valor de fecha a string YYYY-MM-DD o null
 // Drizzle DEBERIA devolver strings (mode: "string" en schema) pero por
 // las dudas, si llega un Date object lo convertimos.
@@ -746,14 +756,16 @@ export async function getMonthSummary(
     0,
   );
 
-  // expectedThisMonth: suma de installmentAmount de deudas con nextDueDate dentro del mes
+  // expectedThisMonth: suma de lo que se debe pagar de deudas con nextDueDate
+  // dentro del mes. Usa la cuota si hay, o el saldo completo si es de un solo
+  // pago (asi una deuda "unico" tambien cuenta).
   const monthDebts = activeDebts.filter((d) => {
     if (!d.nextDueDate) return false;
     const ymd = d.nextDueDate as string;
     return ymd >= first && ymd <= last;
   });
   const expectedThisMonth = monthDebts.reduce(
-    (acc, d) => acc + toNum(d.installmentAmount),
+    (acc, d) => acc + dueAmountFor(d),
     0,
   );
 
@@ -805,7 +817,7 @@ export async function getMonthSummary(
     paymentsThisMonth,
     nextDueDate: upcomingDebt?.nextDueDate ?? null,
     nextDueCreditor: upcomingDebt?.creditorName ?? null,
-    nextDueAmount: upcomingDebt ? toNum(upcomingDebt.installmentAmount) : null,
+    nextDueAmount: upcomingDebt ? dueAmountFor(upcomingDebt) : null,
     ahorroDiarioSugerido,
     remainingDaysInMonth,
   };
@@ -867,7 +879,7 @@ export async function getUpcomingPayments(
         id: d.id,
         creditorName: d.creditorName,
         title: d.title,
-        amount: toNum(d.installmentAmount),
+        amount: dueAmountFor(d),
         dueDate: ymd,
         daysUntil: days,
         currentInstallment: d.currentInstallment ?? null,
