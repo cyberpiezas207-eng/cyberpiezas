@@ -287,6 +287,11 @@ export default function PersonalPantryTab() {
   const maxStore = byStore.length > 0 ? byStore[0].total : 0;
   const recent = foodExpenses.slice(0, 15);
 
+  // Gasto de HOY (solo tiene sentido en el mes en curso)
+  const todayYmd = nowMexico().toISOString().slice(0, 10);
+  const todayExpenses = foodExpenses.filter((e) => e.expenseDate === todayYmd);
+  const todayTotal = todayExpenses.reduce((acc, e) => acc + Number(e.amount), 0);
+
   const isLoading = expensesQuery.isLoading || categoriesQuery.isLoading;
 
   return (
@@ -341,6 +346,13 @@ export default function PersonalPantryTab() {
             <div className="mb-1 text-xs text-slate-400">
               {foodExpenses.length} compra(s) de comida
             </div>
+            {atCurrentMonth && (
+              <div className="mb-1 inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-md bg-sky-500/15 text-sky-200 border border-sky-400/30">
+                <CalendarDays className="w-3 h-3" />
+                Hoy: {fmt(todayTotal)}
+                {todayExpenses.length > 0 ? ` · ${todayExpenses.length}` : ""}
+              </div>
+            )}
             {pct !== null && diff !== 0 && (
               <div
                 className={`mb-1 inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md ${
