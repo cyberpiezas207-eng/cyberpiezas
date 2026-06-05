@@ -1,4 +1,4 @@
-// >>> ESTE ARCHIVO VA EN: server/personalExpensesDb.ts  (ORIGINAL, NO CAMBIA EN FASE 1) <<<
+// >>> ESTE ARCHIVO VA EN: server/personalExpensesDb.ts <<<
 // ============================================================================
 // CAPA DE BD - Gastos personales
 // ----------------------------------------------------------------------------
@@ -168,6 +168,10 @@ export interface CreatePersonalExpenseInput {
   rawItemsText?: string | null;
   detectedItemsJson?: unknown;
   notes?: string | null;
+  // Cerebro de precios (opcionales)
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
 }
 
 export async function createPersonalExpense(
@@ -193,6 +197,15 @@ export async function createPersonalExpense(
     paymentMethod: data.paymentMethod,
     expenseDate: data.expenseDate,
     notes: data.notes ?? null,
+    quantity:
+      data.quantity !== undefined && data.quantity !== null
+        ? data.quantity.toFixed(2)
+        : null,
+    unit: data.unit ?? null,
+    unitPrice:
+      data.unitPrice !== undefined && data.unitPrice !== null
+        ? data.unitPrice.toFixed(2)
+        : null,
   });
 
   const insertId = (insertRes as any).insertId as number;
