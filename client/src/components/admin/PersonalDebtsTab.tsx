@@ -22,6 +22,10 @@ import SellAssetModal from "@/components/admin/SellAssetModal";
 import DebtInsightsPanel from "@/components/admin/DebtInsightsPanel";
 import PaidDebtsSection from "@/components/admin/PaidDebtsSection";
 import CompleteDebtModal from "@/components/admin/CompleteDebtModal";
+import EditDebtModal from "@/components/admin/EditDebtModal";
+import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
+import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
+import TodayActionCard from "@/components/admin/TodayActionCard";
 import {
   CreditCard,
   Wallet,
@@ -68,14 +72,14 @@ function nowMexico(): Date {
 }
 
 function formatDay(ymd: string | null): string {
-  if (typeof ymd !== "string" || ymd.length < 10) return "—";
+  if (!ymd) return "—";
   const parts = ymd.split("-");
   if (parts.length !== 3) return ymd;
   return `${parts[2]}/${parts[1]}`;
 }
 
 function daysUntil(ymd: string | null): number | null {
-  if (typeof ymd !== "string" || ymd.length < 10) return null;
+  if (!ymd) return null;
   const due = new Date(ymd + "T12:00:00");
   const now = nowMexico();
   now.setHours(12, 0, 0, 0);
@@ -104,6 +108,8 @@ export default function PersonalDebtsTab() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [payingDebtId, setPayingDebtId] = useState<number | null>(null);
   const [sellingAssetId, setSellingAssetId] = useState<number | null>(null);
+  // Debts-Edit: estado para modal de edicion
+  const [editingDebtId, setEditingDebtId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
   const debtsQuery = trpc.personalDebts.debts.list.useQuery({
@@ -128,6 +134,8 @@ export default function PersonalDebtsTab() {
 
   const payingDebt = debts.find((d) => d.id === payingDebtId) ?? null;
   const sellingAsset = debts.find((d) => d.id === sellingAssetId) ?? null;
+  // Debts-Edit: deuda activa para edicion
+  const editingDebt = debts.find((d) => d.id === editingDebtId) ?? null;
 
   return (
     <div className="space-y-5">
@@ -187,8 +195,27 @@ export default function PersonalDebtsTab() {
         </button>
       </div>
 
+      {/* Card "Hoy que hago" - asesor del dia ARRIBA DE TODO */}
+      <TodayActionCard
+        year={year}
+        month={month}
+        onPay={(id) => setPayingDebtId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
+      />
+
       {/* Stats */}
       <StatsCards year={year} month={month} />
+
+      {/* Plan de pago del mes (panel asesor) */}
+      <MonthPaymentPlan
+        year={year}
+        month={month}
+        onPay={(id) => setPayingDebtId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
+      />
+
+      {/* KPIs de presion financiera */}
+      <DebtKPIsPanel year={year} month={month} />
 
       {/* Insights inteligentes */}
       <DebtInsightsPanel year={year} month={month} />
@@ -202,6 +229,7 @@ export default function PersonalDebtsTab() {
         isLoading={debtsQuery.isLoading}
         onPay={(id) => setPayingDebtId(id)}
         onSell={(id) => setSellingAssetId(id)}
+        onEdit={(id) => setEditingDebtId(id)}
         onArchived={refreshAll}
       />
 
@@ -231,6 +259,13 @@ export default function PersonalDebtsTab() {
           }}
         />
       )}
+
+      {/* Debts-Edit: modal de edicion */}
+      <EditDebtModal
+        open={!!editingDebt}
+        debt={editingDebt}
+        onClose={() => setEditingDebtId(null)}
+      />
     </div>
   );
 }
@@ -257,8 +292,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-rose-950/60 via-slate-800 to-slate-800/90 border border-rose-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-rose-500/20 ring-1 ring-rose-400/30 flex items-center justify-center mb-3">
-            <CreditCard className="w-4 h-4 text-rose-300" />
+          <div className="w-11 h-11 rounded-xl bg-rose-500/20 ring-2 ring-rose-400/50 flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20">
+            <CreditCard className="w-5 h-5 text-rose-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Deuda total
@@ -266,7 +301,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-rose-200 tracking-tight leading-tight">
             {fmt(s?.totalCurrentBalance ?? 0)}
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             {s?.activeDebtsCount ?? 0} deuda(s) activa(s)
           </p>
         </CardContent>
@@ -276,8 +311,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-slate-800 to-slate-800/90 border border-amber-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 ring-1 ring-amber-400/30 flex items-center justify-center mb-3">
-            <Wallet className="w-4 h-4 text-amber-300" />
+          <div className="w-11 h-11 rounded-xl bg-amber-500/20 ring-2 ring-amber-400/50 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
+            <Wallet className="w-5 h-5 text-amber-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Por pagar este mes
@@ -285,7 +320,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-amber-200 tracking-tight leading-tight">
             {fmt(remainingToCover)}
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             pagado {fmt(s?.paymentsThisMonth ?? 0)} de{" "}
             {fmt(s?.expectedThisMonth ?? 0)}
           </p>
@@ -296,8 +331,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-orange-950/60 via-slate-800 to-slate-800/90 border border-orange-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-orange-500/20 ring-1 ring-orange-400/30 flex items-center justify-center mb-3">
-            <Calendar className="w-4 h-4 text-orange-300" />
+          <div className="w-11 h-11 rounded-xl bg-orange-500/20 ring-2 ring-orange-400/50 flex items-center justify-center mb-3 shadow-lg shadow-orange-500/20">
+            <Calendar className="w-5 h-5 text-orange-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Proximo pago
@@ -305,7 +340,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-orange-200 tracking-tight leading-tight">
             {s?.nextDueAmount ? fmt(s.nextDueAmount) : "—"}
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             {s?.nextDueCreditor
               ? nextDueDays != null
                 ? nextDueDays === 0
@@ -323,8 +358,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
       <Card className="relative overflow-hidden bg-gradient-to-br from-indigo-950/60 via-slate-800 to-slate-800/90 border border-indigo-500/40 shadow-lg">
         <div className="absolute -top-8 -right-8 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl" />
         <CardContent className="relative p-4">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/30 flex items-center justify-center mb-3">
-            <Sparkles className="w-4 h-4 text-indigo-300" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/20 ring-2 ring-indigo-400/50 flex items-center justify-center mb-3 shadow-lg shadow-indigo-500/20">
+            <Sparkles className="w-5 h-5 text-indigo-200" strokeWidth={2.5} />
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Ahorro diario
@@ -332,7 +367,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-indigo-200 tracking-tight leading-tight">
             {fmt(s?.ahorroDiarioSugerido ?? 0)}
           </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             para cubrir el mes
           </p>
         </CardContent>
@@ -402,7 +437,7 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
           <CreditCard className="w-3.5 h-3.5 text-rose-300" />
           Captura rapida
         </label>
-        <p className="text-[11px] text-slate-500 mt-0.5">
+        <p className="text-[11px] text-slate-400 mt-0.5">
           ej: deuda coppel bici 990 4/12 vence 15 · compre play 5 6800 msi 6
           mercado libre
         </p>
@@ -442,7 +477,7 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
               <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 border border-rose-400/30 text-rose-200">
                 {INTENT_LABEL[d.intent] ?? d.intent}
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[11px] text-slate-400">
                 Confianza: {Math.round((d.confidence ?? 0) * 100)}%
               </span>
             </div>
@@ -547,12 +582,14 @@ function DebtsList({
   isLoading,
   onPay,
   onSell,
+  onEdit,
   onArchived,
 }: {
   debts: any[];
   isLoading: boolean;
   onPay: (id: number) => void;
   onSell: (id: number) => void;
+  onEdit: (id: number) => void;
   onArchived: () => void;
 }) {
   if (isLoading) {
@@ -571,7 +608,7 @@ function DebtsList({
         <CardContent className="p-8 text-center">
           <Trophy className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
           <p className="text-slate-200 font-bold">Sin deudas activas</p>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-400 text-sm mt-1">
             Aprovecha tu mes sin compromisos. O usa la captura rapida arriba
             para agregar una.
           </p>
@@ -594,6 +631,7 @@ function DebtsList({
               debt={debt}
               onPay={() => onPay(debt.id)}
               onSell={() => onSell(debt.id)}
+              onEdit={() => onEdit(debt.id)}
               onArchived={onArchived}
             />
           ))}
@@ -611,11 +649,13 @@ function DebtCard({
   debt,
   onPay,
   onSell,
+  onEdit,
   onArchived,
 }: {
   debt: any;
   onPay: () => void;
   onSell: () => void;
+  onEdit: () => void;
   onArchived: () => void;
 }) {
   const utils = trpc.useUtils();
@@ -663,7 +703,19 @@ function DebtCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800/60 border border-slate-700 shadow-md p-4">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+      className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800/60 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/80 shadow-md p-4 cursor-pointer transition-all"
+      title="Click para editar esta deuda"
+    >
       <div className="flex items-start gap-3">
         <span
           className="w-10 h-10 rounded-xl ring-1 flex items-center justify-center text-lg shrink-0"
@@ -724,7 +776,10 @@ function DebtCard({
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={handleArchive}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleArchive();
+                }}
                 className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
                 title="Archivar deuda"
               >
@@ -733,6 +788,41 @@ function DebtCard({
             </div>
           </div>
 
+          {/* Debts-Edit: Badge prominente de urgencia + dia de pago visible */}
+          {(dueDays != null || debt.dueDay != null) && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              {dueDays != null && (
+                <span
+                  className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${
+                    isOverdue
+                      ? "bg-rose-500/20 text-rose-200 border-rose-500"
+                      : dueDays === 0
+                        ? "bg-rose-500/15 text-rose-300 border-rose-500/70"
+                        : dueDays <= 2
+                          ? "bg-rose-500/10 text-rose-300 border-rose-500/50"
+                          : dueDays <= 7
+                            ? "bg-amber-500/15 text-amber-300 border-amber-500/50"
+                            : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                  }`}
+                >
+                  {isOverdue
+                    ? `🚨 Vencida hace ${Math.abs(dueDays)} d`
+                    : dueDays === 0
+                      ? "⚠ Vence HOY"
+                      : dueDays === 1
+                        ? "⚠ Vence MAÑANA"
+                        : `⏰ Vence en ${dueDays} dias`}
+                </span>
+              )}
+              {debt.dueDay != null && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 px-2 py-1 rounded-md bg-slate-800/50 border border-slate-700">
+                  <Calendar className="w-3 h-3" />
+                  Dia {debt.dueDay} de cada mes
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Barra de progreso */}
           <div className="mt-3 space-y-1">
             <div className="flex items-center justify-between text-[11px]">
@@ -740,7 +830,7 @@ function DebtCard({
               <span className="text-rose-300 font-bold">
                 {fmtExact(balance)}
                 {original != null && (
-                  <span className="text-slate-500 font-normal">
+                  <span className="text-slate-400 font-normal">
                     {" "}/ {fmtExact(original)}
                   </span>
                 )}
@@ -762,33 +852,37 @@ function DebtCard({
           <div className="flex items-center justify-between gap-2 mt-3">
             <div className="text-[11px] text-slate-400">
               {debt.nextDueDate ? (
-                <>
-                  Vence {formatDay(debt.nextDueDate)}
-                  {dueDays != null && (
-                    <span
-                      className={`ml-1.5 font-bold ${
-                        isOverdue
-                          ? "text-rose-400"
-                          : isSoon
-                            ? "text-amber-300"
-                            : "text-slate-500"
-                      }`}
-                    >
-                      {isOverdue
-                        ? `vencida hace ${Math.abs(dueDays)}d`
-                        : dueDays === 0
-                          ? "hoy"
-                          : `en ${dueDays}d`}
-                    </span>
-                  )}
-                </>
+                <span>
+                  Proximo pago:{" "}
+                  <span
+                    className={`font-bold ${
+                      isOverdue
+                        ? "text-rose-300"
+                        : isSoon
+                          ? "text-amber-300"
+                          : "text-emerald-300"
+                    }`}
+                  >
+                    {formatDay(debt.nextDueDate)}
+                  </span>
+                </span>
+              ) : debt.dueDay != null ? (
+                <span className="text-slate-400 italic">
+                  Sin proxima fecha exacta
+                </span>
               ) : (
-                <span className="text-slate-500">sin fecha de vencimiento</span>
+                <span className="inline-flex items-center gap-1 text-amber-300/80 italic">
+                  <Calendar className="w-3 h-3" />
+                  Click para agregar fecha de pago
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1.5">
             <Button
-              onClick={onPay}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPay();
+              }}
               size="sm"
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
@@ -797,7 +891,10 @@ function DebtCard({
             </Button>
             {debt.linkedAssetName && debt.assetStatus !== "sold" && (
               <Button
-                onClick={onSell}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSell();
+                }}
                 size="sm"
                 variant="outline"
                 className="border-orange-500/50 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200"
@@ -842,7 +939,7 @@ function DebtCard({
               </span>
             )}
             {debt.assetSoldBuyer && (
-              <span className="text-slate-500">
+              <span className="text-slate-400">
                 a {debt.assetSoldBuyer}
               </span>
             )}
@@ -993,7 +1090,7 @@ function RecordPaymentModal({
               inputMode="decimal"
               className="bg-slate-900 border-slate-700 text-white mt-1 text-xl font-bold"
             />
-            <p className="text-[10px] text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-400 mt-1">
               Sugerido: {fmtExact(suggestedAmount)}
             </p>
           </div>
@@ -1007,7 +1104,7 @@ function RecordPaymentModal({
               className="w-4 h-4 rounded accent-rose-500"
             />
             <span className="text-sm text-slate-200">Es abono parcial</span>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[11px] text-slate-400">
               (no avanza la mensualidad)
             </span>
           </label>
@@ -1027,7 +1124,7 @@ function RecordPaymentModal({
                 · categoria "{deudasCategory.name}"
               </span>
             ) : (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[11px] text-slate-400">
                 · sin categoria (puedes asignarla luego)
               </span>
             )}
