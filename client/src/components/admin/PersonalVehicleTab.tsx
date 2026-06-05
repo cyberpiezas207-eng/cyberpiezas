@@ -395,7 +395,11 @@ function VehicleHeroCard({ vehicleId }: { vehicleId: number }) {
                 : "—"}
             </p>
             <p className="text-[10px] text-slate-500">
-              {tankLiters ? `${tankLiters}L · km estimados` : "necesita capacidad"}
+              {!tankLiters
+                ? "necesita capacidad"
+                : stats?.statsReliable
+                  ? `${tankLiters}L · km estimados`
+                  : "pocos datos aun"}
             </p>
           </div>
 
@@ -405,9 +409,13 @@ function VehicleHeroCard({ vehicleId }: { vehicleId: number }) {
               Rinde
             </div>
             <p className="text-lg font-black text-emerald-300 mt-1 leading-tight">
-              {stats?.avgKmPerLiter ? fmtDecimal(stats.avgKmPerLiter, 1) : "—"}
+              {stats?.statsReliable && stats?.avgKmPerLiter
+                ? fmtDecimal(stats.avgKmPerLiter, 1)
+                : "—"}
             </p>
-            <p className="text-[10px] text-slate-500">km / litro promedio</p>
+            <p className="text-[10px] text-slate-500">
+              {stats?.statsReliable ? "km / litro promedio" : "pocos datos aun"}
+            </p>
           </div>
 
           <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-3">
@@ -658,10 +666,18 @@ function MonthStatsCards({
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Rendimiento
           </p>
-          <div className="text-2xl font-black text-emerald-300 tracking-tight leading-tight">
-            {s?.avgKmPerLiter ? fmtDecimal(s.avgKmPerLiter, 1) : "—"}
-          </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">km / litro</p>
+          {s?.statsReliable && s?.avgKmPerLiter ? (
+            <div className="text-2xl font-black text-emerald-300 tracking-tight leading-tight">
+              {fmtDecimal(s.avgKmPerLiter, 1)}
+            </div>
+          ) : (
+            <div className="text-base font-bold text-amber-300/80 tracking-tight leading-tight pt-1">
+              Pocos datos
+            </div>
+          )}
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            {s?.statsReliable ? "km / litro" : "captura +cargas con odometro"}
+          </p>
         </CardContent>
       </Card>
 
@@ -675,10 +691,20 @@ function MonthStatsCards({
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
             Costo / km
           </p>
-          <div className="text-2xl font-black text-indigo-200 tracking-tight leading-tight">
-            {s?.avgCostPerKm ? `$${fmtDecimal(s.avgCostPerKm, 2)}` : "—"}
-          </div>
-          <p className="text-[10px] text-slate-500 mt-1.5">{s?.totalKm ?? 0} km totales</p>
+          {s?.statsReliable && s?.avgCostPerKm ? (
+            <div className="text-2xl font-black text-indigo-200 tracking-tight leading-tight">
+              {`$${fmtDecimal(s.avgCostPerKm, 2)}`}
+            </div>
+          ) : (
+            <div className="text-base font-bold text-amber-300/80 tracking-tight leading-tight pt-1">
+              Pocos datos
+            </div>
+          )}
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            {s?.statsReliable
+              ? `${s?.totalKm ?? 0} km totales`
+              : `${s?.totalKm ?? 0} km medidos aun`}
+          </p>
         </CardContent>
       </Card>
     </div>
