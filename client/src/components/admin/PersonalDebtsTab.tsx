@@ -409,7 +409,9 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
     d &&
     (d.intent === "new_debt" || d.intent === "purchase_installment") &&
     d.creditorName &&
-    d.conceptName &&
+    (d.conceptName ||
+      d.originalAmount != null ||
+      d.installmentAmount != null) &&
     (d.confidence ?? 0) >= 0.7;
 
   // Si hay deteccion parcial (intent de creacion pero falta algo), podemos
