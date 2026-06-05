@@ -89,6 +89,27 @@ function daysUntil(ymd: string | null): number | null {
   return diff;
 }
 
+// V3: etiqueta legible de la cadencia (null = mensual)
+function freqLabel(days: number | null | undefined): string | null {
+  if (!days || days <= 0) return null;
+  if (days === 7) return "cada semana";
+  if (days === 14) return "cada 14 dias";
+  if (days === 15) return "quincenal";
+  if (days === 30 || days === 31) return "cada mes";
+  if (days % 7 === 0) return `cada ${days / 7} semanas`;
+  return `cada ${days} dias`;
+}
+
+// V3: sufijo corto para montos por periodo ("/15 dias", "/sem", "/mes")
+function freqSuffix(days: number | null | undefined): string {
+  if (!days || days <= 0) return "/mes";
+  if (days === 7) return "/sem";
+  if (days === 15) return "/quincena";
+  if (days === 14) return "/14 dias";
+  if (days === 30 || days === 31) return "/mes";
+  return `/${days} dias`;
+}
+
 const INTENT_LABEL: Record<string, string> = {
   new_debt: "Nueva deuda",
   purchase_installment: "Compra a meses",
@@ -497,7 +518,17 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
               )}
               {d.installmentAmount != null && (
                 <span className="text-rose-300 font-bold">
-                  {fmt(d.installmentAmount)}/mes
+                  {fmt(d.installmentAmount)}{freqSuffix(d.frequencyDays)}
+                </span>
+              )}
+              {d.firstInstallmentAmount != null && (
+                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/15 border border-indigo-400/30 text-indigo-200">
+                  1er pago {fmt(d.firstInstallmentAmount)}
+                </span>
+              )}
+              {freqLabel(d.frequencyDays) && (
+                <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-500/15 border border-violet-400/30 text-violet-200">
+                  📆 {freqLabel(d.frequencyDays)}
                 </span>
               )}
               {d.originalAmount != null && d.installmentAmount == null && (
@@ -744,7 +775,7 @@ function DebtCard({
                   <>
                     <span className="text-[11px] text-slate-600">·</span>
                     <span className="text-[11px] text-slate-400">
-                      {fmt(installment)}/mes
+                      {fmt(installment)}{freqSuffix(debt.frequencyDays)}
                     </span>
                   </>
                 )}
@@ -790,7 +821,7 @@ function DebtCard({
           </div>
 
           {/* Debts-Edit: Badge prominente de urgencia + dia de pago visible */}
-          {(dueDays != null || debt.dueDay != null) && (
+          {(dueDays != null || debt.dueDay != null || (debt.frequencyDays != null && debt.frequencyDays > 0)) && (
             <div className="flex items-center gap-1.5 flex-wrap mt-2">
               {dueDays != null && (
                 <span
@@ -815,12 +846,17 @@ function DebtCard({
                         : `⏰ Vence en ${dueDays} dias`}
                 </span>
               )}
-              {debt.dueDay != null && (
+              {debt.frequencyDays != null && debt.frequencyDays > 0 ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-300 px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/30">
+                  <Calendar className="w-3 h-3" />
+                  {freqLabel(debt.frequencyDays)}
+                </span>
+              ) : debt.dueDay != null ? (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 px-2 py-1 rounded-md bg-slate-800/50 border border-slate-700">
                   <Calendar className="w-3 h-3" />
                   Dia {debt.dueDay} de cada mes
                 </span>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -969,7 +1005,13 @@ function RecordPaymentModal({
   const installment = debt.installmentAmount
     ? Number(debt.installmentAmount)
     : null;
-  const suggestedAmount = installment ?? balance;
+  const firstInst = debt.firstInstallmentAmount
+    ? Number(debt.firstInstallmentAmount)
+    : null;
+  // V3: en el primer pago de un plan con primer pago distinto, sugerir ese monto
+  const isFirstPayment =
+    (debt.currentInstallment ?? 0) === 0 && firstInst != null;
+  const suggestedAmount = isFirstPayment ? firstInst : (installment ?? balance);
 
   const [amount, setAmount] = useState(String(suggestedAmount));
   const [isPartial, setIsPartial] = useState(false);
@@ -1064,9 +1106,17 @@ function RecordPaymentModal({
             </div>
             {installment != null && (
               <div className="flex items-center justify-between text-[11px] mt-1">
-                <span className="text-slate-400">Mensualidad</span>
+                <span className="text-slate-400">Cuota</span>
                 <span className="text-white font-bold">
-                  {fmtExact(installment)}
+                  {fmtExact(installment)}{freqSuffix(debt.frequencyDays)}
+                </span>
+              </div>
+            )}
+            {firstInst != null && (
+              <div className="flex items-center justify-between text-[11px] mt-1">
+                <span className="text-slate-400">Primer pago</span>
+                <span className="text-indigo-300 font-bold">
+                  {fmtExact(firstInst)}
                 </span>
               </div>
             )}
@@ -1093,6 +1143,7 @@ function RecordPaymentModal({
             />
             <p className="text-[10px] text-slate-500 mt-1">
               Sugerido: {fmtExact(suggestedAmount)}
+              {isFirstPayment ? " (primer pago)" : ""}
             </p>
           </div>
 
