@@ -94,6 +94,8 @@ export default function PersonalPantryTab() {
   const [text, setText] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [storeId, setStoreId] = useState<number | null>(null);
+  const [listText, setListText] = useState("");
+  const [skipped, setSkipped] = useState<string[]>([]);
 
   const atCurrentMonth =
     year === today.getFullYear() && month === today.getMonth() + 1;
@@ -129,6 +131,31 @@ export default function PersonalPantryTab() {
     },
     onError: (e) => toast.error(e.message || "No se pudo agregar"),
   });
+
+  const bulkCreate = trpc.personalExpenses.expenses.bulkCreate.useMutation({
+    onSuccess: (res) => {
+      setSkipped(res.skipped ?? []);
+      if (res.createdCount > 0) {
+        toast.success(`${res.createdCount} compra(s) agregada(s)`);
+        setListText("");
+      } else {
+        toast.error("Ninguna tenia monto. Revisa la lista.");
+      }
+      refreshAll();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo agregar la lista"),
+  });
+
+  function handleBulk() {
+    const t = listText.trim();
+    if (!t) return;
+    setSkipped([]);
+    bulkCreate.mutate({
+      text: t,
+      categoryId: categoryId ?? undefined,
+      storeId: storeId ?? undefined,
+    });
+  }
 
   function shiftMonth(delta: number) {
     const d = new Date(year, month - 1 + delta, 1);
@@ -412,6 +439,47 @@ export default function PersonalPantryTab() {
               {quickCreate.isPending ? "..." : "Agregar"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Pegar lista: varias compras de un jalon (lo que tu esposa te dicta) */}
+      <Card className="bg-slate-800 border border-slate-700">
+        <CardContent className="p-4">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+            <Receipt className="w-3.5 h-3.5 text-emerald-300" />
+            Pegar lista (varias de un jalon)
+          </label>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Una compra por renglon (o separadas por coma). Usa la categoria y
+            tienda de arriba para toda la lista, o dejalas en auto.
+          </p>
+          <textarea
+            value={listText}
+            onChange={(e) => setListText(e.target.value)}
+            rows={4}
+            placeholder={"naranja 37 lupita, leche 30, huevo 45"}
+            className="w-full mt-2 bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm resize-y min-h-[88px]"
+          />
+          <div className="flex justify-end mt-2">
+            <Button
+              onClick={handleBulk}
+              disabled={bulkCreate.isPending || !listText.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              {bulkCreate.isPending ? "Agregando..." : "Agregar lista"}
+            </Button>
+          </div>
+          {skipped.length > 0 && (
+            <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+              <p className="text-[11px] font-bold text-amber-300 mb-1">
+                Sin monto (no agregadas) - revisalas:
+              </p>
+              <p className="text-[11px] text-amber-200/80">
+                {skipped.join(" · ")}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
