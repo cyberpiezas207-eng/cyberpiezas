@@ -131,6 +131,7 @@ const SLICE_DEFS: Array<{ key: string; label: string; color: string; hints: stri
 ];
 
 const OTHERS_SLICE = { key: "otros", label: "Otros", color: "#64748b" };
+const DEUDAS_SLICE = { key: "deudas", label: "Deudas", color: "#f43f5e" };
 
 function classifyCatToSlice(name: string): string {
   const hay = normalizeText(name);
@@ -143,21 +144,25 @@ function classifyCatToSlice(name: string): string {
 function MonthPieCard({
   byCategory,
   total,
+  debtPayments = 0,
 }: {
   byCategory: Array<{ name: string; total: number }>;
   total: number;
+  debtPayments?: number;
 }) {
   const sums: Record<string, number> = {
     comida: 0,
     gasolina: 0,
     servicios: 0,
+    deudas: 0,
     otros: 0,
   };
   for (const c of byCategory) {
     sums[classifyCatToSlice(c.name)] += c.total || 0;
   }
+  sums.deudas = debtPayments || 0;
 
-  const order = [...SLICE_DEFS, OTHERS_SLICE];
+  const order = [...SLICE_DEFS, DEUDAS_SLICE, OTHERS_SLICE];
   const slices = order
     .map((d) => ({ label: d.label, color: d.color, total: sums[d.key] || 0 }))
     .filter((s) => s.total > 0);
@@ -210,7 +215,7 @@ function MonthPieCard({
                 Total
               </span>
               <span className="text-base font-black text-white leading-none">
-                {fmt(total)}
+                {fmt(sum)}
               </span>
             </div>
           </div>
@@ -239,8 +244,8 @@ function MonthPieCard({
           </div>
         </div>
         <p className="text-[10px] text-slate-500 mt-3">
-          Rebanadas: Comida, Gasolina, Servicios y Otros. Pronto sumamos los
-          pagos de deudas.
+          Rebanadas: Comida, Gasolina, Servicios, Deudas y Otros. El total
+          incluye lo que pagaste de deudas este mes.
         </p>
       </CardContent>
     </Card>
@@ -296,6 +301,11 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
   const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
   const storesQuery = trpc.personalExpenses.stores.list.useQuery();
   const dashboardQuery = trpc.personalExpenses.stats.dashboard.useQuery({
+    year,
+    month,
+  });
+  // Resumen de deudas del mes (para sumar lo pagado al pastel)
+  const debtSummaryQuery = trpc.personalDebts.stats.monthSummary.useQuery({
     year,
     month,
   });
@@ -639,9 +649,15 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
           </div>
 
           {/* Pastel del mes: a donde se fue (resumen de un vistazo) */}
-          {dash && dash.total > 0 && (
-            <MonthPieCard byCategory={dash.byCategory} total={dash.total} />
-          )}
+          {dash &&
+            (dash.total > 0 ||
+              (debtSummaryQuery.data?.paymentsThisMonth ?? 0) > 0) && (
+              <MonthPieCard
+                byCategory={dash.byCategory}
+                total={dash.total}
+                debtPayments={debtSummaryQuery.data?.paymentsThisMonth ?? 0}
+              />
+            )}
 
           {/* Resumen del mes inteligente */}
           <MonthlyInsightsPanel year={year} month={month} />
