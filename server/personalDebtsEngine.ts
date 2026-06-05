@@ -295,55 +295,108 @@ function detectIntent(text: string): DebtCaptureIntent {
   return "ambiguous";
 }
 
-function detectCreditor(text: string): { keyword: string | null; name: string | null } {
+// Palabras genericas de tipo de deuda (no son el nombre del acreedor)
+const GENERIC_CREDITOR_KEYWORDS = new Set(["prestamo", "tarjeta", "credito"]);
+
+// Palabras que NUNCA son nombre de acreedor: verbos de intent, genericos,
+// conectores, palabras de tiempo, meses y ruido tipico de la frase.
+const CREDITOR_SKIP_WORDS = new Set<string>([
+  "deuda", "debo", "debe", "tengo", "compre", "compra", "pague", "pago",
+  "pagar", "pagos", "abone", "abono", "vendi",
+  "saque", "meti", "puse", "llevo", "faltan", "quedan", "restan",
+  "prestamo", "prestamos", "prestado", "prestados",
+  "tarjeta", "tarjetas", "credito", "creditos", "personal",
+  "de", "del", "a", "al", "el", "la", "los", "las",
+  "para", "con", "en", "es", "mi", "y", "o", "que",
+  "este", "esta", "esto", "ese", "esa", "un", "una", "unos", "unas",
+  "son", "seran", "sera", "seria", "cada", "veces", "vez", "vence",
+  "hoy", "manana", "ayer",
+  "msi", "meses", "mes", "mensual", "mensuales", "sin", "intereses", "interes",
+  "dia", "dias", "quincena", "quincenas", "quincenal",
+  "semana", "semanas", "semanal", "anual", "proximo", "siguiente",
+  "desde", "hasta", "ano", "anos",
+  "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+  "septiembre", "setiembre", "octubre", "noviembre", "diciembre",
+]);
+
+// Detecta el acreedor y devuelve los spans (posiciones) a remover del concepto.
+// Prioridad: 1) acreedor conocido especifico (coppel, bbva, didi card...).
+//            2) si no, el primer nombre propio del texto (saltando verbos,
+//               genericos, numeros y ruido). Asi "deuda didi prestamos" da "Didi".
+function detectCreditor(text: string): {
+  keyword: string | null;
+  name: string | null;
+  spans: Array<{ start: number; end: number }>;
+} {
+  // 1. Acreedor conocido especifico (no generico) gana siempre
   for (const ck of CREDITOR_KEYWORDS) {
+    if (GENERIC_CREDITOR_KEYWORDS.has(ck.keyword)) continue;
     if (text.includes(ck.keyword)) {
-      // V2.6: Si el matched keyword es generico (prestamo/tarjeta/credito) y NO va
-      // acompanado de un nombre especifico (ej: "tarjeta nu", "credito bancomer"),
-      // tratar de encontrar el nombre real del acreedor en el texto.
-      // Caso: "prestamo didi 15500" -> creditor real es "Didi", no "Prestamo personal"
-      const GENERIC_KEYWORDS = new Set(["prestamo", "tarjeta", "credito"]);
-      if (GENERIC_KEYWORDS.has(ck.keyword)) {
-        // Buscar nombre propio despues del keyword generico
-        // Pattern: "(generic) <nombre>" donde nombre es 1-2 palabras no-STOP-WORD ni numeros
-        const idx = text.indexOf(ck.keyword);
-        const after = text.slice(idx + ck.keyword.length).trim();
-        const tokens = after.split(/\s+/).filter((t) => t.length > 0);
-
-        // Tomar hasta 2 tokens consecutivos que sean palabras no-numero no-STOP-WORD
-        // Como STOP_WORDS aun no esta definido aqui, uso un mini set inline
-        const MINI_STOPS = new Set([
-          "de", "del", "a", "al", "el", "la", "los", "las",
-          "para", "con", "en", "es", "mi", "y", "o",
-          "que", "este", "esta", "ese", "esa",
-          "pago", "pagar", "vence", "cada", "veces", "vez",
-        ]);
-
-        const candidate: string[] = [];
-        for (const tok of tokens) {
-          if (candidate.length >= 2) break;
-          if (/^\d+([.,]\d+)?$/.test(tok)) break; // numero, parar
-          if (MINI_STOPS.has(tok)) {
-            if (candidate.length > 0) break; // ya empezamos, parar
-            else continue; // saltar conectores iniciales
-          }
-          if (tok.length < 2) break;
-          candidate.push(tok);
-        }
-
-        if (candidate.length > 0) {
-          const realName = candidate
-            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-            .join(" ");
-          // Mantener keyword original para spans (para que se remueva correctamente)
-          return { keyword: ck.keyword, name: realName };
-        }
-        // Si no encontramos nombre real, usar el generico
-      }
-      return { keyword: ck.keyword, name: ck.name };
+      const idx = text.indexOf(ck.keyword);
+      return {
+        keyword: ck.keyword,
+        name: ck.name,
+        spans: [{ start: idx, end: idx + ck.keyword.length }],
+      };
     }
   }
-  return { keyword: null, name: null };
+
+  // 2. No hubo acreedor especifico: ver si hay un generico (para el tipo) y
+  //    buscar el primer nombre propio del texto.
+  let foundGeneric: { keyword: string; name: string } | null = null;
+  for (const ck of CREDITOR_KEYWORDS) {
+    if (GENERIC_CREDITOR_KEYWORDS.has(ck.keyword) && text.includes(ck.keyword)) {
+      foundGeneric = ck;
+      break;
+    }
+  }
+
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  const picked: string[] = [];
+  const spans: Array<{ start: number; end: number }> = [];
+  while ((m = re.exec(text)) !== null) {
+    const tok = m[0];
+    const start = m.index;
+    if (picked.length >= 2) break;
+    if (/^\d+([.,]\d+)?$/.test(tok)) {
+      if (picked.length > 0) break;
+      else continue;
+    }
+    if (tok.length < 2) {
+      if (picked.length > 0) break;
+      else continue;
+    }
+    if (CREDITOR_SKIP_WORDS.has(tok)) {
+      if (picked.length > 0) break;
+      else continue;
+    }
+    picked.push(tok);
+    spans.push({ start, end: start + tok.length });
+  }
+
+  if (picked.length > 0) {
+    const name = picked
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" ");
+    return {
+      keyword: foundGeneric ? foundGeneric.keyword : null,
+      name,
+      spans,
+    };
+  }
+
+  // 3. Solo generico, sin nombre propio (ej: "deuda prestamo 5000")
+  if (foundGeneric) {
+    const idx = text.indexOf(foundGeneric.keyword);
+    return {
+      keyword: foundGeneric.keyword,
+      name: foundGeneric.name,
+      spans: [{ start: idx, end: idx + foundGeneric.keyword.length }],
+    };
+  }
+
+  return { keyword: null, name: null, spans: [] };
 }
 
 function addDateSpan(
@@ -409,7 +462,8 @@ function extractConcept(
   }
   rest += text.slice(cursor);
 
-  return cleanConceptText(rest);
+  const cleaned = cleanConceptText(rest);
+  return cleaned.length > 0 ? cleaned : null;
 }
 
 function cleanConceptText(rest: string): string {
@@ -426,7 +480,9 @@ function cleanConceptText(rest: string): string {
     "para", "con", "en", "es", "mi", "y", "o",
     "msi", "meses", "mes", "mensual", "mensuales",
     "sin", "intereses",
-    "vence", "tarjeta", "prestamo",
+    "vence", "tarjeta", "prestamo", "prestamos", "prestado", "prestados",
+    "credito", "creditos", "tarjetas",
+    "son", "seran", "sera", "seria", "pagos", "personal",
     "dia", "dias",
     // V2.6: frecuencia y conteo (prestamos informales)
     "cada", "veces", "vez",
@@ -454,7 +510,7 @@ function cleanConceptText(rest: string): string {
     .replace(/[\/\-]/g, " ")
     .split(/\s+/)
     .map((t) => t.trim())
-    .filter((t) => t.length > 0 && !STOP_WORDS.has(t) && !/^\d+$/.test(t));
+    .filter((t) => t.length > 1 && !STOP_WORDS.has(t) && !/^\d+$/.test(t));
 
   return tokens.join(" ").trim();
 }
@@ -538,11 +594,8 @@ export function analyzeDebtLine(
   const cred = detectCreditor(lower);
   result.creditorKeyword = cred.keyword;
   result.creditorName = cred.name;
-  if (cred.keyword) {
-    const idx = lower.indexOf(cred.keyword);
-    if (idx >= 0) {
-      removedSpans.push({ start: idx, end: idx + cred.keyword.length });
-    }
+  for (const sp of cred.spans) {
+    removedSpans.push(sp);
   }
 
   // 3. MSI flag
@@ -922,6 +975,29 @@ export function analyzeDebtLine(
           start: idx,
           end: idx + monthlyMatch[0].length,
         });
+      }
+    }
+  }
+
+  // V2.7: Detectar cuota en frases tipo "seran de 1257", "pagos de 500",
+  // "cuotas de 300", "abonos de 250". Requiere "de" para no confundir con
+  // "pagos cada 15 dias". Ejemplo de David:
+  //   "...son pagos cada 15 dias y seran de 1257..." -> cuota = 1257
+  if (
+    result.installmentAmount == null &&
+    (result.intent === "new_debt" ||
+      result.intent === "purchase_installment" ||
+      result.intent === "ambiguous")
+  ) {
+    const instMatch = lower.match(
+      /\b(?:seran|sera|seria|cuotas?|abonos?|pagos?)\s+de\s+(\d+(?:[.,]\d+)?)/,
+    );
+    if (instMatch) {
+      const val = parseFloat(instMatch[1].replace(",", "."));
+      if (val > 0 && val < 1_000_000) {
+        result.installmentAmount = val;
+        const idx = instMatch.index ?? 0;
+        removedSpans.push({ start: idx, end: idx + instMatch[0].length });
       }
     }
   }
