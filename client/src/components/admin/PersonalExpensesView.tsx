@@ -23,6 +23,7 @@ import PersonalPantryTab from "@/components/admin/PersonalPantryTab";
 import PersonalVehicleTab from "@/components/admin/PersonalVehicleTab";
 import PersonalDebtsTab from "@/components/admin/PersonalDebtsTab";
 import PersonalRemindersTab from "@/components/admin/PersonalRemindersTab";
+import ServiciosTab from "@/components/admin/ServiciosTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -243,7 +244,7 @@ function MonthPieCard({
   );
 }
 
-type SubTab = "gastos" | "alacena" | "vehiculo" | "deudas" | "recordatorios";
+type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "deudas" | "recordatorios";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -544,6 +545,17 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
         >
           <Bell className="w-4 h-4" />
           Recordatorios
+        </button>
+        <button
+          onClick={() => setActiveTab("servicios")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "servicios"
+              ? "bg-gradient-to-br from-violet-500/25 to-purple-600/15 border border-violet-400/60 text-violet-100 shadow-lg shadow-violet-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Servicios
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -1036,6 +1048,8 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
       {activeTab === "deudas" && <PersonalDebtsTab />}
 
       {activeTab === "recordatorios" && <PersonalRemindersTab />}
+
+      {activeTab === "servicios" && <ServiciosTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
