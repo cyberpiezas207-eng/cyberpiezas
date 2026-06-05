@@ -1,3 +1,4 @@
+// >>> ESTE ARCHIVO VA EN: client/src/components/admin/PersonalPantryTab.tsx <<<
 // ============================================================================
 // VISTA "Alacena" - sub-pestana dentro de Mis Gastos
 // ----------------------------------------------------------------------------
