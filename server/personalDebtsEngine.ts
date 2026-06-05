@@ -48,6 +48,10 @@ export interface DebtLineDetection {
   amount: number | null;
 
   installmentAmount: number | null;
+  // V3: primer pago distinto del resto (ej: primero 1027, luego 1257)
+  firstInstallmentAmount: number | null;
+  // V3: cada cuantos dias vence (14 = cada 14 dias, 7 = semanal). null = mensual
+  frequencyDays: number | null;
   currentInstallment: number | null;
   totalInstallments: number | null;
 
@@ -504,6 +508,9 @@ function cleanConceptText(rest: string): string {
     "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago",
     "sep", "sept", "oct", "nov", "dic",
     "hoy", "manana", "ayer",
+    // V3: reflexivos y palabras de primer-pago-distinto
+    "se", "fue", "ya", "luego", "despues",
+    "primer", "primero", "resto", "demas", "restantes",
   ]);
 
   const tokens = rest
@@ -525,6 +532,16 @@ function monthsBetweenYMD(startYMD: string, endYMD: string): number {
   const [y2, m2] = endYMD.split("-").map(Number);
   if (!y1 || !m1 || !y2 || !m2) return 0;
   return (y2 - y1) * 12 + (m2 - m1);
+}
+
+// V3: dias entre dos fechas YMD (para contar pagos quincenales/semanales)
+function daysBetweenYMD(startYMD: string, endYMD: string): number {
+  const [y1, m1, d1] = startYMD.split("-").map(Number);
+  const [y2, m2, d2] = endYMD.split("-").map(Number);
+  if (!y1 || !m1 || !d1 || !y2 || !m2 || !d2) return 0;
+  const a = new Date(y1, m1 - 1, d1).getTime();
+  const b = new Date(y2, m2 - 1, d2).getTime();
+  return Math.round((b - a) / 86400000);
 }
 
 // Si no tenemos startDate explicito pero si dueDay, asumimos hoy
@@ -569,6 +586,8 @@ export function analyzeDebtLine(
     conceptName: null,
     amount: null,
     installmentAmount: null,
+    firstInstallmentAmount: null,
+    frequencyDays: null,
     currentInstallment: null,
     totalInstallments: null,
     dueDay: null,
@@ -638,24 +657,44 @@ export function analyzeDebtLine(
     }
   }
 
-  // V2.6: PATRON "cada N dias" / "cada quincena" / "cada semana"
-  // Limpiar del concepto para que no contamine. NO se guarda en BD
-  // (no hay columna paymentFrequency aun)
+  // V3: Cadencia de pago. Detecta "cada N dias", "quincenal", "semanal", etc.
+  // Ahora SI se guarda en frequencyDays (null = mensual). Tambien limpia el concepto.
   {
-    const freqRegexes = [
-      /\bcada\s+\d+\s+dias?\b/,
-      /\bcada\s+quincenas?\b/,
-      /\bcada\s+semanas?\b/,
-      /\bcada\s+meses?\b/,
-      /\bquincenal(?:mente)?\b/,
-      /\bsemanal(?:mente)?\b/,
-      /\bmensual(?:mente)?\b/,
+    // "cada N dias" -> N dias exactos
+    const cadaNDias = lower.match(/\bcada\s+(\d+)\s+dias?\b/);
+    if (cadaNDias) {
+      const n = parseInt(cadaNDias[1], 10);
+      if (n >= 1 && n <= 365) result.frequencyDays = n;
+      const idx = cadaNDias.index ?? 0;
+      removedSpans.push({ start: idx, end: idx + cadaNDias[0].length });
+    }
+    // "cada N semanas" -> N*7 dias
+    if (result.frequencyDays == null) {
+      const cadaNSem = lower.match(/\bcada\s+(\d+)\s+semanas?\b/);
+      if (cadaNSem) {
+        const n = parseInt(cadaNSem[1], 10);
+        if (n >= 1 && n <= 52) result.frequencyDays = n * 7;
+        const idx = cadaNSem.index ?? 0;
+        removedSpans.push({ start: idx, end: idx + cadaNSem[0].length });
+      }
+    }
+    // Palabras: quincenal/semanal/mensual y "cada quincena/semana/mes"
+    const wordFreq: Array<{ re: RegExp; days: number | null }> = [
+      { re: /\bquincenal(?:mente)?\b/, days: 15 },
+      { re: /\bcada\s+quincenas?\b/, days: 15 },
+      { re: /\bsemanal(?:mente)?\b/, days: 7 },
+      { re: /\bcada\s+semanas?\b/, days: 7 },
+      { re: /\bmensual(?:mente)?\b/, days: null },
+      { re: /\bcada\s+meses?\b/, days: null },
     ];
-    for (const re of freqRegexes) {
-      const m = lower.match(re);
+    for (const wf of wordFreq) {
+      const m = lower.match(wf.re);
       if (m) {
         const idx = m.index ?? 0;
         removedSpans.push({ start: idx, end: idx + m[0].length });
+        if (result.frequencyDays == null && wf.days != null) {
+          result.frequencyDays = wf.days;
+        }
       }
     }
   }
@@ -829,10 +868,19 @@ export function analyzeDebtLine(
         result.dueDate ??
         getDefaultStartDate(result.dueDay);
       if (startYMD) {
-        const monthsBetween = monthsBetweenYMD(startYMD, endDet.ymd);
-        if (monthsBetween > 0 && monthsBetween <= 120) {
-          // Cap a 10 anos por seguridad. +1 porque ambos meses cuentan.
-          result.totalInstallments = monthsBetween + 1;
+        if (result.frequencyDays != null && result.frequencyDays > 0) {
+          // V3: cadencia por dias (quincenal/semanal): contar periodos
+          const days = daysBetweenYMD(startYMD, endDet.ymd);
+          if (days > 0) {
+            const n = Math.floor(days / result.frequencyDays) + 1;
+            if (n > 0 && n <= 400) result.totalInstallments = n;
+          }
+        } else {
+          const monthsBetween = monthsBetweenYMD(startYMD, endDet.ymd);
+          if (monthsBetween > 0 && monthsBetween <= 120) {
+            // Cap a 10 anos por seguridad. +1 porque ambos meses cuentan.
+            result.totalInstallments = monthsBetween + 1;
+          }
         }
       }
     }
@@ -1008,6 +1056,56 @@ export function analyzeDebtLine(
   if (result.currentInstallment != null) usedValues.add(result.currentInstallment);
   if (result.totalInstallments != null) usedValues.add(result.totalInstallments);
   if (result.dueDay != null) usedValues.add(result.dueDay);
+
+  // V3: Primer pago distinto del resto.
+  // "se pago hoy 1027 ... se pagara 1257" / "primer pago 1027 ... luego 1257"
+  if (
+    result.intent === "new_debt" ||
+    result.intent === "purchase_installment" ||
+    result.intent === "ambiguous"
+  ) {
+    const firstRe =
+      /\b(?:primer\s+pago|el\s+primero|primero|se\s+pago(?:\s+hoy|\s+ya)?|hoy\s+pague)\s+(?:de\s+|fue\s+(?:de\s+)?|es\s+(?:de\s+)?)?(\d+(?:[.,]\d+)?)\b/;
+    const restRe =
+      /\b(?:luego|despues|el\s+resto|las\s+demas|las\s+restantes|se\s+pagaran?|seran?|sera)\s+(?:seran?\s+|de\s+|por\s+)?(\d+(?:[.,]\d+)?)\b/;
+    const fm = lower.match(firstRe);
+    const rm = lower.match(restRe);
+    if (fm && rm) {
+      const firstVal = parseFloat(fm[1].replace(",", "."));
+      const restVal = parseFloat(rm[1].replace(",", "."));
+      if (
+        firstVal > 0 && firstVal < 1_000_000 &&
+        restVal > 0 && restVal < 1_000_000 &&
+        firstVal !== restVal
+      ) {
+        result.firstInstallmentAmount = firstVal;
+        result.installmentAmount = restVal;
+        usedValues.add(firstVal);
+        usedValues.add(restVal);
+        const fi = fm.index ?? 0;
+        removedSpans.push({ start: fi, end: fi + fm[0].length });
+        const ri = rm.index ?? 0;
+        removedSpans.push({ start: ri, end: ri + rm[0].length });
+
+        // Si la cadencia + fin ya dieron un total, calcular monto total y saldo
+        if (result.totalInstallments != null && result.totalInstallments > 0) {
+          const total = result.totalInstallments;
+          const orig = firstVal + restVal * (total - 1);
+          result.originalAmount = Math.round(orig * 100) / 100;
+          // "se pago/pague" = el primero ya quedo cubierto -> resta el resto
+          const firstAlreadyPaid = /se\s+pago|pague/.test(fm[0]);
+          if (firstAlreadyPaid) {
+            const pagados = Math.max(1, result.currentInstallment ?? 1);
+            result.currentInstallment = pagados;
+            const restantes = Math.max(0, total - pagados);
+            result.currentBalance = Math.round(restVal * restantes * 100) / 100;
+          } else {
+            result.currentBalance = Math.round(orig * 100) / 100;
+          }
+        }
+      }
+    }
+  }
 
   function isInsideRemovedSpan(idx: number): boolean {
     return removedSpans.some((s) => idx >= s.start && idx < s.end);
