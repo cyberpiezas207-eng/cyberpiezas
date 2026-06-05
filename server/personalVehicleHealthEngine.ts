@@ -259,18 +259,37 @@ export function calculateVehicleHealth(
       status = "good";
       impact = 0;
       description = describeApproaching(daysSince, kmSince, config);
-    } else if (overdueRatio < config.urgentMultiplier) {
-      // Pasado el intervalo - warning
-      status = "warning";
-      impact = -config.penaltyPercent;
-      description = describeOverdue(daysSince, kmSince, config);
-      recommendation = `Revisar pronto. Pierdes ~${config.penaltyPercent}% de rendimiento.`;
     } else {
-      // Muy pasado - urgent
-      status = "urgent";
-      impact = -config.urgentPenaltyPercent;
-      description = describeUrgent(daysSince, kmSince, config);
-      recommendation = `Atender ya. Pierdes ~${config.urgentPenaltyPercent}% de rendimiento y puedes danar el motor.`;
+      // Vencido: el impacto crece GRADUAL segun que tan vencido esta, en vez de
+      // saltar en escalones. Un item apenas pasado pega menos que uno muy pasado.
+      let pctMag: number;
+      if (overdueRatio < config.urgentMultiplier) {
+        // warning: interpola entre penaltyPercent (en ratio 1.0) y
+        // urgentPenaltyPercent (en ratio = urgentMultiplier)
+        status = "warning";
+        const frac = (overdueRatio - 1.0) / (config.urgentMultiplier - 1.0);
+        pctMag =
+          config.penaltyPercent +
+          frac * (config.urgentPenaltyPercent - config.penaltyPercent);
+      } else {
+        // urgent: desde urgentPenalty sigue subiendo suave, con tope en +50%
+        status = "urgent";
+        const over = overdueRatio - config.urgentMultiplier;
+        const extra = Math.min(
+          config.urgentPenaltyPercent * 0.5,
+          over * config.urgentPenaltyPercent,
+        );
+        pctMag = config.urgentPenaltyPercent + extra;
+      }
+      pctMag = Math.round(pctMag);
+      impact = -pctMag;
+      if (status === "warning") {
+        description = describeOverdue(daysSince, kmSince, config);
+        recommendation = `Revisar pronto. Pierdes ~${pctMag}% de rendimiento.`;
+      } else {
+        description = describeUrgent(daysSince, kmSince, config);
+        recommendation = `Atender ya. Pierdes ~${pctMag}% de rendimiento y puedes danar el motor.`;
+      }
     }
 
     const item: HealthCheckItem = {
