@@ -118,6 +118,10 @@ export default function PersonalPantryTab() {
   const [text, setText] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [storeId, setStoreId] = useState<number | null>(null);
+  // Cerebro de precios: campos opcionales de la captura
+  const [qty, setQty] = useState("");
+  const [unit, setUnit] = useState("");
+  const [unitPrice, setUnitPrice] = useState("");
   const [listText, setListText] = useState("");
   const [skipped, setSkipped] = useState<string[]>([]);
 
@@ -151,6 +155,9 @@ export default function PersonalPantryTab() {
     onSuccess: () => {
       toast.success("Compra agregada a tus gastos");
       setText("");
+      setQty("");
+      setUnit("");
+      setUnitPrice("");
       refreshAll();
     },
     onError: (e) => toast.error(e.message || "No se pudo agregar"),
@@ -190,10 +197,15 @@ export default function PersonalPantryTab() {
   function handleCreate() {
     const t = text.trim();
     if (!t) return;
+    const q = qty.trim() ? Number(qty) : undefined;
+    const up = unitPrice.trim() ? Number(unitPrice) : undefined;
     quickCreate.mutate({
       text: t,
       categoryId: categoryId ?? undefined,
       storeId: storeId ?? undefined,
+      quantity: q && q > 0 ? q : undefined,
+      unit: unit.trim() || undefined,
+      unitPrice: up && up > 0 ? up : undefined,
     });
   }
 
@@ -477,6 +489,48 @@ export default function PersonalPantryTab() {
               <Plus className="w-4 h-4 mr-1" />
               {quickCreate.isPending ? "..." : "Agregar"}
             </Button>
+          </div>
+
+          {/* Opcional: cantidad + unidad + precio por unidad (cerebro de precios) */}
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">
+              Opcional, para comparar precios:
+            </span>
+            <Input
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="Cantidad"
+              inputMode="decimal"
+              className="bg-slate-900 border-slate-700 text-white w-24"
+            />
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 min-w-[110px]"
+            >
+              <option value="">Unidad</option>
+              <option value="kilo">kilo</option>
+              <option value="litro">litro</option>
+              <option value="pieza">pieza</option>
+              <option value="manojo">manojo</option>
+              <option value="paquete">paquete</option>
+              <option value="docena">docena</option>
+            </select>
+            <Input
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+              placeholder="Precio x unidad $"
+              inputMode="decimal"
+              className="bg-slate-900 border-slate-700 text-white w-36"
+            />
+            {qty.trim() &&
+              unitPrice.trim() &&
+              Number(qty) > 0 &&
+              Number(unitPrice) > 0 && (
+                <span className="text-sm font-bold text-emerald-300 tabular-nums">
+                  = {fmt(Number(qty) * Number(unitPrice))}
+                </span>
+              )}
           </div>
         </CardContent>
       </Card>
