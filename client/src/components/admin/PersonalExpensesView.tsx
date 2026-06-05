@@ -1,3 +1,4 @@
+// >>> ESTE ARCHIVO VA EN: client/src/components/admin/PersonalExpensesView.tsx <<<
 // ============================================================================
 // VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
@@ -88,6 +89,158 @@ function normalizeText(s: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+// ----------------------------------------------------------------------------
+// PASTEL DEL MES: agrupa las categorias del mes en rebanadas grandes
+// (Comida / Gasolina / Servicios / Otros) para un resumen de un vistazo.
+// Solo frontend: usa dash.byCategory que ya entrega el dashboard.
+// ----------------------------------------------------------------------------
+
+const SLICE_DEFS: Array<{ key: string; label: string; color: string; hints: string[] }> = [
+  {
+    key: "comida",
+    label: "Comida",
+    color: "#10b981",
+    hints: [
+      "fruta", "verdura", "verduleria", "fruteria", "carne", "carniceria",
+      "pollo", "pescado", "marisco", "despensa", "abarrote", "super",
+      "mandado", "comida", "cocina", "lacteo", "leche", "pan", "panaderia",
+      "tortilla", "huevo", "cremeria", "mercado",
+    ],
+  },
+  {
+    key: "gasolina",
+    label: "Gasolina",
+    color: "#818cf8",
+    hints: ["gasolina", "gasolinera", "pemex", "combustible", "diesel", "magna", "premium"],
+  },
+  {
+    key: "servicios",
+    label: "Servicios",
+    color: "#a855f7",
+    hints: [
+      "servicio", "luz", "cfe", "agua", "internet", "telefono", "telcel",
+      "cable", "streaming", "netflix", "spotify", "recibo", "predial", "renta",
+    ],
+  },
+];
+
+const OTHERS_SLICE = { key: "otros", label: "Otros", color: "#64748b" };
+
+function classifyCatToSlice(name: string): string {
+  const hay = normalizeText(name);
+  for (const d of SLICE_DEFS) {
+    if (d.hints.some((h) => hay.includes(h))) return d.key;
+  }
+  return "otros";
+}
+
+function MonthPieCard({
+  byCategory,
+  total,
+}: {
+  byCategory: Array<{ name: string; total: number }>;
+  total: number;
+}) {
+  const sums: Record<string, number> = {
+    comida: 0,
+    gasolina: 0,
+    servicios: 0,
+    otros: 0,
+  };
+  for (const c of byCategory) {
+    sums[classifyCatToSlice(c.name)] += c.total || 0;
+  }
+
+  const order = [...SLICE_DEFS, OTHERS_SLICE];
+  const slices = order
+    .map((d) => ({ label: d.label, color: d.color, total: sums[d.key] || 0 }))
+    .filter((s) => s.total > 0);
+  const sum = slices.reduce((a, s) => a + s.total, 0);
+  if (sum <= 0) return null;
+
+  // r = 15.915 -> circunferencia ~100, asi el dash es directamente el %
+  const C = 100;
+  let acc = 0;
+
+  return (
+    <Card className="relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 shadow-lg">
+      <CardContent className="p-5">
+        <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-1.5">
+          <Wallet className="w-4 h-4 text-orange-300" />
+          A donde se fue este mes
+        </h3>
+        <div className="flex items-center gap-5 flex-wrap">
+          <div className="relative w-36 h-36 shrink-0 mx-auto sm:mx-0">
+            <svg viewBox="0 0 40 40" className="w-36 h-36 -rotate-90">
+              <circle
+                cx="20"
+                cy="20"
+                r="15.915"
+                fill="none"
+                stroke="#1e293b"
+                strokeWidth="4.5"
+              />
+              {slices.map((s, i) => {
+                const pct = (s.total / sum) * 100;
+                const el = (
+                  <circle
+                    key={i}
+                    cx="20"
+                    cy="20"
+                    r="15.915"
+                    fill="none"
+                    stroke={s.color}
+                    strokeWidth="4.5"
+                    strokeDasharray={`${pct} ${C - pct}`}
+                    strokeDashoffset={-acc}
+                  />
+                );
+                acc += pct;
+                return el;
+              })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[9px] uppercase tracking-wider text-slate-500 font-bold">
+                Total
+              </span>
+              <span className="text-base font-black text-white leading-none">
+                {fmt(total)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-[180px] space-y-2">
+            {slices.map((s, i) => {
+              const pct = Math.round((s.total / sum) * 100);
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="text-sm text-slate-200 font-medium flex-1 truncate">
+                    {s.label}
+                  </span>
+                  <span className="text-xs text-slate-400 tabular-nums">
+                    {pct}%
+                  </span>
+                  <span className="text-sm font-bold text-slate-100 tabular-nums min-w-[64px] text-right">
+                    {fmt(s.total)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <p className="text-[10px] text-slate-500 mt-3">
+          Rebanadas: Comida, Gasolina, Servicios y Otros. Pronto sumamos los
+          pagos de deudas.
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
 type SubTab = "gastos" | "alacena" | "vehiculo" | "deudas" | "recordatorios";
@@ -447,6 +600,11 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Pastel del mes: a donde se fue (resumen de un vistazo) */}
+          {dash && dash.total > 0 && (
+            <MonthPieCard byCategory={dash.byCategory} total={dash.total} />
+          )}
 
           {/* Resumen del mes inteligente */}
           <MonthlyInsightsPanel year={year} month={month} />
