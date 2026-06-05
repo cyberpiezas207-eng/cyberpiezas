@@ -111,7 +111,9 @@ async function analyzeForUser(userId: number, text: string) {
     ? stores.find((s) => s.slug === analysis.storeSlug) || null
     : null;
 
-  return { analysis, category, store };
+  // Devolvemos cats/stores tambien para que quickCreate pueda resolver una
+  // categoria forzada por el cliente (ej. dropdown de la Alacena).
+  return { analysis, category, store, cats, stores };
 }
 
 // ----------------------------------------------------------------------------
@@ -179,10 +181,13 @@ export const personalExpensesRouter = router({
           paymentMethod: z
             .enum(["cash", "debit", "credit", "transfer", "other"])
             .optional(),
+          // Categoria forzada por el cliente (ej. dropdown de la Alacena).
+          // Si viene, gana sobre la deteccion automatica.
+          categoryId: z.number().int().positive().nullable().optional(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
-        const { analysis, category, store } = await analyzeForUser(
+        const { analysis, category, store, cats } = await analyzeForUser(
           ctx.user.id,
           input.text,
         );
@@ -194,9 +199,16 @@ export const personalExpensesRouter = router({
           });
         }
 
+        // Categoria forzada por el cliente gana sobre la deteccion.
+        const forcedCategory =
+          input.categoryId != null
+            ? cats.find((c) => c.id === input.categoryId) ?? null
+            : null;
+
         const useCategory =
           !!category && analysis.categoryConfidence >= CATEGORY_CONFIDENCE_MIN;
-        const categoryId = useCategory && category ? category.id : null;
+        const effectiveCategory = forcedCategory ?? (useCategory ? category : null);
+        const categoryId = effectiveCategory ? effectiveCategory.id : null;
         const detectedCategoryId = category ? category.id : null;
 
         const useStore =
@@ -218,9 +230,9 @@ export const personalExpensesRouter = router({
           storeId,
           storeName,
           purchaseType,
-          autoDetected: useCategory,
+          autoDetected: forcedCategory ? false : useCategory,
           detectionConfidence: analysis.categoryConfidence,
-          detectionSource: analysis.categorySource,
+          detectionSource: forcedCategory ? "manual" : analysis.categorySource,
           paymentMethod: input.paymentMethod ?? "cash",
           expenseDate: input.expenseDate ?? todayMexico(),
           rawItemsText:
@@ -233,15 +245,14 @@ export const personalExpensesRouter = router({
 
         return {
           expense,
-          category:
-            useCategory && category
-              ? {
-                  id: category.id,
-                  name: category.name,
-                  icon: category.icon,
-                  color: category.color,
-                }
-              : null,
+          category: effectiveCategory
+            ? {
+                id: effectiveCategory.id,
+                name: effectiveCategory.name,
+                icon: effectiveCategory.icon,
+                color: effectiveCategory.color,
+              }
+            : null,
           store:
             useStore && store
               ? {
