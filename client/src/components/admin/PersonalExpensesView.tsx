@@ -25,6 +25,7 @@ import PersonalDebtsTab from "@/components/admin/PersonalDebtsTab";
 import PersonalRemindersTab from "@/components/admin/PersonalRemindersTab";
 import ServiciosTab from "@/components/admin/ServiciosTab";
 import PreciosTab from "@/components/admin/PreciosTab";
+import AnimalesTab from "@/components/admin/AnimalesTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -52,6 +53,7 @@ import {
   Car,
   CreditCard,
   Bell,
+  PawPrint,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -245,7 +247,7 @@ function MonthPieCard({
   );
 }
 
-type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "precios" | "deudas" | "recordatorios";
+type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "precios" | "animales" | "deudas" | "recordatorios";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -568,6 +570,17 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
         >
           <Tag className="w-4 h-4" />
           Precios
+        </button>
+        <button
+          onClick={() => setActiveTab("animales")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "animales"
+              ? "bg-gradient-to-br from-amber-500/25 to-orange-600/15 border border-amber-400/60 text-amber-100 shadow-lg shadow-amber-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <PawPrint className="w-4 h-4" />
+          Animales
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -1064,6 +1077,8 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
       {activeTab === "servicios" && <ServiciosTab />}
 
       {activeTab === "precios" && <PreciosTab />}
+
+      {activeTab === "animales" && <AnimalesTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
