@@ -85,8 +85,8 @@ import { personalPantryMigrations } from "./personalPantrySchema";
 import { personalPantryPricesMigrations } from "./personalPantryPricesSchema";
 import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { personalVehicleMigrations } from "./personalVehicleSchema";
-import { personalVehicleMaintenanceMigrations } from "./personalVehicleMaintenanceSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
+import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
@@ -217,10 +217,6 @@ export async function runStartupMigrations(): Promise<void> {
     ...personalExpensesMigrations,
     ...personalPantryMigrations,
     ...personalPantryPricesMigrations,
-    ...personalRemindersMigrations,
-    ...personalDebtsMigrations,
-    ...personalVehicleMigrations,
-    ...personalVehicleMaintenanceMigrations,
     // Columna para persistir aceptación de términos y condiciones por usuario
     // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
     "ALTER TABLE `users` ADD COLUMN `termsAcceptedAt` timestamp NULL DEFAULT NULL",
@@ -442,6 +438,9 @@ export async function runStartupMigrations(): Promise<void> {
     "CREATE INDEX `idx_abarrotesabono_subscriber` ON `abarrotesAbonos` (`subscriberId`)",
     "CREATE INDEX `idx_abarrotesabono_fiado` ON `abarrotesAbonos` (`fiadoId`)",
     "CREATE INDEX `idx_abarrotesabono_customer` ON `abarrotesAbonos` (`customerId`)",
+    // Deudas: cadencia (cada N dias) y primer pago distinto
+    "ALTER TABLE `personalDebts` ADD COLUMN `frequencyDays` int NULL DEFAULT NULL",
+    "ALTER TABLE `personalDebts` ADD COLUMN `firstInstallmentAmount` decimal(12,2) NULL DEFAULT NULL",
   ];
   for (const migration of migrations) {
     try {
