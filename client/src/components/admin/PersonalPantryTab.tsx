@@ -1,572 +1,421 @@
 // ============================================================================
-// VISTA "Alacena" - sub-pestana dentro de Mis Gastos
+// ROUTER tRPC - Gastos personales (PRIVADO del propietario)
 // ----------------------------------------------------------------------------
-// Productos del hogar con nivel simple (no gramos), lista de compra
-// automatica y botones rapidos. Reusa categorias y tiendas de gastos.
-// Coral/rojo = se acaba | Naranja = bajo | Verde = disponible.
-// Cada producto tiene boton "Historial" que abre modal con precios y tiendas.
+// Blindado con ownerOnlyProcedure: solo entra el dueno principal
+// (ctx.user.openId === ENV.ownerOpenId), igual que personalOperations.
+// El usuario se obtiene de ctx.user.id. Todo filtrado por ese usuario.
+//
+// Enchufa el motor puro (analyzeExpenseLine) con la capa de BD.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import PantryPriceHistoryModal from "@/components/admin/PantryPriceHistoryModal";
-import RestockItemModal from "@/components/admin/RestockItemModal";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, protectedProcedure } from "../_core/trpc";
+import { ENV } from "../_core/env";
 import {
-  Package,
-  ShoppingBasket,
-  Plus,
-  Search,
-  Trash2,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-  Minus,
-  LineChart,
-  TrendingUp,
-  TrendingDown,
-} from "lucide-react";
+  seedPersonalExpenseDefaults,
+  listPersonalExpenseCategories,
+  listPersonalExpenseStores,
+  listPersonalExpenseRules,
+  createPersonalExpense,
+  getPersonalExpenseById,
+  listPersonalExpenses,
+  softDeletePersonalExpense,
+  recategorizePersonalExpense,
+  addPersonalExpenseRule,
+  sumPersonalExpensesByCategory,
+  sumPersonalExpensesByStore,
+  totalPersonalExpensesForMonth,
+  monthlyPersonalExpenseTotals,
+} from "../personalExpensesDb";
+import {
+  analyzeExpenseLine,
+  type KeywordEntity,
+  type LearnedRule,
+} from "../personalExpensesEngine";
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(Math.round(n));
+// ----------------------------------------------------------------------------
+// Procedure PRIVADO del propietario (mismo candado que personalOperations)
+// ----------------------------------------------------------------------------
 
-// Color por estado
-function statusColor(status: string): { bg: string; text: string; bar: string } {
-  switch (status) {
-    case "out":
-      return { bg: "bg-rose-500/15", text: "text-rose-300", bar: "bg-rose-500" };
-    case "low":
-      return {
-        bg: "bg-orange-500/15",
-        text: "text-orange-300",
-        bar: "bg-orange-500",
-      };
-    case "available":
-      return {
-        bg: "bg-emerald-500/15",
-        text: "text-emerald-300",
-        bar: "bg-emerald-500",
-      };
-    default:
-      return {
-        bg: "bg-slate-500/15",
-        text: "text-slate-300",
-        bar: "bg-slate-500",
-      };
-  }
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "out":
-      return "Agotado";
-    case "low":
-      return "Bajo";
-    case "available":
-      return "Disponible";
-    default:
-      return status;
-  }
-}
-
-export default function PersonalPantryTab() {
-  const utils = trpc.useUtils();
-
-  const [newName, setNewName] = useState("");
-  const [newCategoryId, setNewCategoryId] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-
-  // Producto seleccionado para ver historial (modal)
-  const [historyItemId, setHistoryItemId] = useState<number | null>(null);
-
-  // Producto seleccionado para Comprar de nuevo (modal premium)
-  const [restockItemId, setRestockItemId] = useState<number | null>(null);
-
-  // Reusamos categorias y tiendas de los gastos (mismas piezas)
-  const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
-  const storesQuery = trpc.personalExpenses.stores.list.useQuery();
-
-  const statsQuery = trpc.personalPantry.stats.get.useQuery();
-  const itemsQuery = trpc.personalPantry.items.list.useQuery({
-    search: search || undefined,
-  });
-  const shoppingQuery = trpc.personalPantry.shoppingList.list.useQuery();
-
-  // Alacena-3: comparacion de precios (ultimo vs penultimo) para mostrar
-  // tendencia en cada card. Se ejecuta solo cuando hay items cargados.
-  const itemIdsForPriceCompare = (itemsQuery.data ?? []).map((i: any) => i.id);
-  const priceCompareQuery = trpc.personalPantryPrices.compareForItems.useQuery(
-    { itemIds: itemIdsForPriceCompare },
-    { enabled: itemIdsForPriceCompare.length > 0 },
-  );
-
-  // Map para acceso rapido: itemId -> comparacion
-  const priceCompareByItem = new Map<number, any>(
-    (priceCompareQuery.data ?? []).map((c: any) => [c.itemId, c]),
-  );
-
-  const refreshAll = () => {
-    utils.personalPantry.stats.get.invalidate();
-    utils.personalPantry.items.list.invalidate();
-    utils.personalPantry.shoppingList.list.invalidate();
-    utils.personalPantryPrices.compareForItems.invalidate();
-  };
-
-  const createItem = trpc.personalPantry.items.create.useMutation({
-    onSuccess: () => {
-      toast.success("Producto agregado a tu alacena");
-      setNewName("");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo agregar"),
-  });
-
-  const consume = trpc.personalPantry.actions.consume.useMutation({
-    onSuccess: () => {
-      toast.success("Consumido");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo"),
-  });
-
-  const markLow = trpc.personalPantry.actions.markLow.useMutation({
-    onSuccess: () => {
-      toast.success("Marcado bajo - agregado a tu lista de compra");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo"),
-  });
-
-  const markOut = trpc.personalPantry.actions.markOut.useMutation({
-    onSuccess: () => {
-      toast.success("Marcado como agotado");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo"),
-  });
-
-  const restocked = trpc.personalPantry.actions.restocked.useMutation({
-    onSuccess: () => {
-      toast.success("Repuesto - alacena al 100%");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo"),
-  });
-
-  const archive = trpc.personalPantry.items.archive.useMutation({
-    onSuccess: () => {
-      toast.success("Producto eliminado de la alacena");
-      refreshAll();
-    },
-    onError: (e) => toast.error(e.message || "No se pudo"),
-  });
-
-  const handleCreate = () => {
-    const name = newName.trim();
-    if (!name) return;
-    createItem.mutate({
-      name,
-      categoryId: newCategoryId,
-      stockPercent: 100,
+const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.openId !== ENV.ownerOpenId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Esta seccion es privada del propietario.",
     });
-  };
+  }
+  return next({ ctx });
+});
 
-  // "Comprar de nuevo": abre el modal premium con ultimo precio + mejor tienda
-  const handleRestocked = (id: number, _lastStoreId: number | null) => {
-    setRestockItemId(id);
-  };
+// ----------------------------------------------------------------------------
+// Constantes y helpers
+// ----------------------------------------------------------------------------
 
-  const handleArchive = (id: number, name: string) => {
-    if (window.confirm(`Quitar "${name}" de la alacena?`)) {
-      archive.mutate({ id });
-    }
-  };
+const CATEGORY_CONFIDENCE_MIN = 55;
+const STORE_CONFIDENCE_MIN = 50;
 
-  const stats = statsQuery.data;
-  const items = itemsQuery.data ?? [];
-  const shoppingList = shoppingQuery.data ?? [];
-  const categories = categoriesQuery.data ?? [];
-  const stores = storesQuery.data ?? [];
+const KNOWN_PURCHASE_TYPES = new Set([
+  "gasolina",
+  "despensa",
+  "verduleria",
+  "carne",
+  "servicios",
+]);
 
-  const catById = new Map(categories.map((c) => [c.id, c]));
-  const storeById = new Map(stores.map((s) => [s.id, s]));
+const NEUTRAL_COLOR = "#888780";
 
-  // Item seleccionado para historial
-  const historyItem = historyItemId
-    ? items.find((i) => i.id === historyItemId) ?? null
-    : null;
-
-  // Item seleccionado para Comprar de nuevo
-  const restockItem = restockItemId
-    ? items.find((i) => i.id === restockItemId) ?? null
-    : null;
-
-  return (
-    <div className="space-y-6">
-      {/* Cards de stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-slate-800 border border-emerald-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <Package className="w-4 h-4" /> En alacena
-            </div>
-            <div className="text-2xl font-bold text-emerald-400 mt-1">
-              {stats?.total ?? 0}
-            </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              {stats?.averageStockPercent ?? 0}% promedio
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-orange-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <AlertTriangle className="w-4 h-4" /> Bajos
-            </div>
-            <div className="text-2xl font-bold text-orange-400 mt-1">
-              {stats?.low ?? 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-rose-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <AlertTriangle className="w-4 h-4" /> Agotados
-            </div>
-            <div className="text-2xl font-bold text-rose-400 mt-1">
-              {stats?.out ?? 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border border-indigo-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-slate-400 text-xs">
-              <ShoppingBasket className="w-4 h-4" /> Por comprar
-            </div>
-            <div className="text-2xl font-bold text-indigo-300 mt-1">
-              {stats?.shoppingListCount ?? 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Agregar producto */}
-      <Card className="bg-slate-800 border border-slate-700">
-        <CardContent className="p-5">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Agregar producto a la alacena
-          </label>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Ej: huevo, leche, arroz..."
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              className="bg-slate-900 border-slate-700 text-white flex-1 min-w-[200px]"
-            />
-            <select
-              value={newCategoryId ?? ""}
-              onChange={(e) =>
-                setNewCategoryId(
-                  e.target.value === "" ? null : Number(e.target.value),
-                )
-              }
-              className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 min-w-[160px]"
-            >
-              <option value="">Categoria (opcional)</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              onClick={handleCreate}
-              disabled={createItem.isPending || !newName.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {createItem.isPending ? "Agregando..." : "Agregar"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Lista de compra (solo si hay) */}
-      {shoppingList.length > 0 && (
-        <Card className="bg-slate-800 border border-indigo-500/30">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <ShoppingBasket className="w-4 h-4 text-indigo-300" />
-              <h3 className="text-sm font-bold text-slate-100">
-                Lista de compra ({shoppingList.length})
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {shoppingList.map((item) => {
-                const cat = item.categoryId
-                  ? catById.get(item.categoryId)
-                  : null;
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-base">{cat?.icon ?? "📦"}</span>
-                      <span className="text-sm text-slate-200 truncate">
-                        {item.name}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() =>
-                        handleRestocked(item.id, item.lastStoreId ?? null)
-                      }
-                      className="text-xs px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 whitespace-nowrap"
-                      title="Marcar como comprado"
-                    >
-                      <CheckCircle2 className="w-3 h-3 inline mr-0.5" />
-                      Comprado
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Busqueda */}
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar en la alacena..."
-          className="bg-slate-800 border-slate-700 text-white pl-9"
-        />
-      </div>
-
-      {/* Lista de productos */}
-      <Card className="bg-slate-800 border border-slate-700">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-bold text-slate-200 mb-3">
-            Productos en tu alacena
-          </h3>
-
-          {items.length === 0 ? (
-            <div className="text-center py-10">
-              <Package className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-300 font-medium">
-                {search
-                  ? "Nada coincide con tu busqueda"
-                  : "Tu alacena esta vacia"}
-              </p>
-              <p className="text-slate-500 text-sm mt-1">
-                {search
-                  ? "Prueba con otro nombre"
-                  : "Agrega tus productos frecuentes arriba"}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {items.map((item) => {
-                const cat = item.categoryId
-                  ? catById.get(item.categoryId)
-                  : null;
-                const store = item.lastStoreId
-                  ? storeById.get(item.lastStoreId)
-                  : null;
-                const c = statusColor(item.status);
-                const lastPrice = item.lastPurchasePrice
-                  ? Number(item.lastPurchasePrice)
-                  : null;
-                // Alacena-3: comparacion de precios
-                const priceCompare = priceCompareByItem.get(item.id);
-                const changePct = priceCompare?.changePercent ?? null;
-                const priceUnit = priceCompare?.unit ?? null;
-                const unitPriceFromCompare = priceCompare?.lastPrice ?? null;
-                return (
-                  <div
-                    key={item.id}
-                    className="bg-slate-900 border border-slate-700 rounded-xl p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <span
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                          style={{
-                            backgroundColor: (cat?.color ?? "#888780") + "22",
-                          }}
-                        >
-                          {cat?.icon ?? "📦"}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-bold text-slate-100 truncate">
-                              {item.name}
-                            </p>
-                            <span
-                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${c.bg} ${c.text}`}
-                            >
-                              {statusLabel(item.status)}
-                            </span>
-                            {/* Alacena-3: Chip de precio prominente */}
-                            {lastPrice !== null && (
-                              <span className="text-[11px] font-black bg-amber-500/15 text-amber-200 px-2 py-0.5 rounded-md tabular-nums">
-                                {fmt(lastPrice)}
-                                {priceUnit && unitPriceFromCompare !== null && (
-                                  <span className="text-amber-300/70 font-bold ml-0.5">
-                                    {" "}/ {priceUnit}
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                            {/* Alacena-3: Badge de comparacion (subio/bajo) */}
-                            {changePct !== null && changePct !== 0 && (
-                              <span
-                                className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                                  changePct < 0
-                                    ? "bg-emerald-500/15 text-emerald-300"
-                                    : "bg-rose-500/15 text-rose-300"
-                                }`}
-                                title={`Antes: ${fmt(priceCompare.previousPrice ?? 0)}`}
-                              >
-                                {changePct < 0 ? (
-                                  <TrendingDown className="w-3 h-3" />
-                                ) : (
-                                  <TrendingUp className="w-3 h-3" />
-                                )}
-                                {Math.abs(changePct)}%
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-400 truncate mt-0.5">
-                            {cat?.name ?? "Sin categoria"}
-                            {store && ` · ${store.name}`}
-                            {item.timesPurchased > 0 &&
-                              ` · ${item.timesPurchased} compra${item.timesPurchased === 1 ? "" : "s"}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => setHistoryItemId(item.id)}
-                          className="text-slate-500 hover:text-emerald-300 p-1"
-                          title="Ver historial de precios"
-                        >
-                          <LineChart className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleArchive(item.id, item.name)}
-                          className="text-slate-500 hover:text-rose-400 p-1"
-                          title="Quitar de la alacena"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Barra de nivel */}
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                        <span>Nivel</span>
-                        <span className="font-bold text-slate-200">
-                          {item.stockPercent}%
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${c.bar} transition-all`}
-                          style={{ width: `${item.stockPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Botones rapidos */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        onClick={() =>
-                          consume.mutate({ id: item.id, step: 25 })
-                        }
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"
-                        title="Consumir un poco (-25%)"
-                      >
-                        <Minus className="w-3 h-3 inline mr-1" />
-                        Consumir
-                      </button>
-                      <button
-                        onClick={() => markLow.mutate({ id: item.id })}
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 border border-orange-500/30"
-                      >
-                        Bajo
-                      </button>
-                      <button
-                        onClick={() => markOut.mutate({ id: item.id })}
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/30"
-                      >
-                        Agotado
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleRestocked(item.id, item.lastStoreId ?? null)
-                        }
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 ml-auto"
-                      >
-                        <RefreshCw className="w-3 h-3 inline mr-1" />
-                        Comprar de nuevo
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modal de historial de precios */}
-      {historyItem && (
-        <PantryPriceHistoryModal
-          item={{ id: historyItem.id, name: historyItem.name }}
-          stores={stores.map((s) => ({ id: s.id, name: s.name }))}
-          onClose={() => setHistoryItemId(null)}
-        />
-      )}
-
-      {/* Modal Comprar de nuevo */}
-      {restockItem && (
-        <RestockItemModal
-          item={{
-            id: restockItem.id,
-            name: restockItem.name,
-            icon: (restockItem as any).icon ?? null,
-            categoryId: restockItem.categoryId ?? null,
-            lastPurchasePrice: (restockItem as any).lastPurchasePrice ?? null,
-            lastStoreId: restockItem.lastStoreId ?? null,
-            lastPurchasedAt: (restockItem as any).lastPurchasedAt ?? null,
-          }}
-          stores={stores.map((s) => ({
-            id: s.id,
-            name: s.name,
-            icon: s.icon ?? null,
-            color: s.color ?? null,
-          }))}
-          onClose={() => setRestockItemId(null)}
-          onSaved={refreshAll}
-        />
-      )}
-    </div>
-  );
+function toEntities(rows: Array<{ slug: string; keywordsJson: unknown }>): KeywordEntity[] {
+  return rows.map((r) => ({
+    slug: r.slug,
+    keywords: Array.isArray(r.keywordsJson) ? (r.keywordsJson as string[]) : [],
+  }));
 }
+
+// Morelos = UTC-6 todo el ano (Mexico ya no usa horario de verano).
+function todayMexico(): string {
+  const ms = Date.now() - 6 * 60 * 60 * 1000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function nowMexico(): Date {
+  return new Date(Date.now() - 6 * 60 * 60 * 1000);
+}
+
+async function analyzeForUser(userId: number, text: string) {
+  const [cats, stores, rules] = await Promise.all([
+    listPersonalExpenseCategories(userId),
+    listPersonalExpenseStores(userId),
+    listPersonalExpenseRules(userId),
+  ]);
+
+  const idToSlug = new Map<number, string>(cats.map((c) => [c.id, c.slug]));
+  const ruleEntities: LearnedRule[] = rules
+    .map((r) => ({
+      categorySlug: idToSlug.get(r.categoryId) || "",
+      normalizedPhrase: r.normalizedPhrase,
+    }))
+    .filter((r) => r.categorySlug.length > 0);
+
+  const analysis = analyzeExpenseLine(text, {
+    categories: toEntities(cats),
+    stores: toEntities(stores),
+    rules: ruleEntities,
+  });
+
+  const category = analysis.categorySlug
+    ? cats.find((c) => c.slug === analysis.categorySlug) || null
+    : null;
+  const store = analysis.storeSlug
+    ? stores.find((s) => s.slug === analysis.storeSlug) || null
+    : null;
+
+  // Devolvemos cats/stores tambien para que quickCreate pueda resolver una
+  // categoria forzada por el cliente (ej. dropdown de la Alacena).
+  return { analysis, category, store, cats, stores };
+}
+
+// ----------------------------------------------------------------------------
+// Router
+// ----------------------------------------------------------------------------
+
+export const personalExpensesRouter = router({
+  seedDefaults: ownerOnlyProcedure.mutation(async ({ ctx }) => {
+    return await seedPersonalExpenseDefaults(ctx.user.id);
+  }),
+
+  categories: router({
+    list: ownerOnlyProcedure.query(async ({ ctx }) => {
+      return await listPersonalExpenseCategories(ctx.user.id);
+    }),
+  }),
+
+  stores: router({
+    list: ownerOnlyProcedure.query(async ({ ctx }) => {
+      return await listPersonalExpenseStores(ctx.user.id);
+    }),
+  }),
+
+  expenses: router({
+    previewCapture: ownerOnlyProcedure
+      .input(z.object({ text: z.string().min(1) }))
+      .query(async ({ input, ctx }) => {
+        const { analysis, category, store } = await analyzeForUser(
+          ctx.user.id,
+          input.text,
+        );
+        return {
+          amount: analysis.amount,
+          cleanDescription: analysis.cleanDescription,
+          category: category
+            ? {
+                id: category.id,
+                slug: category.slug,
+                name: category.name,
+                icon: category.icon,
+                color: category.color,
+              }
+            : null,
+          categoryConfidence: analysis.categoryConfidence,
+          categorySource: analysis.categorySource,
+          store: store
+            ? {
+                id: store.id,
+                slug: store.slug,
+                name: store.name,
+                icon: store.icon,
+                color: store.color,
+              }
+            : null,
+          storeConfidence: analysis.storeConfidence,
+          possibleItems: analysis.possibleItems,
+        };
+      }),
+
+    quickCreate: ownerOnlyProcedure
+      .input(
+        z.object({
+          text: z.string().min(1),
+          expenseDate: z.string().optional(),
+          paymentMethod: z
+            .enum(["cash", "debit", "credit", "transfer", "other"])
+            .optional(),
+          // Categoria forzada por el cliente (ej. dropdown de la Alacena).
+          // Si viene, gana sobre la deteccion automatica.
+          categoryId: z.number().int().positive().nullable().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { analysis, category, store, cats } = await analyzeForUser(
+          ctx.user.id,
+          input.text,
+        );
+
+        if (!analysis.amount || analysis.amount <= 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No detecte un monto. Escribe algo como: gasolina pemex 500",
+          });
+        }
+
+        // Categoria forzada por el cliente gana sobre la deteccion.
+        const forcedCategory =
+          input.categoryId != null
+            ? cats.find((c) => c.id === input.categoryId) ?? null
+            : null;
+
+        const useCategory =
+          !!category && analysis.categoryConfidence >= CATEGORY_CONFIDENCE_MIN;
+        const effectiveCategory = forcedCategory ?? (useCategory ? category : null);
+        const categoryId = effectiveCategory ? effectiveCategory.id : null;
+        const detectedCategoryId = category ? category.id : null;
+
+        const useStore =
+          !!store && analysis.storeConfidence >= STORE_CONFIDENCE_MIN;
+        const storeId = useStore && store ? store.id : null;
+        const storeName = useStore && store ? store.name : null;
+
+        const purchaseType =
+          analysis.categorySlug && KNOWN_PURCHASE_TYPES.has(analysis.categorySlug)
+            ? analysis.categorySlug
+            : "otro";
+
+        const expense = await createPersonalExpense(ctx.user.id, {
+          amount: analysis.amount,
+          description: analysis.cleanDescription || input.text,
+          normalizedDescription: analysis.normalizedDescription,
+          categoryId,
+          detectedCategoryId,
+          storeId,
+          storeName,
+          purchaseType,
+          autoDetected: forcedCategory ? false : useCategory,
+          detectionConfidence: analysis.categoryConfidence,
+          detectionSource: forcedCategory ? "manual" : analysis.categorySource,
+          paymentMethod: input.paymentMethod ?? "cash",
+          expenseDate: input.expenseDate ?? todayMexico(),
+          rawItemsText:
+            analysis.possibleItems.length > 0
+              ? analysis.possibleItems.join(" ")
+              : null,
+          detectedItemsJson:
+            analysis.possibleItems.length > 0 ? analysis.possibleItems : null,
+        });
+
+        return {
+          expense,
+          category: effectiveCategory
+            ? {
+                id: effectiveCategory.id,
+                name: effectiveCategory.name,
+                icon: effectiveCategory.icon,
+                color: effectiveCategory.color,
+              }
+            : null,
+          store:
+            useStore && store
+              ? {
+                  id: store.id,
+                  name: store.name,
+                  icon: store.icon,
+                  color: store.color,
+                }
+              : null,
+        };
+      }),
+
+    list: ownerOnlyProcedure
+      .input(
+        z
+          .object({
+            year: z.number().int().optional(),
+            month: z.number().int().min(1).max(12).optional(),
+            limit: z.number().int().min(1).max(200).optional(),
+          })
+          .optional(),
+      )
+      .query(async ({ input, ctx }) => {
+        return await listPersonalExpenses(ctx.user.id, input ?? {});
+      }),
+
+    // Borrar (soft delete)
+    softDelete: ownerOnlyProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return await softDeletePersonalExpense(ctx.user.id, input.id);
+      }),
+
+    // Cambiar categoria; opcionalmente guardar regla para que aprenda
+    recategorize: ownerOnlyProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          categoryId: z.number().int().positive().nullable(),
+          saveRule: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        await recategorizePersonalExpense(ctx.user.id, input.id, input.categoryId);
+
+        let ruleSaved = false;
+        if (input.saveRule && input.categoryId != null) {
+          const exp = await getPersonalExpenseById(ctx.user.id, input.id);
+          if (exp && exp.normalizedDescription) {
+            await addPersonalExpenseRule(ctx.user.id, {
+              categoryId: input.categoryId,
+              phrase: exp.description,
+              normalizedPhrase: exp.normalizedDescription,
+              createdFromExpenseId: exp.id,
+            });
+            ruleSaved = true;
+          }
+        }
+
+        return { success: true, ruleSaved };
+      }),
+  }),
+
+  // --------------------------------------------------------------------------
+  // ESTADISTICAS: un solo llamado con todo lo que necesita el dashboard
+  // --------------------------------------------------------------------------
+  stats: router({
+    dashboard: ownerOnlyProcedure
+      .input(
+        z.object({
+          year: z.number().int(),
+          month: z.number().int().min(1).max(12),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        const userId = ctx.user.id;
+        const { year, month } = input;
+        const prev =
+          month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+
+        const [cats, stores, byCatRaw, byStoreRaw, monthTot, prevTot, monthly] =
+          await Promise.all([
+            listPersonalExpenseCategories(userId),
+            listPersonalExpenseStores(userId),
+            sumPersonalExpensesByCategory(userId, year, month),
+            sumPersonalExpensesByStore(userId, year, month),
+            totalPersonalExpensesForMonth(userId, year, month),
+            totalPersonalExpensesForMonth(userId, prev.year, prev.month),
+            monthlyPersonalExpenseTotals(userId),
+          ]);
+
+        const catById = new Map(cats.map((c) => [c.id, c]));
+        const storeById = new Map(stores.map((s) => [s.id, s]));
+
+        const byCategory = byCatRaw
+          .map((r) => {
+            const c = r.categoryId != null ? catById.get(r.categoryId) : null;
+            return {
+              categoryId: r.categoryId,
+              name: c ? c.name : "Sin clasificar",
+              icon: c ? c.icon : "",
+              color: c ? c.color : NEUTRAL_COLOR,
+              total: r.total,
+              count: r.count,
+            };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const byStore = byStoreRaw
+          .map((r) => {
+            const s = r.storeId != null ? storeById.get(r.storeId) : null;
+            return {
+              storeId: r.storeId,
+              name: s ? s.name : "Sin tienda",
+              icon: s ? s.icon : "",
+              color: s ? s.color : NEUTRAL_COLOR,
+              total: r.total,
+              count: r.count,
+            };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const topCategory = byCategory.length > 0 ? byCategory[0] : null;
+        const topStore =
+          byStore.find((s) => s.storeId != null) ??
+          (byStore.length > 0 ? byStore[0] : null);
+
+        const now = nowMexico();
+        const isCurrentMonth =
+          now.getFullYear() === year && now.getMonth() + 1 === month;
+        const daysElapsed = isCurrentMonth
+          ? now.getDate()
+          : new Date(year, month, 0).getDate();
+        const avgDaily = daysElapsed > 0 ? monthTot.total / daysElapsed : 0;
+
+        const diff = monthTot.total - prevTot.total;
+        const pct = prevTot.total > 0 ? (diff / prevTot.total) * 100 : null;
+
+        const trendMap = new Map(monthly.map((m) => [m.month, m.total]));
+        const trend: Array<{ month: string; total: number }> = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(year, month - 1 - i, 1);
+          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          trend.push({ month: ym, total: trendMap.get(ym) || 0 });
+        }
+
+        return {
+          year,
+          month,
+          total: monthTot.total,
+          count: monthTot.count,
+          byCategory,
+          byStore,
+          topCategory,
+          topStore,
+          avgDaily: Math.round(avgDaily * 100) / 100,
+          vsLastMonth: {
+            prevTotal: prevTot.total,
+            diff: Math.round(diff * 100) / 100,
+            pct: pct === null ? null : Math.round(pct * 10) / 10,
+          },
+          trend,
+        };
+      }),
+  }),
+});
