@@ -1,4 +1,4 @@
-// >>> ESTE ARCHIVO ES NUEVO. CREALO EN: client/src/components/admin/PreciosTab.tsx <<<
+// >>> ESTE ARCHIVO VA EN (REEMPLAZA EL EXISTENTE): client/src/components/admin/PreciosTab.tsx <<<
 // ============================================================================
 // VISTA "Precios" - sub-pestana dentro de Mis Gastos
 // ----------------------------------------------------------------------------
@@ -242,6 +242,7 @@ export default function PreciosTab() {
                     ? p.stores.find((s: any) => s.storeName === storeFilter)
                     : null;
                 const showPrice = storeEntry ? storeEntry.price : p.latestPrice;
+                const unitSuffix = p.unit ? ` / ${p.unit}` : "";
                 const subStore = storeEntry
                   ? storeFilter
                   : p.latestStoreName ?? "sin tienda";
@@ -288,6 +289,11 @@ export default function PreciosTab() {
                       <div className="text-right shrink-0">
                         <p className="text-sm font-bold text-slate-100 tabular-nums">
                           {fmt(showPrice)}
+                          {unitSuffix ? (
+                            <span className="text-[10px] font-normal text-slate-500">
+                              {unitSuffix}
+                            </span>
+                          ) : null}
                         </p>
                         {delta === null ? (
                           <span className="text-[10px] text-slate-500">
@@ -330,6 +336,11 @@ export default function PreciosTab() {
                                 </span>
                                 <span className="text-slate-200 tabular-nums">
                                   {fmt(m.avg)}
+                                  {unitSuffix ? (
+                                    <span className="text-slate-500">
+                                      {unitSuffix}
+                                    </span>
+                                  ) : null}
                                   <span className="text-slate-600">
                                     {" "}
                                     ({m.count}x)
@@ -355,6 +366,11 @@ export default function PreciosTab() {
                                   </span>
                                   <span className="text-slate-200 tabular-nums">
                                     {fmt(s.price)}
+                                    {unitSuffix ? (
+                                      <span className="text-slate-500">
+                                        {unitSuffix}
+                                      </span>
+                                    ) : null}
                                   </span>
                                 </div>
                               ))}
@@ -371,8 +387,8 @@ export default function PreciosTab() {
 
           {!isLoading && products.length > 0 && (
             <p className="text-[10px] text-slate-500 mt-3">
-              Los precios salen de tus compras. Entre mas captures, mas exacto.
-              El monto es lo que pagaste por linea (no el precio por kilo).
+              Los precios salen de tus compras. Cuando capturas con precio por
+              unidad, compara por kilo/litro; si no, usa el total de la compra.
             </p>
           )}
         </CardContent>
