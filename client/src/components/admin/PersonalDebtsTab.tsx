@@ -195,6 +195,9 @@ export default function PersonalDebtsTab() {
         </button>
       </div>
 
+      {/* Captura rapida - subida arriba para no bajar tanto */}
+      <QuickDebtCapture onCreated={refreshAll} />
+
       {/* Card "Hoy que hago" - asesor del dia ARRIBA DE TODO */}
       <TodayActionCard
         year={year}
@@ -219,9 +222,6 @@ export default function PersonalDebtsTab() {
 
       {/* Insights inteligentes */}
       <DebtInsightsPanel year={year} month={month} />
-
-      {/* Captura rapida */}
-      <QuickDebtCapture onCreated={refreshAll} />
 
       {/* Lista de deudas activas */}
       <DebtsList
@@ -301,7 +301,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-rose-200 tracking-tight leading-tight">
             {fmt(s?.totalCurrentBalance ?? 0)}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[10px] text-slate-500 mt-1.5">
             {s?.activeDebtsCount ?? 0} deuda(s) activa(s)
           </p>
         </CardContent>
@@ -320,7 +320,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-amber-200 tracking-tight leading-tight">
             {fmt(remainingToCover)}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[10px] text-slate-500 mt-1.5">
             pagado {fmt(s?.paymentsThisMonth ?? 0)} de{" "}
             {fmt(s?.expectedThisMonth ?? 0)}
           </p>
@@ -340,7 +340,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-orange-200 tracking-tight leading-tight">
             {s?.nextDueAmount ? fmt(s.nextDueAmount) : "—"}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[10px] text-slate-500 mt-1.5">
             {s?.nextDueCreditor
               ? nextDueDays != null
                 ? nextDueDays === 0
@@ -367,7 +367,7 @@ function StatsCards({ year, month }: { year: number; month: number }) {
           <div className="text-2xl font-black text-indigo-200 tracking-tight leading-tight">
             {fmt(s?.ahorroDiarioSugerido ?? 0)}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[10px] text-slate-500 mt-1.5">
             para cubrir el mes
           </p>
         </CardContent>
@@ -409,9 +409,7 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
     d &&
     (d.intent === "new_debt" || d.intent === "purchase_installment") &&
     d.creditorName &&
-    (d.conceptName ||
-      d.originalAmount != null ||
-      d.installmentAmount != null) &&
+    d.conceptName &&
     (d.confidence ?? 0) >= 0.7;
 
   // Si hay deteccion parcial (intent de creacion pero falta algo), podemos
@@ -434,15 +432,16 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Card className="bg-slate-800 border border-slate-700">
-      <CardContent className="p-5">
-        <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-          <CreditCard className="w-3.5 h-3.5 text-rose-300" />
-          Captura rapida
-        </label>
-        <p className="text-[11px] text-slate-400 mt-0.5">
-          ej: deuda coppel bici 990 4/12 vence 15 · compre play 5 6800 msi 6
-          mercado libre
-        </p>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+            <CreditCard className="w-3.5 h-3.5 text-rose-300" />
+            Captura rapida
+          </label>
+          <span className="text-[10px] text-slate-500 truncate max-w-[60%]">
+            ej: deuda coppel bici 990 4/12 vence 15
+          </span>
+        </div>
         <div className="flex items-center gap-2 mt-2">
           <Input
             value={text}
@@ -479,7 +478,7 @@ function QuickDebtCapture({ onCreated }: { onCreated: () => void }) {
               <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 border border-rose-400/30 text-rose-200">
                 {INTENT_LABEL[d.intent] ?? d.intent}
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[10px] text-slate-500">
                 Confianza: {Math.round((d.confidence ?? 0) * 100)}%
               </span>
             </div>
@@ -610,7 +609,7 @@ function DebtsList({
         <CardContent className="p-8 text-center">
           <Trophy className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
           <p className="text-slate-200 font-bold">Sin deudas activas</p>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Aprovecha tu mes sin compromisos. O usa la captura rapida arriba
             para agregar una.
           </p>
@@ -832,7 +831,7 @@ function DebtCard({
               <span className="text-rose-300 font-bold">
                 {fmtExact(balance)}
                 {original != null && (
-                  <span className="text-slate-400 font-normal">
+                  <span className="text-slate-500 font-normal">
                     {" "}/ {fmtExact(original)}
                   </span>
                 )}
@@ -869,7 +868,7 @@ function DebtCard({
                   </span>
                 </span>
               ) : debt.dueDay != null ? (
-                <span className="text-slate-400 italic">
+                <span className="text-slate-500 italic">
                   Sin proxima fecha exacta
                 </span>
               ) : (
@@ -941,7 +940,7 @@ function DebtCard({
               </span>
             )}
             {debt.assetSoldBuyer && (
-              <span className="text-slate-400">
+              <span className="text-slate-500">
                 a {debt.assetSoldBuyer}
               </span>
             )}
@@ -1092,7 +1091,7 @@ function RecordPaymentModal({
               inputMode="decimal"
               className="bg-slate-900 border-slate-700 text-white mt-1 text-xl font-bold"
             />
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[10px] text-slate-500 mt-1">
               Sugerido: {fmtExact(suggestedAmount)}
             </p>
           </div>
@@ -1106,7 +1105,7 @@ function RecordPaymentModal({
               className="w-4 h-4 rounded accent-rose-500"
             />
             <span className="text-sm text-slate-200">Es abono parcial</span>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[10px] text-slate-500">
               (no avanza la mensualidad)
             </span>
           </label>
@@ -1126,7 +1125,7 @@ function RecordPaymentModal({
                 · categoria "{deudasCategory.name}"
               </span>
             ) : (
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[10px] text-slate-500">
                 · sin categoria (puedes asignarla luego)
               </span>
             )}
