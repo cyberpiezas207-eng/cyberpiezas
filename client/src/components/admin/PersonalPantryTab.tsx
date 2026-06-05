@@ -27,6 +27,7 @@ import {
   ChevronRight,
   TrendingUp,
   TrendingDown,
+  CalendarDays,
   Apple,
 } from "lucide-react";
 
@@ -185,12 +186,13 @@ export default function PersonalPantryTab() {
   // Agrupar por categoria
   const byCatMap = new Map<
     number,
-    { name: string; icon: string; color: string; total: number }
+    { categoryId: number; name: string; icon: string; color: string; total: number }
   >();
   for (const e of foodExpenses) {
     const cat = e.categoryId != null ? catById.get(e.categoryId) : null;
     if (!cat) continue;
     const cur = byCatMap.get(cat.id) ?? {
+      categoryId: cat.id,
       name: cat.name,
       icon: cat.icon ?? "",
       color: cat.color ?? "#888780",
@@ -200,6 +202,28 @@ export default function PersonalPantryTab() {
     byCatMap.set(cat.id, cur);
   }
   const byCategory = [...byCatMap.values()].sort((a, b) => b.total - a.total);
+
+  // Fase 2: totales por categoria del mes pasado (para el delta por chip)
+  const prevByCatTotals = new Map<number, number>();
+  for (const e of prevFoodExpenses) {
+    if (e.categoryId == null) continue;
+    prevByCatTotals.set(
+      e.categoryId,
+      (prevByCatTotals.get(e.categoryId) ?? 0) + Number(e.amount),
+    );
+  }
+  function catDeltaPct(categoryId: number, total: number): number | null {
+    const prevTot = prevByCatTotals.get(categoryId) ?? 0;
+    if (prevTot <= 0) return null;
+    return Math.round(((total - prevTot) / prevTot) * 1000) / 10;
+  }
+
+  // Fase 2: ritmo diario y proyeccion de cierre (solo mes en curso)
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysElapsed = atCurrentMonth ? today.getDate() : daysInMonth;
+  const avgDaily = daysElapsed > 0 ? foodTotal / daysElapsed : 0;
+  const projection = atCurrentMonth ? avgDaily * daysInMonth : foodTotal;
+  const topStore = byStore[0] ?? null;
 
   const maxStore = byStore.length > 0 ? byStore[0].total : 0;
   const recent = foodExpenses.slice(0, 15);
@@ -277,6 +301,53 @@ export default function PersonalPantryTab() {
           </div>
         </div>
       </div>
+
+      {/* Fase 2: insight inteligente (ritmo, proyeccion, tienda top) */}
+      {foodExpenses.length > 0 && (
+        <Card className="bg-slate-800 border border-emerald-500/20">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <CalendarDays className="w-4 h-4 text-emerald-300" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] text-slate-400">Promedio al dia</div>
+                  <div className="font-bold text-slate-100">{fmt(avgDaily)}</div>
+                </div>
+              </div>
+
+              {atCurrentMonth && (
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-teal-500/15 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-4 h-4 text-teal-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-slate-400">
+                      A este ritmo cierras
+                    </div>
+                    <div className="font-bold text-slate-100">~{fmt(projection)}</div>
+                  </div>
+                </div>
+              )}
+
+              {topStore && (
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <Store className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-slate-400">Donde mas gastas</div>
+                    <div className="font-bold text-slate-100 truncate">
+                      {topStore.name} · {fmt(topStore.total)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Captura: crea un GASTO de comida */}
       <Card className="bg-slate-800 border border-slate-700">
@@ -373,23 +444,41 @@ export default function PersonalPantryTab() {
               Por categoria
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
-              {byCategory.map((c) => (
-                <span
-                  key={c.name}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border"
-                  style={{
-                    backgroundColor: (c.color ?? "#888780") + "22",
-                    borderColor: (c.color ?? "#888780") + "55",
-                    color: "#e2e8f0",
-                  }}
-                >
-                  <span>{c.icon || "🍎"}</span>
-                  {c.name}
-                  <span className="text-emerald-300 font-black tabular-nums">
-                    {fmt(c.total)}
+              {byCategory.map((c) => {
+                const dPct = catDeltaPct(c.categoryId, c.total);
+                return (
+                  <span
+                    key={c.name}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border"
+                    style={{
+                      backgroundColor: (c.color ?? "#888780") + "22",
+                      borderColor: (c.color ?? "#888780") + "55",
+                      color: "#e2e8f0",
+                    }}
+                  >
+                    <span>{c.icon || "🍎"}</span>
+                    {c.name}
+                    <span className="text-emerald-300 font-black tabular-nums">
+                      {fmt(c.total)}
+                    </span>
+                    {dPct !== null && dPct !== 0 && (
+                      <span
+                        className={`inline-flex items-center gap-0.5 ${
+                          dPct < 0 ? "text-emerald-300" : "text-rose-300"
+                        }`}
+                        title="vs mes pasado"
+                      >
+                        {dPct < 0 ? (
+                          <TrendingDown className="w-3 h-3" />
+                        ) : (
+                          <TrendingUp className="w-3 h-3" />
+                        )}
+                        {Math.abs(dPct)}%
+                      </span>
+                    )}
                   </span>
-                </span>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
