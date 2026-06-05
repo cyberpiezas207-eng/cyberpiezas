@@ -24,6 +24,7 @@ import PersonalVehicleTab from "@/components/admin/PersonalVehicleTab";
 import PersonalDebtsTab from "@/components/admin/PersonalDebtsTab";
 import PersonalRemindersTab from "@/components/admin/PersonalRemindersTab";
 import ServiciosTab from "@/components/admin/ServiciosTab";
+import PreciosTab from "@/components/admin/PreciosTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -244,7 +245,7 @@ function MonthPieCard({
   );
 }
 
-type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "deudas" | "recordatorios";
+type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "precios" | "deudas" | "recordatorios";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -556,6 +557,17 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
         >
           <FileText className="w-4 h-4" />
           Servicios
+        </button>
+        <button
+          onClick={() => setActiveTab("precios")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "precios"
+              ? "bg-gradient-to-br from-sky-500/25 to-cyan-600/15 border border-sky-400/60 text-sky-100 shadow-lg shadow-sky-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <Tag className="w-4 h-4" />
+          Precios
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -1050,6 +1062,8 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
       {activeTab === "recordatorios" && <PersonalRemindersTab />}
 
       {activeTab === "servicios" && <ServiciosTab />}
+
+      {activeTab === "precios" && <PreciosTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
