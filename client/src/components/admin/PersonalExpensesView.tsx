@@ -132,6 +132,7 @@ const SLICE_DEFS: Array<{ key: string; label: string; color: string; hints: stri
 
 const OTHERS_SLICE = { key: "otros", label: "Otros", color: "#64748b" };
 const DEUDAS_SLICE = { key: "deudas", label: "Deudas", color: "#f43f5e" };
+const ANIMALES_SLICE = { key: "animales", label: "Animales", color: "#f59e0b" };
 
 function classifyCatToSlice(name: string): string {
   const hay = normalizeText(name);
@@ -145,24 +146,28 @@ function MonthPieCard({
   byCategory,
   total,
   debtPayments = 0,
+  animalSpend = 0,
 }: {
   byCategory: Array<{ name: string; total: number }>;
   total: number;
   debtPayments?: number;
+  animalSpend?: number;
 }) {
   const sums: Record<string, number> = {
     comida: 0,
     gasolina: 0,
     servicios: 0,
     deudas: 0,
+    animales: 0,
     otros: 0,
   };
   for (const c of byCategory) {
     sums[classifyCatToSlice(c.name)] += c.total || 0;
   }
   sums.deudas = debtPayments || 0;
+  sums.animales = animalSpend || 0;
 
-  const order = [...SLICE_DEFS, DEUDAS_SLICE, OTHERS_SLICE];
+  const order = [...SLICE_DEFS, DEUDAS_SLICE, ANIMALES_SLICE, OTHERS_SLICE];
   const slices = order
     .map((d) => ({ label: d.label, color: d.color, total: sums[d.key] || 0 }))
     .filter((s) => s.total > 0);
@@ -244,8 +249,8 @@ function MonthPieCard({
           </div>
         </div>
         <p className="text-[10px] text-slate-500 mt-3">
-          Rebanadas: Comida, Gasolina, Servicios, Deudas y Otros. El total
-          incluye lo que pagaste de deudas este mes.
+          Rebanadas: Comida, Gasolina, Servicios, Deudas, Animales y Otros. El
+          total incluye deudas pagadas y gasto en animales del mes.
         </p>
       </CardContent>
     </Card>
@@ -308,6 +313,16 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
   const debtSummaryQuery = trpc.personalDebts.stats.monthSummary.useQuery({
     year,
     month,
+  });
+  // Gasto en animales del mes (solo el gasto entra al pastel; lo recuperado
+  // se queda en la pestana Animales). Acotamos por el rango del mes.
+  const animalMonthFrom = `${year}-${String(month).padStart(2, "0")}-01`;
+  const animalMonthTo = `${year}-${String(month).padStart(2, "0")}-${String(
+    new Date(year, month, 0).getDate(),
+  ).padStart(2, "0")}`;
+  const animalSummaryQuery = trpc.personalAnimals.summary.useQuery({
+    from: animalMonthFrom,
+    to: animalMonthTo,
   });
   const listQuery = trpc.personalExpenses.expenses.list.useQuery({
     year,
@@ -651,11 +666,13 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
           {/* Pastel del mes: a donde se fue (resumen de un vistazo) */}
           {dash &&
             (dash.total > 0 ||
-              (debtSummaryQuery.data?.paymentsThisMonth ?? 0) > 0) && (
+              (debtSummaryQuery.data?.paymentsThisMonth ?? 0) > 0 ||
+              (animalSummaryQuery.data?.totalGasto ?? 0) > 0) && (
               <MonthPieCard
                 byCategory={dash.byCategory}
                 total={dash.total}
                 debtPayments={debtSummaryQuery.data?.paymentsThisMonth ?? 0}
+                animalSpend={animalSummaryQuery.data?.totalGasto ?? 0}
               />
             )}
 
