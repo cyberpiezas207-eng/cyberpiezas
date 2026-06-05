@@ -93,6 +93,7 @@ export default function PersonalPantryTab() {
 
   const [text, setText] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [storeId, setStoreId] = useState<number | null>(null);
 
   const atCurrentMonth =
     year === today.getFullYear() && month === today.getMonth() + 1;
@@ -138,7 +139,11 @@ export default function PersonalPantryTab() {
   function handleCreate() {
     const t = text.trim();
     if (!t) return;
-    quickCreate.mutate({ text: t, categoryId: categoryId ?? undefined });
+    quickCreate.mutate({
+      text: t,
+      categoryId: categoryId ?? undefined,
+      storeId: storeId ?? undefined,
+    });
   }
 
   const categories = categoriesQuery.data ?? [];
@@ -380,6 +385,21 @@ export default function PersonalPantryTab() {
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.icon} {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={storeId ?? ""}
+              onChange={(e) =>
+                setStoreId(e.target.value === "" ? null : Number(e.target.value))
+              }
+              className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 min-w-[140px]"
+            >
+              <option value="">Tienda (auto)</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.icon ? `${s.icon} ` : ""}
+                  {s.name}
                 </option>
               ))}
             </select>
