@@ -30,6 +30,7 @@ import { personalVehiclesRouter } from "./routers/personalVehicles";
 import { personalDebtsRouter } from "./routers/personalDebts";
 import { personalRemindersRouter } from "./routers/personalReminders";
 import { personalWalletsRouter } from "./routers/personalWallets";
+import { personalServicesRouter } from "./routers/personalServices";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import * as db from "./db";
 import { storagePut } from "./storage";
@@ -214,6 +215,7 @@ export const appRouter = router({
   personalDebts: personalDebtsRouter,
   personalReminders: personalRemindersRouter,
   personalWallets: personalWalletsRouter,
+  personalServices: personalServicesRouter,
   auth: router({
     login: publicProcedure
       .input(
