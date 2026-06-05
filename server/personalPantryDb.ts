@@ -88,7 +88,7 @@ export async function createPantryItem(
   const stockPercent = clamp(data.stockPercent ?? 100, 0, 100);
   const status = statusFromPercent(stockPercent);
 
-  const insertRes = await conn.insert(personalPantryItems).values({
+  const insertRes: any = await conn.insert(personalPantryItems).values({
     userId,
     name: data.name.trim(),
     normalizedName: normalizeText(data.name),
@@ -102,7 +102,18 @@ export async function createPantryItem(
     notes: data.notes ?? null,
   });
 
-  const insertId = (insertRes as any).insertId as number;
+  // MySQL puede devolver { insertId } o [{ insertId }] segun el driver.
+  // Extraccion robusta (mismo patron que las deudas) para no quedar en
+  // undefined, que dejaba el pantryItemId vacio al registrar el movimiento.
+  const insertId =
+    insertRes?.[0]?.insertId ??
+    insertRes?.insertId ??
+    insertRes?.[0]?.[0]?.insertId;
+
+  if (!insertId) {
+    throw new Error("No se pudo obtener insertId del producto de alacena");
+  }
+
   const rows = await conn
     .select()
     .from(personalPantryItems)
