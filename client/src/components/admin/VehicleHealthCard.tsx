@@ -110,7 +110,7 @@ export function VehicleHealthCard({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-300 block">
                 Salud mecanica
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[11px] text-slate-400">
                 {health.emoji} {health.label}
               </span>
             </div>
@@ -163,7 +163,7 @@ export function VehicleHealthCard({
               <span className={"text-3xl font-black " + scoreColor}>
                 {health.scoreOutOf100}
               </span>
-              <span className="text-sm text-slate-500">/100</span>
+              <span className="text-sm text-slate-400">/100</span>
             </div>
             <div className={"text-[11px] mt-0.5 " + scoreColor}>
               {health.emoji} {health.label}
@@ -187,9 +187,9 @@ export function VehicleHealthCard({
                   ? "0"
                   : health.totalEfficiencyImpactPercent}
               </span>
-              <span className="text-sm text-slate-500">%</span>
+              <span className="text-sm text-slate-400">%</span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-slate-400 mt-0.5">
               {health.totalEfficiencyImpactPercent === 0 ? (
                 <span className="flex items-center gap-1 text-emerald-400">
                   <CheckCircle2 className="w-3 h-3" />
@@ -198,7 +198,7 @@ export function VehicleHealthCard({
               ) : (
                 <span className="flex items-center gap-1 text-amber-400">
                   <TrendingDown className="w-3 h-3" />
-                  perdes gasolina
+                  pierdes gasolina
                 </span>
               )}
             </div>
@@ -227,7 +227,7 @@ export function VehicleHealthCard({
         </div>
 
         {/* Footer: contadores */}
-        <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-500">
+        <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
           <span>
             {health.knownItemsCount} con datos · {health.unknownItemsCount} sin
             registrar
@@ -277,7 +277,7 @@ function HealthItem({
       bg: "bg-emerald-500/10 border-emerald-500/20",
       icon: "text-emerald-400",
       label: "text-emerald-200",
-      sub: "text-emerald-400/80",
+      sub: "text-emerald-300/90",
       pill: "text-emerald-300",
       StatusIcon: CheckCircle2,
     },
@@ -285,7 +285,7 @@ function HealthItem({
       bg: "bg-amber-500/10 border-amber-500/20",
       icon: "text-amber-400",
       label: "text-amber-200",
-      sub: "text-amber-400/80",
+      sub: "text-amber-300/90",
       pill: "text-amber-300",
       StatusIcon: AlertTriangle,
     },
@@ -293,16 +293,16 @@ function HealthItem({
       bg: "bg-rose-500/10 border-rose-500/20",
       icon: "text-rose-400",
       label: "text-rose-200",
-      sub: "text-rose-400/80",
+      sub: "text-rose-300/90",
       pill: "text-rose-300",
       StatusIcon: AlertCircle,
     },
     unknown: {
       bg: "bg-slate-800/40 border-white/5",
-      icon: "text-slate-500",
+      icon: "text-slate-400",
       label: "text-slate-300",
-      sub: "text-slate-500",
-      pill: "text-slate-500",
+      sub: "text-slate-400",
+      pill: "text-slate-400",
       StatusIcon: HelpCircle,
     },
   };
@@ -325,11 +325,11 @@ function HealthItem({
             </span>
             <StatusIcon className={"w-3 h-3 " + c.icon} />
           </div>
-          <div className={"text-[10px] leading-snug mt-0.5 " + c.sub}>
+          <div className={"text-[11px] leading-snug mt-0.5 " + c.sub}>
             {item.description}
           </div>
           {item.recommendation && (
-            <div className={"text-[10px] mt-1 italic " + c.sub}>
+            <div className={"text-[11px] mt-1 italic " + c.sub}>
               {item.recommendation}
             </div>
           )}
