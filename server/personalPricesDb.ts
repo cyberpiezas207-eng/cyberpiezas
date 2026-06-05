@@ -1,4 +1,4 @@
-// >>> ESTE ARCHIVO ES NUEVO. CREALO EN: server/personalPricesDb.ts <<<
+// >>> ESTE ARCHIVO VA EN (REEMPLAZA EL EXISTENTE): server/personalPricesDb.ts <<<
 // ============================================================================
 // CAPA DE BD - Cerebro de precios
 // ----------------------------------------------------------------------------
@@ -35,6 +35,8 @@ export interface ProductPrice {
   key: string; // normalizedDescription (identidad)
   categoryId: number | null;
   latestPrice: number;
+  // Unidad cuando el precio es por unidad (kilo, litro...). null = es total.
+  unit: string | null;
   latestStoreName: string | null;
   latestDate: string; // YYYY-MM-DD
   timesBought: number;
@@ -53,6 +55,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface Entry {
   amount: number;
+  value: number; // valor a comparar: precio por unidad si hay, si no el total
+  unit: string | null;
   storeId: number | null;
   storeName: string | null;
   ym: string;
@@ -89,6 +93,8 @@ export async function getProductPriceBrain(
       description: personalExpenses.description,
       norm: personalExpenses.normalizedDescription,
       amount: personalExpenses.amount,
+      unitPrice: personalExpenses.unitPrice,
+      unit: personalExpenses.unit,
       storeId: personalExpenses.storeId,
       storeName: personalExpenses.storeName,
       categoryId: personalExpenses.categoryId,
@@ -111,8 +117,13 @@ export async function getProductPriceBrain(
     const key = (r.norm ?? "").trim();
     if (!key || !Number.isFinite(amount) || amount <= 0) continue;
     const date = String(r.expenseDate);
+    // Si hay precio por unidad, ese es el valor a comparar (peras con peras).
+    const up = r.unitPrice != null ? Number(r.unitPrice) : 0;
+    const hasUnitPrice = Number.isFinite(up) && up > 0;
     const entry: Entry = {
       amount,
+      value: hasUnitPrice ? up : amount,
+      unit: hasUnitPrice ? (r.unit ?? null) : null,
       storeId: r.storeId ?? null,
       storeName: r.storeName ?? null,
       ym: date.slice(0, 7),
@@ -136,7 +147,7 @@ export async function getProductPriceBrain(
     const monthAgg = new Map<string, { sum: number; count: number }>();
     for (const e of entries) {
       const m = monthAgg.get(e.ym) ?? { sum: 0, count: 0 };
-      m.sum += e.amount;
+      m.sum += e.value;
       m.count += 1;
       monthAgg.set(e.ym, m);
     }
@@ -163,7 +174,7 @@ export async function getProductPriceBrain(
       const s =
         storeAgg.get(sk) ??
         { storeId: e.storeId, storeName: e.storeName, sum: 0, count: 0 };
-      s.sum += e.amount;
+      s.sum += e.value;
       s.count += 1;
       storeAgg.set(sk, s);
     }
@@ -185,11 +196,15 @@ export async function getProductPriceBrain(
       cheapestPrice = named[0].price;
     }
 
+    // Unidad del producto: la mas reciente que traiga precio por unidad
+    const unit = entries.find((e) => e.unit)?.unit ?? null;
+
     result.push({
       product: latest.description,
       key,
       categoryId: latest.categoryId,
-      latestPrice: round2(latest.amount),
+      latestPrice: round2(latest.value),
+      unit,
       latestStoreName: latest.storeName,
       latestDate: latest.date,
       timesBought: entries.length,
