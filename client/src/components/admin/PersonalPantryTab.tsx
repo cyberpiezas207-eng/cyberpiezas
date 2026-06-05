@@ -66,19 +66,43 @@ function formatDay(ymd: string | null): string {
   return `${parts[2]}/${parts[1]}`;
 }
 
-// Pistas de "comida": una categoria cuenta como comida si su nombre o slug
-// contiene alguna de estas palabras. Asi Fruta, Verduleria, Carne, Despensa...
-// entran solas, y Gasolina/Servicios/Luz quedan fuera.
-const FOOD_HINTS = [
-  "fruta", "verdura", "verduleria", "fruteria", "carne", "carniceria",
-  "pollo", "pescado", "marisco", "despensa", "abarrote", "super",
-  "mandado", "comida", "cocina", "lacteo", "leche", "pan", "panaderia",
-  "tortilla", "tortilleria", "huevo", "cremeria", "mercado", "alacena",
+// Categorias que claramente NO son comida/consumo del hogar. Todo lo demas
+// SI se muestra en la Alacena. Asi, lo que capturas aqui siempre aparece,
+// aunque la categoria no se llame "fruta". Solo se esconde gasolina/servicios.
+const NON_FOOD_HINTS = [
+  "gasolina", "gasolinera", "pemex", "combustible", "diesel", "magna",
+  "servicio", "luz", "cfe", "agua", "internet", "telefono", "telcel",
+  "cable", "streaming", "netflix", "spotify", "recibo", "predial", "renta",
+  "prestamo", "deuda", "tarjeta", "credito",
 ];
 
-function isFoodCategory(cat: { name?: string | null; slug?: string | null }): boolean {
+function isNonFoodCategory(cat: { name?: string | null; slug?: string | null }): boolean {
   const hay = normalizeStr(`${cat.name ?? ""} ${cat.slug ?? ""}`);
-  return FOOD_HINTS.some((h) => hay.includes(h));
+  return NON_FOOD_HINTS.some((h) => hay.includes(h));
+}
+
+// Emoji por producto: para clasificar visualmente cada compra en la lista.
+const ITEM_EMOJIS: Array<[string, string]> = [
+  ["naranja", "🍊"], ["mandarina", "🍊"], ["limon", "🍋"], ["manzana", "🍎"],
+  ["platano", "🍌"], ["banana", "🍌"], ["fresa", "🍓"], ["uva", "🍇"],
+  ["sandia", "🍉"], ["melon", "🍈"], ["pina", "🍍"], ["mango", "🥭"],
+  ["aguacate", "🥑"], ["jitomate", "🍅"], ["tomate", "🍅"], ["papa", "🥔"],
+  ["cebolla", "🧅"], ["ajo", "🧄"], ["zanahoria", "🥕"], ["elote", "🌽"],
+  ["maiz", "🌽"], ["chile", "🌶️"], ["lechuga", "🥬"], ["brocoli", "🥦"],
+  ["pepino", "🥒"], ["leche", "🥛"], ["huevo", "🥚"], ["queso", "🧀"],
+  ["pan", "🍞"], ["tortilla", "🫓"], ["pollo", "🍗"], ["carne", "🥩"],
+  ["pescado", "🐟"], ["camaron", "🦐"], ["arroz", "🍚"], ["frijol", "🫘"],
+  ["cafe", "☕"], ["azucar", "🍬"], ["sal", "🧂"], ["aceite", "🫗"],
+  ["refresco", "🥤"], ["cerveza", "🍺"], ["galleta", "🍪"], ["pastel", "🍰"],
+  ["helado", "🍦"], ["dulce", "🍬"], ["sopa", "🍜"], ["cereal", "🥣"],
+];
+
+function itemEmoji(description: string): string | null {
+  const hay = normalizeStr(description);
+  for (const [k, e] of ITEM_EMOJIS) {
+    if (hay.includes(k)) return e;
+  }
+  return null;
 }
 
 // ----------------------------------------------------------------------------
@@ -182,13 +206,16 @@ export default function PersonalPantryTab() {
   const storeById = new Map(stores.map((s) => [s.id, s]));
 
   // Que categorias son "comida"
-  const foodCatIds = new Set(
-    categories.filter((c) => isFoodCategory(c)).map((c) => c.id),
+  // Que se muestra en la Alacena: las compras del hogar = todo MENOS lo
+  // claramente no-comida (gasolina, servicios). Sin categoria tambien se
+  // muestra, para no esconder lo que acabas de capturar aqui.
+  const nonFoodCatIds = new Set(
+    categories.filter((c) => isNonFoodCategory(c)).map((c) => c.id),
   );
-  const foodCatList = categories.filter((c) => foodCatIds.has(c.id));
 
   function isFoodExpense(e: any): boolean {
-    return e.categoryId != null && foodCatIds.has(e.categoryId);
+    if (e.categoryId == null) return true;
+    return !nonFoodCatIds.has(e.categoryId);
   }
 
   const foodExpenses = expenses.filter(isFoodExpense);
@@ -611,7 +638,7 @@ export default function PersonalPantryTab() {
                           backgroundColor: (cat?.color ?? "#888780") + "22",
                         }}
                       >
-                        {cat?.icon ?? "🍎"}
+                        {itemEmoji(e.description) ?? cat?.icon ?? "🍎"}
                       </span>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-100 truncate">
@@ -633,14 +660,11 @@ export default function PersonalPantryTab() {
             </div>
           )}
 
-          {/* Transparencia: que categorias cuentan como comida */}
-          {foodCatList.length > 0 && (
-            <p className="text-[10px] text-slate-500 mt-3">
-              Cuenta como comida:{" "}
-              {foodCatList.map((c) => c.name).join(", ")}. Si falta una, dime y la
-              agrego.
-            </p>
-          )}
+          {/* Transparencia: que se muestra aqui */}
+          <p className="text-[10px] text-slate-500 mt-3">
+            Aqui ves tus compras del hogar (todo menos gasolina y servicios).
+            Si algo no deberia aparecer, dime.
+          </p>
         </CardContent>
       </Card>
     </div>
