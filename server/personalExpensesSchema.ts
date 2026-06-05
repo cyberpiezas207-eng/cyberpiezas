@@ -1,3 +1,4 @@
+// >>> ESTE ARCHIVO VA EN: server/personalExpensesSchema.ts <<<
 // ============================================================================
 // MODULO GASTOS PERSONALES - Schema y migraciones de arranque
 // ----------------------------------------------------------------------------
@@ -77,6 +78,11 @@ export const personalExpenses = mysqlTable("personalExpenses", {
   // Listos desde hoy para crecer a productos/precios (fase 2 y 3), vacios por ahora
   rawItemsText: text("rawItemsText"),
   detectedItemsJson: json("detectedItemsJson"),
+  // Cerebro de precios: cantidad comprada, unidad (kilo, litro, pieza) y
+  // precio por unidad. Opcionales. Permiten comparar "el kilo" entre compras.
+  quantity: decimal("quantity", { precision: 12, scale: 2 }),
+  unit: varchar("unit", { length: 20 }),
+  unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }),
   purchaseType: varchar("purchaseType", { length: 40 }).notNull().default("otro"),
   autoDetected: boolean("autoDetected").notNull().default(false),
   // Confianza 0 a 100
@@ -191,6 +197,9 @@ export const personalExpensesMigrations: string[] = [
     \`storeName\` varchar(120) NULL,
     \`rawItemsText\` text NULL,
     \`detectedItemsJson\` json NULL,
+    \`quantity\` decimal(12,2) NULL,
+    \`unit\` varchar(20) NULL,
+    \`unitPrice\` decimal(12,2) NULL,
     \`purchaseType\` varchar(40) NOT NULL DEFAULT 'otro',
     \`autoDetected\` tinyint(1) NOT NULL DEFAULT 0,
     \`detectionConfidence\` int NOT NULL DEFAULT 0,
@@ -222,4 +231,11 @@ export const personalExpensesMigrations: string[] = [
     INDEX \`idx_pe_rules_user_phrase\` (\`userId\`, \`normalizedPhrase\`),
     FOREIGN KEY (\`userId\`) REFERENCES \`users\`(\`id\`)
   )`,
+
+  // Cerebro de precios: columnas nuevas en la tabla que YA existe en
+  // produccion. Si la columna ya esta, MySQL tira errno 1060 y db.ts lo
+  // tolera (no es fatal). Por eso van como ALTER y no dentro del CREATE.
+  `ALTER TABLE \`personalExpenses\` ADD COLUMN \`quantity\` decimal(12,2) NULL`,
+  `ALTER TABLE \`personalExpenses\` ADD COLUMN \`unit\` varchar(20) NULL`,
+  `ALTER TABLE \`personalExpenses\` ADD COLUMN \`unitPrice\` decimal(12,2) NULL`,
 ];
