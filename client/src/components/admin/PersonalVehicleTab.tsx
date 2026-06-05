@@ -32,6 +32,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -66,6 +67,11 @@ export default function PersonalVehicleTab() {
   const today = nowMexico();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
+  // Multi-vehiculo: cual vehiculo se ve/captura, y modal para agregar otro
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(
+    null,
+  );
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -75,6 +81,9 @@ export default function PersonalVehicleTab() {
   // Vehiculo activo (default o el primero)
   const activeVehicle =
     vehicles.find((v) => v.isDefault) ?? vehicles[0] ?? null;
+  // Vehiculo que se esta viendo: el elegido a mano, o el activo por default
+  const currentVehicle =
+    vehicles.find((v) => v.id === selectedVehicleId) ?? activeVehicle;
 
   if (vehiclesQuery.isLoading) {
     return (
@@ -100,12 +109,42 @@ export default function PersonalVehicleTab() {
 
   return (
     <div className="space-y-5">
+      {/* Selector de vehiculo (multi-vehiculo) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
+        {vehicles.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setSelectedVehicleId(v.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+              v.id === currentVehicle.id
+                ? "bg-indigo-500/20 text-indigo-100 border-indigo-400/50 shadow-md shadow-indigo-500/10"
+                : "bg-slate-800/40 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600"
+            }`}
+          >
+            <span>{v.icon ?? "🚗"}</span>
+            {v.name}
+            {v.isDefault && (
+              <span className="text-[8px] uppercase tracking-wider text-indigo-300/70">
+                principal
+              </span>
+            )}
+          </button>
+        ))}
+        <button
+          onClick={() => setShowAddVehicle(true)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-slate-800/30 text-slate-300 border border-dashed border-slate-600 hover:border-indigo-400/50 hover:text-indigo-200 transition-all"
+        >
+          <Plus className="w-3 h-3" />
+          Agregar
+        </button>
+      </div>
+
       {/* Hero card del vehiculo */}
-      <VehicleHeroCard vehicleId={activeVehicle.id} />
+      <VehicleHeroCard vehicleId={currentVehicle.id} />
 
       {/* Captura rapida */}
       <QuickFuelCapture
-        vehicleId={activeVehicle.id}
+        vehicleId={currentVehicle.id}
         onCreated={() => {
           // Bug4: invalidar TODO el namespace del vehiculo para que el cerebro
           // de tanque y salud se refresquen tras cada carga. Antes solo se
@@ -150,18 +189,31 @@ export default function PersonalVehicleTab() {
 
       {/* Cards de stats del mes */}
       <MonthStatsCards
-        vehicleId={activeVehicle.id}
+        vehicleId={currentVehicle.id}
         year={year}
         month={month}
       />
 
       {/* Lista de cargas */}
       <FuelLogsList
-        vehicleId={activeVehicle.id}
+        vehicleId={currentVehicle.id}
         year={year}
         month={month}
         monthLabel={monthLabel}
       />
+
+      {/* Modal: agregar otro vehiculo */}
+      {showAddVehicle && (
+        <AddVehicleModal
+          onClose={() => setShowAddVehicle(false)}
+          onCreated={(newId) => {
+            setShowAddVehicle(false);
+            utils.personalVehicles.vehicles.list.invalidate();
+            vehiclesQuery.refetch();
+            if (newId) setSelectedVehicleId(newId);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -312,6 +364,181 @@ function FirstVehicleSetup({ onCreated }: { onCreated: () => void }) {
           </p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ============================================================================
+// ADD VEHICLE MODAL - agregar otro vehiculo (multi-vehiculo)
+// ============================================================================
+
+function AddVehicleModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (newId: number | null) => void;
+}) {
+  const [name, setName] = useState("");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [year, setYear] = useState("");
+  const [tankCapacity, setTankCapacity] = useState("40");
+  const [currentOdometer, setCurrentOdometer] = useState("");
+  const [makeDefault, setMakeDefault] = useState(false);
+
+  const create = trpc.personalVehicles.vehicles.create.useMutation({
+    onSuccess: (veh: any) => {
+      toast.success("Vehiculo agregado");
+      onCreated(veh?.id ?? null);
+    },
+    onError: (e) => toast.error(e.message || "No se pudo agregar"),
+  });
+
+  function handleCreate() {
+    if (!name.trim()) {
+      toast.error("Falta el nombre");
+      return;
+    }
+    create.mutate({
+      name: name.trim(),
+      brand: brand.trim() || null,
+      model: model.trim() || null,
+      year: year ? Number(year) : null,
+      tankCapacityLiters: tankCapacity ? Number(tankCapacity) : null,
+      currentOdometer: currentOdometer ? Number(currentOdometer) : 0,
+      icon: "🚗",
+      color: "#6366f1",
+      setAsDefault: makeDefault,
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full max-h-[92vh] overflow-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 border-b border-slate-700/60 flex items-center justify-between sticky top-0 bg-slate-900 z-10">
+          <div className="flex items-center gap-2">
+            <Car className="w-5 h-5 text-indigo-300" />
+            <h2 className="text-base font-black text-white">Agregar vehiculo</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 p-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Nombre
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="ej: Tsuru, Camioneta, Moto"
+              className="bg-slate-900 border-slate-700 text-white mt-1"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Marca
+              </label>
+              <Input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className="bg-slate-900 border-slate-700 text-white mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Modelo
+              </label>
+              <Input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="bg-slate-900 border-slate-700 text-white mt-1"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Año
+              </label>
+              <Input
+                value={year}
+                onChange={(e) => setYear(e.target.value.replace(/\D/g, ""))}
+                placeholder="2008"
+                className="bg-slate-900 border-slate-700 text-white mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Tanque (L)
+              </label>
+              <Input
+                value={tankCapacity}
+                onChange={(e) => setTankCapacity(e.target.value)}
+                placeholder="40"
+                inputMode="decimal"
+                className="bg-slate-900 border-slate-700 text-white mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Odometro
+              </label>
+              <Input
+                value={currentOdometer}
+                onChange={(e) =>
+                  setCurrentOdometer(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="125000"
+                inputMode="numeric"
+                className="bg-slate-900 border-slate-700 text-white mt-1"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setMakeDefault((v) => !v)}
+            className="flex items-center gap-2 text-xs text-slate-300 mt-1"
+          >
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center ${
+                makeDefault
+                  ? "bg-indigo-500 border-indigo-400"
+                  : "border-slate-600"
+              }`}
+            >
+              {makeDefault && <span className="text-white text-[10px]">✓</span>}
+            </span>
+            Marcar como vehiculo principal
+          </button>
+
+          <Button
+            onClick={handleCreate}
+            disabled={create.isPending}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg mt-2"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {create.isPending ? "Agregando..." : "Agregar vehiculo"}
+          </Button>
+          <p className="text-[10px] text-slate-500 text-center mt-1">
+            Podras editar todo despues. El odometro se actualiza solo cuando
+            cargas gasolina en este vehiculo.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
