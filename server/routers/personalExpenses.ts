@@ -274,6 +274,94 @@ export const personalExpensesRouter = router({
         };
       }),
 
+    // Crea VARIAS compras de un jalon (lista pegada). Una por renglon o
+    // separadas por coma / punto y coma. Las lineas sin monto se omiten y
+    // se devuelven para que el usuario las revise. Reusa la misma logica de
+    // categoria/tienda forzada que quickCreate.
+    bulkCreate: ownerOnlyProcedure
+      .input(
+        z.object({
+          text: z.string().min(1),
+          categoryId: z.number().int().positive().nullable().optional(),
+          storeId: z.number().int().positive().nullable().optional(),
+          expenseDate: z.string().optional(),
+          paymentMethod: z
+            .enum(["cash", "debit", "credit", "transfer", "other"])
+            .optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const parts = input.text
+          .split(/\r?\n|;|,/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+
+        let createdCount = 0;
+        const skipped: string[] = [];
+
+        for (const line of parts) {
+          const { analysis, category, store, cats, stores } =
+            await analyzeForUser(ctx.user.id, line);
+
+          if (!analysis.amount || analysis.amount <= 0) {
+            skipped.push(line);
+            continue;
+          }
+
+          const forcedCategory =
+            input.categoryId != null
+              ? cats.find((c) => c.id === input.categoryId) ?? null
+              : null;
+          const useCategory =
+            !!category && analysis.categoryConfidence >= CATEGORY_CONFIDENCE_MIN;
+          const effectiveCategory =
+            forcedCategory ?? (useCategory ? category : null);
+          const categoryId = effectiveCategory ? effectiveCategory.id : null;
+          const detectedCategoryId = category ? category.id : null;
+
+          const forcedStore =
+            input.storeId != null
+              ? stores.find((s) => s.id === input.storeId) ?? null
+              : null;
+          const useStore =
+            !!store && analysis.storeConfidence >= STORE_CONFIDENCE_MIN;
+          const effectiveStore = forcedStore ?? (useStore && store ? store : null);
+          const storeId = effectiveStore ? effectiveStore.id : null;
+          const storeName = effectiveStore ? effectiveStore.name : null;
+
+          const purchaseType =
+            analysis.categorySlug &&
+            KNOWN_PURCHASE_TYPES.has(analysis.categorySlug)
+              ? analysis.categorySlug
+              : "otro";
+
+          await createPersonalExpense(ctx.user.id, {
+            amount: analysis.amount,
+            description: analysis.cleanDescription || line,
+            normalizedDescription: analysis.normalizedDescription,
+            categoryId,
+            detectedCategoryId,
+            storeId,
+            storeName,
+            purchaseType,
+            autoDetected: forcedCategory ? false : useCategory,
+            detectionConfidence: analysis.categoryConfidence,
+            detectionSource: forcedCategory ? "manual" : analysis.categorySource,
+            paymentMethod: input.paymentMethod ?? "cash",
+            expenseDate: input.expenseDate ?? todayMexico(),
+            rawItemsText:
+              analysis.possibleItems.length > 0
+                ? analysis.possibleItems.join(" ")
+                : null,
+            detectedItemsJson:
+              analysis.possibleItems.length > 0 ? analysis.possibleItems : null,
+          });
+          createdCount += 1;
+        }
+
+        return { createdCount, skipped };
+      }),
+
     list: ownerOnlyProcedure
       .input(
         z
