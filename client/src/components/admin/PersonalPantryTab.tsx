@@ -1,421 +1,470 @@
 // ============================================================================
-// ROUTER tRPC - Gastos personales (PRIVADO del propietario)
+// VISTA "Alacena" - sub-pestana dentro de Mis Gastos
 // ----------------------------------------------------------------------------
-// Blindado con ownerOnlyProcedure: solo entra el dueno principal
-// (ctx.user.openId === ENV.ownerOpenId), igual que personalOperations.
-// El usuario se obtiene de ctx.user.id. Todo filtrado por ese usuario.
+// NUEVO ENFOQUE: la Alacena ya NO lleva inventario de stock. Es una LENTE
+// de comida sobre tus gastos: capturas una compra (se guarda como gasto con
+// su categoria y tienda) y aqui ves a donde se va la comida del mes:
+// total, por tienda, por categoria y las compras recientes.
 //
-// Enchufa el motor puro (analyzeExpenseLine) con la capa de BD.
+// Fuente unica de verdad = gastos personales. Comida = categorias cuyo
+// nombre/slug suena a comida (fruta, verdura, carne, despensa, etc.).
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "../_core/trpc";
-import { ENV } from "../_core/env";
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
-  seedPersonalExpenseDefaults,
-  listPersonalExpenseCategories,
-  listPersonalExpenseStores,
-  listPersonalExpenseRules,
-  createPersonalExpense,
-  getPersonalExpenseById,
-  listPersonalExpenses,
-  softDeletePersonalExpense,
-  recategorizePersonalExpense,
-  addPersonalExpenseRule,
-  sumPersonalExpensesByCategory,
-  sumPersonalExpensesByStore,
-  totalPersonalExpensesForMonth,
-  monthlyPersonalExpenseTotals,
-} from "../personalExpensesDb";
-import {
-  analyzeExpenseLine,
-  type KeywordEntity,
-  type LearnedRule,
-} from "../personalExpensesEngine";
+  ShoppingBasket,
+  Plus,
+  Store,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  Apple,
+} from "lucide-react";
 
 // ----------------------------------------------------------------------------
-// Procedure PRIVADO del propietario (mismo candado que personalOperations)
+// Helpers
 // ----------------------------------------------------------------------------
 
-const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.openId !== ENV.ownerOpenId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Esta seccion es privada del propietario.",
-    });
-  }
-  return next({ ctx });
-});
+const fmt = (n: number) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(Math.round(n));
 
-// ----------------------------------------------------------------------------
-// Constantes y helpers
-// ----------------------------------------------------------------------------
-
-const CATEGORY_CONFIDENCE_MIN = 55;
-const STORE_CONFIDENCE_MIN = 50;
-
-const KNOWN_PURCHASE_TYPES = new Set([
-  "gasolina",
-  "despensa",
-  "verduleria",
-  "carne",
-  "servicios",
-]);
-
-const NEUTRAL_COLOR = "#888780";
-
-function toEntities(rows: Array<{ slug: string; keywordsJson: unknown }>): KeywordEntity[] {
-  return rows.map((r) => ({
-    slug: r.slug,
-    keywords: Array.isArray(r.keywordsJson) ? (r.keywordsJson as string[]) : [],
-  }));
-}
-
-// Morelos = UTC-6 todo el ano (Mexico ya no usa horario de verano).
-function todayMexico(): string {
-  const ms = Date.now() - 6 * 60 * 60 * 1000;
-  return new Date(ms).toISOString().slice(0, 10);
-}
+const MONTHS_ES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
 function nowMexico(): Date {
   return new Date(Date.now() - 6 * 60 * 60 * 1000);
 }
 
-async function analyzeForUser(userId: number, text: string) {
-  const [cats, stores, rules] = await Promise.all([
-    listPersonalExpenseCategories(userId),
-    listPersonalExpenseStores(userId),
-    listPersonalExpenseRules(userId),
-  ]);
+function normalizeStr(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
 
-  const idToSlug = new Map<number, string>(cats.map((c) => [c.id, c.slug]));
-  const ruleEntities: LearnedRule[] = rules
-    .map((r) => ({
-      categorySlug: idToSlug.get(r.categoryId) || "",
-      normalizedPhrase: r.normalizedPhrase,
-    }))
-    .filter((r) => r.categorySlug.length > 0);
+function formatDay(ymd: string | null): string {
+  if (!ymd) return "";
+  const parts = ymd.split("-");
+  if (parts.length !== 3) return ymd;
+  return `${parts[2]}/${parts[1]}`;
+}
 
-  const analysis = analyzeExpenseLine(text, {
-    categories: toEntities(cats),
-    stores: toEntities(stores),
-    rules: ruleEntities,
-  });
+// Pistas de "comida": una categoria cuenta como comida si su nombre o slug
+// contiene alguna de estas palabras. Asi Fruta, Verduleria, Carne, Despensa...
+// entran solas, y Gasolina/Servicios/Luz quedan fuera.
+const FOOD_HINTS = [
+  "fruta", "verdura", "verduleria", "fruteria", "carne", "carniceria",
+  "pollo", "pescado", "marisco", "despensa", "abarrote", "super",
+  "mandado", "comida", "cocina", "lacteo", "leche", "pan", "panaderia",
+  "tortilla", "tortilleria", "huevo", "cremeria", "mercado", "alacena",
+];
 
-  const category = analysis.categorySlug
-    ? cats.find((c) => c.slug === analysis.categorySlug) || null
-    : null;
-  const store = analysis.storeSlug
-    ? stores.find((s) => s.slug === analysis.storeSlug) || null
-    : null;
-
-  // Devolvemos cats/stores tambien para que quickCreate pueda resolver una
-  // categoria forzada por el cliente (ej. dropdown de la Alacena).
-  return { analysis, category, store, cats, stores };
+function isFoodCategory(cat: { name?: string | null; slug?: string | null }): boolean {
+  const hay = normalizeStr(`${cat.name ?? ""} ${cat.slug ?? ""}`);
+  return FOOD_HINTS.some((h) => hay.includes(h));
 }
 
 // ----------------------------------------------------------------------------
-// Router
+// COMPONENTE PRINCIPAL
 // ----------------------------------------------------------------------------
 
-export const personalExpensesRouter = router({
-  seedDefaults: ownerOnlyProcedure.mutation(async ({ ctx }) => {
-    return await seedPersonalExpenseDefaults(ctx.user.id);
-  }),
+export default function PersonalPantryTab() {
+  const utils = trpc.useUtils();
+  const today = nowMexico();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
 
-  categories: router({
-    list: ownerOnlyProcedure.query(async ({ ctx }) => {
-      return await listPersonalExpenseCategories(ctx.user.id);
-    }),
-  }),
+  const [text, setText] = useState("");
+  const [categoryId, setCategoryId] = useState<number | null>(null);
 
-  stores: router({
-    list: ownerOnlyProcedure.query(async ({ ctx }) => {
-      return await listPersonalExpenseStores(ctx.user.id);
-    }),
-  }),
+  const atCurrentMonth =
+    year === today.getFullYear() && month === today.getMonth() + 1;
+  const monthLabel = `${MONTHS_ES[month - 1]} ${year}`;
 
-  expenses: router({
-    previewCapture: ownerOnlyProcedure
-      .input(z.object({ text: z.string().min(1) }))
-      .query(async ({ input, ctx }) => {
-        const { analysis, category, store } = await analyzeForUser(
-          ctx.user.id,
-          input.text,
-        );
-        return {
-          amount: analysis.amount,
-          cleanDescription: analysis.cleanDescription,
-          category: category
-            ? {
-                id: category.id,
-                slug: category.slug,
-                name: category.name,
-                icon: category.icon,
-                color: category.color,
+  const prev =
+    month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+
+  // Datos base
+  const categoriesQuery = trpc.personalExpenses.categories.list.useQuery();
+  const storesQuery = trpc.personalExpenses.stores.list.useQuery();
+  const expensesQuery = trpc.personalExpenses.expenses.list.useQuery({
+    year,
+    month,
+    limit: 200,
+  });
+  const prevExpensesQuery = trpc.personalExpenses.expenses.list.useQuery({
+    year: prev.year,
+    month: prev.month,
+    limit: 200,
+  });
+
+  function refreshAll() {
+    utils.personalExpenses.expenses.list.invalidate();
+    utils.personalExpenses.stats.dashboard.invalidate();
+  }
+
+  const quickCreate = trpc.personalExpenses.expenses.quickCreate.useMutation({
+    onSuccess: () => {
+      toast.success("Compra agregada a tus gastos");
+      setText("");
+      refreshAll();
+    },
+    onError: (e) => toast.error(e.message || "No se pudo agregar"),
+  });
+
+  function shiftMonth(delta: number) {
+    const d = new Date(year, month - 1 + delta, 1);
+    setYear(d.getFullYear());
+    setMonth(d.getMonth() + 1);
+  }
+
+  function handleCreate() {
+    const t = text.trim();
+    if (!t) return;
+    quickCreate.mutate({ text: t, categoryId: categoryId ?? undefined });
+  }
+
+  const categories = categoriesQuery.data ?? [];
+  const stores = storesQuery.data ?? [];
+  const expenses = expensesQuery.data ?? [];
+  const prevExpenses = prevExpensesQuery.data ?? [];
+
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const storeById = new Map(stores.map((s) => [s.id, s]));
+
+  // Que categorias son "comida"
+  const foodCatIds = new Set(
+    categories.filter((c) => isFoodCategory(c)).map((c) => c.id),
+  );
+  const foodCatList = categories.filter((c) => foodCatIds.has(c.id));
+
+  function isFoodExpense(e: any): boolean {
+    return e.categoryId != null && foodCatIds.has(e.categoryId);
+  }
+
+  const foodExpenses = expenses.filter(isFoodExpense);
+  const prevFoodExpenses = prevExpenses.filter(isFoodExpense);
+
+  const foodTotal = foodExpenses.reduce((acc, e) => acc + Number(e.amount), 0);
+  const prevFoodTotal = prevFoodExpenses.reduce(
+    (acc, e) => acc + Number(e.amount),
+    0,
+  );
+  const diff = foodTotal - prevFoodTotal;
+  const pct = prevFoodTotal > 0 ? Math.round((diff / prevFoodTotal) * 1000) / 10 : null;
+
+  // Agrupar por tienda
+  const byStoreMap = new Map<string, { name: string; total: number; count: number }>();
+  for (const e of foodExpenses) {
+    const st = e.storeId != null ? storeById.get(e.storeId) : null;
+    const name = st?.name ?? e.storeName ?? "Sin tienda";
+    const key = name;
+    const cur = byStoreMap.get(key) ?? { name, total: 0, count: 0 };
+    cur.total += Number(e.amount);
+    cur.count += 1;
+    byStoreMap.set(key, cur);
+  }
+  const byStore = [...byStoreMap.values()].sort((a, b) => b.total - a.total);
+
+  // Agrupar por categoria
+  const byCatMap = new Map<
+    number,
+    { name: string; icon: string; color: string; total: number }
+  >();
+  for (const e of foodExpenses) {
+    const cat = e.categoryId != null ? catById.get(e.categoryId) : null;
+    if (!cat) continue;
+    const cur = byCatMap.get(cat.id) ?? {
+      name: cat.name,
+      icon: cat.icon ?? "",
+      color: cat.color ?? "#888780",
+      total: 0,
+    };
+    cur.total += Number(e.amount);
+    byCatMap.set(cat.id, cur);
+  }
+  const byCategory = [...byCatMap.values()].sort((a, b) => b.total - a.total);
+
+  const maxStore = byStore.length > 0 ? byStore[0].total : 0;
+  const recent = foodExpenses.slice(0, 15);
+
+  const isLoading = expensesQuery.isLoading || categoriesQuery.isLoading;
+
+  return (
+    <div className="space-y-5">
+      {/* Header: comida del mes */}
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950/50" />
+        <div className="absolute -top-24 -right-16 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl" />
+        <div className="relative p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 mb-2">
+                <Apple className="w-3 h-3 text-emerald-300" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-200">
+                  Alacena
+                </span>
+              </div>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                A donde se va tu comida
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Tus compras de comida, por tienda y categoria.
+              </p>
+            </div>
+
+            {/* Navegador de mes */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => shiftMonth(-1)}
+                className="p-2 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-center min-w-[130px]">
+                <div className="text-sm font-bold text-white">{monthLabel}</div>
+              </div>
+              <button
+                onClick={() => shiftMonth(1)}
+                disabled={atCurrentMonth}
+                className="p-2 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Total grande + comparacion */}
+          <div className="mt-4 flex items-end gap-3 flex-wrap">
+            <div className="text-4xl font-black text-emerald-200 tracking-tight">
+              {fmt(foodTotal)}
+            </div>
+            <div className="mb-1 text-xs text-slate-400">
+              {foodExpenses.length} compra(s) de comida
+            </div>
+            {pct !== null && diff !== 0 && (
+              <div
+                className={`mb-1 inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md ${
+                  diff < 0
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-rose-500/15 text-rose-300"
+                }`}
+              >
+                {diff < 0 ? (
+                  <TrendingDown className="w-3 h-3" />
+                ) : (
+                  <TrendingUp className="w-3 h-3" />
+                )}
+                {Math.abs(pct)}% vs mes pasado
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Captura: crea un GASTO de comida */}
+      <Card className="bg-slate-800 border border-slate-700">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <ShoppingBasket className="w-3.5 h-3.5 text-emerald-300" />
+              Agregar compra
+            </label>
+            <span className="text-[10px] text-slate-500 truncate max-w-[60%]">
+              ej: naranja lupita 37 el kilo compre
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="ej: naranja lupita 37 compre"
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="bg-slate-900 border-slate-700 text-white flex-1 min-w-[200px]"
+            />
+            <select
+              value={categoryId ?? ""}
+              onChange={(e) =>
+                setCategoryId(e.target.value === "" ? null : Number(e.target.value))
               }
-            : null,
-          categoryConfidence: analysis.categoryConfidence,
-          categorySource: analysis.categorySource,
-          store: store
-            ? {
-                id: store.id,
-                slug: store.slug,
-                name: store.name,
-                icon: store.icon,
-                color: store.color,
-              }
-            : null,
-          storeConfidence: analysis.storeConfidence,
-          possibleItems: analysis.possibleItems,
-        };
-      }),
+              className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 min-w-[150px]"
+            >
+              <option value="">Categoria (auto)</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.icon} {c.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              onClick={handleCreate}
+              disabled={quickCreate.isPending || !text.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              {quickCreate.isPending ? "..." : "Agregar"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-    quickCreate: ownerOnlyProcedure
-      .input(
-        z.object({
-          text: z.string().min(1),
-          expenseDate: z.string().optional(),
-          paymentMethod: z
-            .enum(["cash", "debit", "credit", "transfer", "other"])
-            .optional(),
-          // Categoria forzada por el cliente (ej. dropdown de la Alacena).
-          // Si viene, gana sobre la deteccion automatica.
-          categoryId: z.number().int().positive().nullable().optional(),
-        }),
-      )
-      .mutation(async ({ input, ctx }) => {
-        const { analysis, category, store, cats } = await analyzeForUser(
-          ctx.user.id,
-          input.text,
-        );
+      {/* Por tienda */}
+      <Card className="bg-slate-800 border border-slate-700">
+        <CardContent className="p-5">
+          <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-1.5">
+            <Store className="w-4 h-4 text-emerald-300" />
+            Por tienda
+          </h3>
+          {byStore.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Aun no hay compras de comida este mes.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {byStore.map((s) => (
+                <div key={s.name}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-300 font-medium truncate">
+                      {s.name}{" "}
+                      <span className="text-slate-500">
+                        · {s.count} compra(s)
+                      </span>
+                    </span>
+                    <span className="text-emerald-300 font-bold tabular-nums">
+                      {fmt(s.total)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-700/70 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      style={{
+                        width: `${maxStore > 0 ? Math.round((s.total / maxStore) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        if (!analysis.amount || analysis.amount <= 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "No detecte un monto. Escribe algo como: gasolina pemex 500",
-          });
-        }
+      {/* Por categoria (chips) */}
+      {byCategory.length > 0 && (
+        <Card className="bg-slate-800 border border-slate-700">
+          <CardContent className="p-5">
+            <h3 className="text-sm font-bold text-slate-200 mb-3">
+              Por categoria
+            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              {byCategory.map((c) => (
+                <span
+                  key={c.name}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border"
+                  style={{
+                    backgroundColor: (c.color ?? "#888780") + "22",
+                    borderColor: (c.color ?? "#888780") + "55",
+                    color: "#e2e8f0",
+                  }}
+                >
+                  <span>{c.icon || "🍎"}</span>
+                  {c.name}
+                  <span className="text-emerald-300 font-black tabular-nums">
+                    {fmt(c.total)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        // Categoria forzada por el cliente gana sobre la deteccion.
-        const forcedCategory =
-          input.categoryId != null
-            ? cats.find((c) => c.id === input.categoryId) ?? null
-            : null;
+      {/* Compras recientes */}
+      <Card className="bg-slate-800 border border-slate-700">
+        <CardContent className="p-5">
+          <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-1.5">
+            <Receipt className="w-4 h-4 text-emerald-300" />
+            Compras recientes
+          </h3>
 
-        const useCategory =
-          !!category && analysis.categoryConfidence >= CATEGORY_CONFIDENCE_MIN;
-        const effectiveCategory = forcedCategory ?? (useCategory ? category : null);
-        const categoryId = effectiveCategory ? effectiveCategory.id : null;
-        const detectedCategoryId = category ? category.id : null;
+          {isLoading ? (
+            <div className="h-20 rounded-xl bg-slate-700/40 animate-pulse" />
+          ) : recent.length === 0 ? (
+            <div className="text-center py-8">
+              <ShoppingBasket className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-300 font-medium">
+                Sin compras de comida este mes
+              </p>
+              <p className="text-slate-500 text-sm mt-1">
+                Captura arriba: "naranja lupita 37 compre" y elige una categoria
+                de comida.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recent.map((e) => {
+                const cat = e.categoryId ? catById.get(e.categoryId) : null;
+                const st = e.storeId ? storeById.get(e.storeId) : null;
+                const storeName = st?.name ?? e.storeName ?? null;
+                return (
+                  <div
+                    key={e.id}
+                    className="flex items-center justify-between gap-3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+                        style={{
+                          backgroundColor: (cat?.color ?? "#888780") + "22",
+                        }}
+                      >
+                        {cat?.icon ?? "🍎"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-100 truncate">
+                          {e.description}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {storeName ? `${storeName} · ` : ""}
+                          {formatDay(e.expenseDate)}
+                          {cat ? ` · ${cat.name}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-emerald-300 font-bold tabular-nums shrink-0">
+                      {fmt(Number(e.amount))}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-        const useStore =
-          !!store && analysis.storeConfidence >= STORE_CONFIDENCE_MIN;
-        const storeId = useStore && store ? store.id : null;
-        const storeName = useStore && store ? store.name : null;
-
-        const purchaseType =
-          analysis.categorySlug && KNOWN_PURCHASE_TYPES.has(analysis.categorySlug)
-            ? analysis.categorySlug
-            : "otro";
-
-        const expense = await createPersonalExpense(ctx.user.id, {
-          amount: analysis.amount,
-          description: analysis.cleanDescription || input.text,
-          normalizedDescription: analysis.normalizedDescription,
-          categoryId,
-          detectedCategoryId,
-          storeId,
-          storeName,
-          purchaseType,
-          autoDetected: forcedCategory ? false : useCategory,
-          detectionConfidence: analysis.categoryConfidence,
-          detectionSource: forcedCategory ? "manual" : analysis.categorySource,
-          paymentMethod: input.paymentMethod ?? "cash",
-          expenseDate: input.expenseDate ?? todayMexico(),
-          rawItemsText:
-            analysis.possibleItems.length > 0
-              ? analysis.possibleItems.join(" ")
-              : null,
-          detectedItemsJson:
-            analysis.possibleItems.length > 0 ? analysis.possibleItems : null,
-        });
-
-        return {
-          expense,
-          category: effectiveCategory
-            ? {
-                id: effectiveCategory.id,
-                name: effectiveCategory.name,
-                icon: effectiveCategory.icon,
-                color: effectiveCategory.color,
-              }
-            : null,
-          store:
-            useStore && store
-              ? {
-                  id: store.id,
-                  name: store.name,
-                  icon: store.icon,
-                  color: store.color,
-                }
-              : null,
-        };
-      }),
-
-    list: ownerOnlyProcedure
-      .input(
-        z
-          .object({
-            year: z.number().int().optional(),
-            month: z.number().int().min(1).max(12).optional(),
-            limit: z.number().int().min(1).max(200).optional(),
-          })
-          .optional(),
-      )
-      .query(async ({ input, ctx }) => {
-        return await listPersonalExpenses(ctx.user.id, input ?? {});
-      }),
-
-    // Borrar (soft delete)
-    softDelete: ownerOnlyProcedure
-      .input(z.object({ id: z.number().int().positive() }))
-      .mutation(async ({ input, ctx }) => {
-        return await softDeletePersonalExpense(ctx.user.id, input.id);
-      }),
-
-    // Cambiar categoria; opcionalmente guardar regla para que aprenda
-    recategorize: ownerOnlyProcedure
-      .input(
-        z.object({
-          id: z.number().int().positive(),
-          categoryId: z.number().int().positive().nullable(),
-          saveRule: z.boolean().optional(),
-        }),
-      )
-      .mutation(async ({ input, ctx }) => {
-        await recategorizePersonalExpense(ctx.user.id, input.id, input.categoryId);
-
-        let ruleSaved = false;
-        if (input.saveRule && input.categoryId != null) {
-          const exp = await getPersonalExpenseById(ctx.user.id, input.id);
-          if (exp && exp.normalizedDescription) {
-            await addPersonalExpenseRule(ctx.user.id, {
-              categoryId: input.categoryId,
-              phrase: exp.description,
-              normalizedPhrase: exp.normalizedDescription,
-              createdFromExpenseId: exp.id,
-            });
-            ruleSaved = true;
-          }
-        }
-
-        return { success: true, ruleSaved };
-      }),
-  }),
-
-  // --------------------------------------------------------------------------
-  // ESTADISTICAS: un solo llamado con todo lo que necesita el dashboard
-  // --------------------------------------------------------------------------
-  stats: router({
-    dashboard: ownerOnlyProcedure
-      .input(
-        z.object({
-          year: z.number().int(),
-          month: z.number().int().min(1).max(12),
-        }),
-      )
-      .query(async ({ input, ctx }) => {
-        const userId = ctx.user.id;
-        const { year, month } = input;
-        const prev =
-          month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
-
-        const [cats, stores, byCatRaw, byStoreRaw, monthTot, prevTot, monthly] =
-          await Promise.all([
-            listPersonalExpenseCategories(userId),
-            listPersonalExpenseStores(userId),
-            sumPersonalExpensesByCategory(userId, year, month),
-            sumPersonalExpensesByStore(userId, year, month),
-            totalPersonalExpensesForMonth(userId, year, month),
-            totalPersonalExpensesForMonth(userId, prev.year, prev.month),
-            monthlyPersonalExpenseTotals(userId),
-          ]);
-
-        const catById = new Map(cats.map((c) => [c.id, c]));
-        const storeById = new Map(stores.map((s) => [s.id, s]));
-
-        const byCategory = byCatRaw
-          .map((r) => {
-            const c = r.categoryId != null ? catById.get(r.categoryId) : null;
-            return {
-              categoryId: r.categoryId,
-              name: c ? c.name : "Sin clasificar",
-              icon: c ? c.icon : "",
-              color: c ? c.color : NEUTRAL_COLOR,
-              total: r.total,
-              count: r.count,
-            };
-          })
-          .sort((a, b) => b.total - a.total);
-
-        const byStore = byStoreRaw
-          .map((r) => {
-            const s = r.storeId != null ? storeById.get(r.storeId) : null;
-            return {
-              storeId: r.storeId,
-              name: s ? s.name : "Sin tienda",
-              icon: s ? s.icon : "",
-              color: s ? s.color : NEUTRAL_COLOR,
-              total: r.total,
-              count: r.count,
-            };
-          })
-          .sort((a, b) => b.total - a.total);
-
-        const topCategory = byCategory.length > 0 ? byCategory[0] : null;
-        const topStore =
-          byStore.find((s) => s.storeId != null) ??
-          (byStore.length > 0 ? byStore[0] : null);
-
-        const now = nowMexico();
-        const isCurrentMonth =
-          now.getFullYear() === year && now.getMonth() + 1 === month;
-        const daysElapsed = isCurrentMonth
-          ? now.getDate()
-          : new Date(year, month, 0).getDate();
-        const avgDaily = daysElapsed > 0 ? monthTot.total / daysElapsed : 0;
-
-        const diff = monthTot.total - prevTot.total;
-        const pct = prevTot.total > 0 ? (diff / prevTot.total) * 100 : null;
-
-        const trendMap = new Map(monthly.map((m) => [m.month, m.total]));
-        const trend: Array<{ month: string; total: number }> = [];
-        for (let i = 5; i >= 0; i--) {
-          const d = new Date(year, month - 1 - i, 1);
-          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-          trend.push({ month: ym, total: trendMap.get(ym) || 0 });
-        }
-
-        return {
-          year,
-          month,
-          total: monthTot.total,
-          count: monthTot.count,
-          byCategory,
-          byStore,
-          topCategory,
-          topStore,
-          avgDaily: Math.round(avgDaily * 100) / 100,
-          vsLastMonth: {
-            prevTotal: prevTot.total,
-            diff: Math.round(diff * 100) / 100,
-            pct: pct === null ? null : Math.round(pct * 10) / 10,
-          },
-          trend,
-        };
-      }),
-  }),
-});
+          {/* Transparencia: que categorias cuentan como comida */}
+          {foodCatList.length > 0 && (
+            <p className="text-[10px] text-slate-500 mt-3">
+              Cuenta como comida:{" "}
+              {foodCatList.map((c) => c.name).join(", ")}. Si falta una, dime y la
+              agrego.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
