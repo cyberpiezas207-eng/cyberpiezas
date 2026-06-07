@@ -31,6 +31,7 @@ import { createPersonalExpense } from "./personalExpensesDb";
 import { normalizeText } from "./personalExpensesEngine";
 import { createWishFromSubmission } from "./personalWishesDb";
 import { getDefaultVehicle, createFuelLog } from "./personalVehicleDb";
+import { createAgendaFromIncome } from "./personalAgendaDb";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -382,16 +383,49 @@ export async function confirmSubmission(
   }
 
   // -------------------------------------------------------------------------
-  // CASO GASTO (y por ahora tambien ingreso): crea gasto, como antes.
-  // Si el envio trae datos extra (odometro, fecha de pago), los dejamos en la
-  // nota del gasto para no perderlos hasta que conectemos esos tipos.
+  // CASO INGRESO: entra a la AGENDA como evento (no a gastos).
+  //   - Usa la fecha de pago (incomeDate) si vino; si no, hoy.
+  //   - Queda como evento tipo income en el calendario de la esposa, y tu lo
+  //     ves desde el Buzon. NO crea gasto (eso arregla el bug de 'id').
+  // -------------------------------------------------------------------------
+  if (meta && meta.kind === "ingreso") {
+    const eventDate =
+      meta.incomeDate && /^\d{4}-\d{2}-\d{2}$/.test(meta.incomeDate)
+        ? meta.incomeDate
+        : todayMexicoYmd();
+
+    const ev = await createAgendaFromIncome(userId, sub.id, {
+      title: sub.description || "Ingreso",
+      eventDate,
+      amount: amount > 0 ? amount : null,
+      createdBy: sub.senderName ?? null,
+      note: meta.note ?? null,
+      tokenId: sub.tokenId ?? null,
+    });
+
+    await conn
+      .update(personalInboxSubmissions)
+      .set({
+        status: "confirmed",
+        confirmedAt: nowMexico(),
+        notes: sub.senderName
+          ? `Ingreso agendado por ${sub.senderName}`
+          : "Ingreso agendado",
+      })
+      .where(eq(personalInboxSubmissions.id, id));
+
+    return { ok: true, kind: "ingreso" as const, agendaId: ev.id };
+  }
+
+  // -------------------------------------------------------------------------
+  // CASO GASTO: crea gasto, como antes.
+  // Si el envio trae datos extra (odometro), los dejamos en la nota del gasto
+  // para no perderlos (caso raro: gasolina sin carro registrado).
   // -------------------------------------------------------------------------
   let extraNote = "";
   if (meta) {
     if (meta.kind === "gasolina" && meta.odometer != null) {
       extraNote = ` (gasolina, odometro ${meta.odometer})`;
-    } else if (meta.kind === "ingreso" && meta.incomeDate) {
-      extraNote = ` (ingreso, fecha ${meta.incomeDate})`;
     }
   }
 
