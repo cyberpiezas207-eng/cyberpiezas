@@ -709,7 +709,6 @@ function DebtCard({
   const current = debt.currentInstallment ?? 0;
   const total = debt.totalInstallments ?? null;
 
-  // Progress %
   let progressPct = 0;
   if (total != null && total > 0) {
     progressPct = Math.min(100, Math.round((current / total) * 100));
@@ -722,9 +721,43 @@ function DebtCard({
 
   const dueDays = daysUntil(debt.nextDueDate);
   const isOverdue = dueDays != null && dueDays < 0;
-  const isSoon = dueDays != null && dueDays >= 0 && dueDays <= 3;
+  const isToday = dueDays === 0;
+  const isSoon = dueDays != null && dueDays > 0 && dueDays <= 3;
 
-  function handleArchive() {
+  let dueBadge: { text: string; cls: string } | null = null;
+  if (dueDays != null) {
+    if (isOverdue) {
+      dueBadge = {
+        text: `Vencida ${Math.abs(dueDays)}d`,
+        cls: "bg-rose-500/20 text-rose-200 border-rose-500/60",
+      };
+    } else if (isToday) {
+      dueBadge = {
+        text: "Vence hoy",
+        cls: "bg-rose-500/15 text-rose-300 border-rose-500/50",
+      };
+    } else if (dueDays === 1) {
+      dueBadge = {
+        text: "Vence manana",
+        cls: "bg-rose-500/10 text-rose-300 border-rose-500/40",
+      };
+    } else if (dueDays <= 7) {
+      dueBadge = {
+        text: `En ${dueDays}d`,
+        cls: "bg-amber-500/15 text-amber-300 border-amber-500/40",
+      };
+    } else {
+      dueBadge = {
+        text: `En ${dueDays}d`,
+        cls: "bg-slate-700/60 text-slate-300 border-slate-600",
+      };
+    }
+  }
+
+  const isSold = debt.assetStatus === "sold";
+
+  function handleArchive(e: React.MouseEvent) {
+    e.stopPropagation();
     if (
       window.confirm(
         `Archivar "${debt.title}"? Esto la quitara de la lista activa.`,
@@ -745,244 +778,142 @@ function DebtCard({
           onEdit();
         }
       }}
-      className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800/60 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800/80 shadow-md p-4 cursor-pointer transition-all"
-      title="Click para editar esta deuda"
+      className={`group relative rounded-xl bg-slate-800/50 border px-3 py-2.5 cursor-pointer transition-all hover:bg-slate-800 ${
+        isOverdue
+          ? "border-rose-500/40 hover:border-rose-500/70"
+          : "border-slate-700/70 hover:border-slate-600"
+      }`}
+      title="Click para editar"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <span
-          className="w-10 h-10 rounded-xl ring-1 flex items-center justify-center text-lg shrink-0"
+          className="w-9 h-9 rounded-lg ring-1 flex items-center justify-center text-base shrink-0"
           style={{
-            backgroundColor: (debt.color ?? "#fb7185") + "22",
-            borderColor: debt.color ?? "#fb7185",
+            backgroundColor: (debt.color ?? "#fb7185") + "1f",
+            borderColor: (debt.color ?? "#fb7185") + "66",
           }}
         >
           {debt.icon ?? "💳"}
         </span>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">
-                {debt.creditorName} · {debt.title}
-              </p>
-              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                {total != null && (
-                  <span className="text-[11px] text-slate-400">
-                    {current}/{total} pagos
-                  </span>
-                )}
-                {installment != null && (
-                  <>
-                    <span className="text-[11px] text-slate-600">·</span>
-                    <span className="text-[11px] text-slate-400">
-                      {fmt(installment)}{freqSuffix(debt.frequencyDays)}
-                    </span>
-                  </>
-                )}
-                {debt.isInstallmentPurchase && (
-                  <>
-                    <span className="text-[11px] text-slate-600">·</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                      {debt.installmentPlanType === "msi" ? "MSI" : "A meses"}
-                    </span>
-                  </>
-                )}
-                {debt.linkedAssetName && (
-                  <>
-                    <span className="text-[11px] text-slate-600">·</span>
-                    {debt.assetStatus === "sold" ? (
-                      <span className="text-[11px] text-orange-300 font-bold">
-                        🏷️ {debt.linkedAssetName} · vendido
-                        {debt.assetSoldPrice
-                          ? ` por ${fmt(Number(debt.assetSoldPrice))}`
-                          : ""}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-indigo-300">
-                        🎮 {debt.linkedAssetName}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleArchive();
-                }}
-                className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
-                title="Archivar deuda"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Debts-Edit: Badge prominente de urgencia + dia de pago visible */}
-          {(dueDays != null || debt.dueDay != null || (debt.frequencyDays != null && debt.frequencyDays > 0)) && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              {dueDays != null && (
-                <span
-                  className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md border ${
-                    isOverdue
-                      ? "bg-rose-500/20 text-rose-200 border-rose-500"
-                      : dueDays === 0
-                        ? "bg-rose-500/15 text-rose-300 border-rose-500/70"
-                        : dueDays <= 2
-                          ? "bg-rose-500/10 text-rose-300 border-rose-500/50"
-                          : dueDays <= 7
-                            ? "bg-amber-500/15 text-amber-300 border-amber-500/50"
-                            : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
-                  }`}
-                >
-                  {isOverdue
-                    ? `🚨 Vencida hace ${Math.abs(dueDays)} d`
-                    : dueDays === 0
-                      ? "⚠ Vence HOY"
-                      : dueDays === 1
-                        ? "⚠ Vence MAÑANA"
-                        : `⏰ Vence en ${dueDays} dias`}
-                </span>
-              )}
-              {debt.frequencyDays != null && debt.frequencyDays > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-300 px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/30">
-                  <Calendar className="w-3 h-3" />
-                  {freqLabel(debt.frequencyDays)}
-                </span>
-              ) : debt.dueDay != null ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 px-2 py-1 rounded-md bg-slate-800/50 border border-slate-700">
-                  <Calendar className="w-3 h-3" />
-                  Dia {debt.dueDay} de cada mes
-                </span>
-              ) : null}
-            </div>
-          )}
-
-          {/* Barra de progreso */}
-          <div className="mt-3 space-y-1">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-400">Saldo restante</span>
-              <span className="text-rose-300 font-bold">
-                {fmtExact(balance)}
-                {original != null && (
-                  <span className="text-slate-500 font-normal">
-                    {" "}/ {fmtExact(original)}
-                  </span>
-                )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-white truncate">
+              {debt.creditorName}
+              <span className="text-slate-400 font-normal"> · {debt.title}</span>
+            </p>
+            {isSold && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500/15 border border-orange-400/30 text-orange-200 shrink-0">
+                vendido
               </span>
-            </div>
-            <div className="h-2 bg-slate-700/70 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${progressPct}%`,
-                  background:
-                    "linear-gradient(90deg, #f43f5e 0%, #fb7185 100%)",
-                }}
-              />
-            </div>
+            )}
           </div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500 flex-wrap">
+            {total != null && (
+              <span className="tabular-nums">
+                {current}/{total} pagos
+              </span>
+            )}
+            {installment != null && (
+              <>
+                {total != null && <span className="text-slate-700">·</span>}
+                <span className="tabular-nums">
+                  {fmt(installment)}
+                  {freqSuffix(debt.frequencyDays)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
 
-          {/* Proximo pago + boton Pagar */}
-          <div className="flex items-center justify-between gap-2 mt-3">
-            <div className="text-[11px] text-slate-400">
-              {debt.nextDueDate ? (
-                <span>
-                  Proximo pago:{" "}
-                  <span
-                    className={`font-bold ${
-                      isOverdue
-                        ? "text-rose-300"
-                        : isSoon
-                          ? "text-amber-300"
-                          : "text-emerald-300"
-                    }`}
-                  >
-                    {formatDay(debt.nextDueDate)}
-                  </span>
-                </span>
-              ) : debt.dueDay != null ? (
-                <span className="text-slate-500 italic">
-                  Sin proxima fecha exacta
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-amber-300/80 italic">
-                  <Calendar className="w-3 h-3" />
-                  Click para agregar fecha de pago
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
+        <div className="text-right shrink-0">
+          <p className="text-sm font-black text-rose-300 tabular-nums leading-tight">
+            {fmt(balance)}
+          </p>
+          {dueBadge ? (
+            <span
+              className={`inline-block mt-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${dueBadge.cls}`}
+            >
+              {dueBadge.text}
+            </span>
+          ) : (
+            <span className="inline-block mt-1 text-[9px] text-slate-600 italic">
+              sin fecha
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPay();
+            }}
+            size="sm"
+            className="bg-rose-600 hover:bg-rose-700 text-white h-7 px-2.5 text-[11px]"
+          >
+            <Receipt className="w-3 h-3 mr-1" />
+            Pagar
+          </Button>
+          {debt.linkedAssetName && !isSold && (
             <Button
               onClick={(e) => {
                 e.stopPropagation();
-                onPay();
+                onSell();
               }}
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white"
+              variant="outline"
+              className="border-orange-500/40 text-orange-300 hover:bg-orange-500/15 h-7 w-7 p-0"
+              title={`Vender ${debt.linkedAssetName}`}
             >
-              <Receipt className="w-3.5 h-3.5 mr-1" />
-              Pagar
+              <Tag className="w-3 h-3" />
             </Button>
-            {debt.linkedAssetName && debt.assetStatus !== "sold" && (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSell();
-                }}
-                size="sm"
-                variant="outline"
-                className="border-orange-500/50 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200"
-                title={`Vender ${debt.linkedAssetName}`}
-              >
-                <Tag className="w-3.5 h-3.5 mr-1" />
-                Vender
-              </Button>
-            )}
-          </div>
+          )}
+          <button
+            onClick={handleArchive}
+            className="text-slate-600 hover:text-rose-400 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Archivar"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Si el activo fue vendido, mostrar bloque con info de la venta */}
-      {debt.assetStatus === "sold" && (
-        <div className="mt-3 pt-3 border-t border-slate-700/60">
-          <div className="flex items-center gap-2 flex-wrap text-[11px]">
-            <span className="px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-200 font-bold uppercase tracking-wider text-[9px]">
-              Activo vendido
-            </span>
-            {debt.assetSoldAt && (
-              <span className="text-slate-400">{formatDay(debt.assetSoldAt)}</span>
-            )}
-            {debt.assetSoldPrice && (
-              <span className="text-orange-300 font-bold">
-                {fmtExact(Number(debt.assetSoldPrice))}
-              </span>
-            )}
-            {debt.assetSoldPrice && debt.originalAmount && (
-              <span
-                className={`font-bold ${
-                  Number(debt.assetSoldPrice) - Number(debt.originalAmount) < 0
-                    ? "text-rose-300"
-                    : "text-emerald-300"
-                }`}
-              >
-                {(() => {
-                  const diff =
-                    Number(debt.assetSoldPrice) - Number(debt.originalAmount);
-                  return `${diff >= 0 ? "+" : ""}${fmtExact(diff)}`;
-                })()}
-              </span>
-            )}
-            {debt.assetSoldBuyer && (
-              <span className="text-slate-500">
-                a {debt.assetSoldBuyer}
-              </span>
-            )}
-          </div>
+      <div className="flex items-center gap-3 mt-2 pl-12">
+        <div className="flex-1 h-1 bg-slate-700/60 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${progressPct}%`,
+              background: "linear-gradient(90deg, #f43f5e 0%, #fb7185 100%)",
+            }}
+          />
         </div>
-      )}
+        <div className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
+          <Calendar className="w-3 h-3" />
+          {debt.nextDueDate ? (
+            <span
+              className={`tabular-nums ${
+                isOverdue
+                  ? "text-rose-400 font-bold"
+                  : isSoon || isToday
+                    ? "text-amber-400 font-bold"
+                    : ""
+              }`}
+            >
+              {formatDay(debt.nextDueDate)}
+            </span>
+          ) : debt.dueDay != null ? (
+            <span>dia {debt.dueDay}</span>
+          ) : (
+            <span className="text-amber-400/70 italic">poner fecha</span>
+          )}
+          {original != null && (
+            <span className="text-slate-600 ml-1">
+              de {fmtExact(original)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
