@@ -177,6 +177,7 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
   const [amountText, setAmountText] = useState("");
   const [storeName, setStoreName] = useState("");
   const [odometerText, setOdometerText] = useState("");
+  const [pricePerLiterText, setPricePerLiterText] = useState("");
   const [incomeDate, setIncomeDate] = useState("");
   const [wishWhen, setWishWhen] = useState("");
   const [justSent, setJustSent] = useState(false);
@@ -188,6 +189,7 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
       setAmountText("");
       setStoreName("");
       setOdometerText("");
+      setPricePerLiterText("");
       setIncomeDate("");
       setWishWhen("");
     },
@@ -202,6 +204,7 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
 
   const parsedAmount = parseNum(amountText);
   const parsedOdometer = parseNum(odometerText);
+  const parsedPricePerLiter = parseNum(pricePerLiterText);
 
   const canSend =
     kind != null &&
@@ -213,6 +216,7 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
     const meta: Record<string, any> = { kind };
     if (kind === "gasolina") {
       meta.odometer = parsedOdometer;
+      meta.pricePerLiter = parsedPricePerLiter;
     } else if (kind === "ingreso") {
       meta.incomeDate = incomeDate || null;
     } else if (kind === "deseo") {
@@ -423,6 +427,31 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   El numero que marca el tablero del carro.
+                </p>
+              </div>
+            )}
+
+            {/* Campo extra GASOLINA: precio por litro */}
+            {kind === "gasolina" && (
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-1.5">
+                  Precio por litro
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={pricePerLiterText}
+                    onChange={(e) => setPricePerLiterText(e.target.value)}
+                    placeholder="Ej. 23.50"
+                    className="w-full h-12 pl-8 pr-4 rounded-2xl border border-stone-300 bg-stone-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-all"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  El precio que aparece en la bomba (por litro).
                 </p>
               </div>
             )}
