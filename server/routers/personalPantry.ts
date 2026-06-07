@@ -280,8 +280,11 @@ export const personalPantryRouter = router({
             });
             createdExpenseId = (expense as any)?.id ?? null;
 
-            // 2. Registrar entrada en historial de precios (vinculada al gasto)
-            if (detection.unitPrice != null && item?.id) {
+          // 2. Registrar entrada en historial de precios (vinculada al gasto)
+            // Solo si hay un unitPrice REAL (> 0). unitPrice es NOT NULL en la
+            // tabla, asi que un undefined/null reventaba el insert. Si no hay
+            // precio unitario confiable, no ensuciamos el historial de precios.
+            if (detection.unitPrice != null && detection.unitPrice > 0 && item?.id) {
               await recordPantryItemPrice(userId, {
                 pantryItemId: item.id,
                 unitPrice: detection.unitPrice,
