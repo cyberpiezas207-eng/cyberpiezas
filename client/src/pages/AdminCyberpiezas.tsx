@@ -40,10 +40,17 @@ export default function AdminCyberpiezas() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [activeTab, setActiveTab] = useState<AdminTabKey>("suscriptores");
-  const [showGastos, setShowGastos] = useState(false);
-  // Sub-tab inicial al abrir PersonalExpensesView (controlado desde tiles)
+  // Sub-tab activo dentro de PersonalExpensesView. Por defecto "gastos"
+  // (Dinero / Flujo) como la vista que el usuario quiere ver primero.
+  // El panel general (flujo, calendario, KPIs, bolsillos) vive ahora en la
+  // pestana "Resumen" de esa misma vista, asi se navega todo con un toque
+  // desde la barra de areas, sin un piso intermedio.
   const [gastosInitialSubTab, setGastosInitialSubTab] =
     useState<SubModule>("gastos");
+  // Key para forzar remonte de la vista cuando se pide cambiar de sub-tab
+  // desde AlertsCenter (que apunta a deudas/recordatorios). Cambiar la key
+  // reinicia el activeTab interno al nuevo initialSubTab.
+  const [gastosViewKey, setGastosViewKey] = useState(0);
   const [welcomeEmail, setWelcomeEmail] = useState<{
     to: string;
     subject: string;
@@ -64,6 +71,13 @@ export default function AdminCyberpiezas() {
       setProcessingKey(null);
     },
   });
+
+  // Helper: ir a una sub-area de la vista personal (cambia el tab inicial y
+  // fuerza el remonte de la vista para que tome ese tab).
+  function goToPersonalSubTab(subTab: SubModule) {
+    setGastosInitialSubTab(subTab);
+    setGastosViewKey((k) => k + 1);
+  }
 
   // Query para mostrar count de pagos pendientes como badge en la tab
   const pendingPaymentsQuery = trpc.pagos.admin.listAll.useQuery({
@@ -153,6 +167,45 @@ export default function AdminCyberpiezas() {
     );
   }
 
+  // Panel general (lo que antes era el "piso intermedio" de operaciones).
+  // Ahora se inyecta en la pestana "Resumen" de PersonalExpensesView.
+  // NINGUN componente se elimina: solo cambia DONDE se monta y sus callbacks
+  // de navegacion ahora apuntan a goToPersonalSubTab (un toque, sin piso extra).
+  const resumenPanel = (
+    <div className="space-y-5">
+      {/* Centro de Alertas - se auto-oculta si no hay alertas */}
+      <AlertsCenter
+        onNavigate={(target) => {
+          if (target === "debts") {
+            goToPersonalSubTab("deudas");
+          } else if (target === "subscriptions") {
+            setLocation("/mis-suscripciones");
+          } else if (target === "admin_payments") {
+            setActiveTab("pagos");
+          } else if (target === "reminders") {
+            goToPersonalSubTab("recordatorios");
+          }
+        }}
+      />
+      {/* Dinero Libre Estimado - Resumen de Hoy */}
+      <DineroLibreCard />
+      {/* Bolsillos (Wallets) */}
+      <WalletsPanel />
+      {/* KPI Strip */}
+      <AdminKPIStrip />
+      {/* Tiles de navegacion a sub-modulos */}
+      <AdminQuickTiles
+        onOpenModule={(subTab) => goToPersonalSubTab(subTab)}
+      />
+      <FlujoGeneralPanel
+        onOpenMisGastos={() => goToPersonalSubTab("gastos")}
+      />
+      {/* Calendario visual de pagos */}
+      <PaymentCalendarPanel />
+      <OperationsView showHeader={false} />
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-5 pb-12">
@@ -216,50 +269,17 @@ export default function AdminCyberpiezas() {
         {/* Tab content: Pagos pendientes (Commit 3 V2 Admin Hub) */}
         {activeTab === "pagos" && <AdminPendingPaymentsTab />}
 
-        {/* Tab content: Operaciones (V3 con KPI strip + tiles arriba) */}
-        {activeTab === "operaciones" &&
-          (showGastos ? (
-            <PersonalExpensesView
-              onBack={() => setShowGastos(false)}
-              initialSubTab={gastosInitialSubTab}
-            />
-          ) : (
-            <div className="space-y-5">
-              {/* Centro de Alertas (Commit 9) - se auto-oculta si no hay alertas */}
-              <AlertsCenter
-                onNavigate={(target) => {
-                  if (target === "debts") {
-                    setGastosInitialSubTab("deudas");
-                    setShowGastos(true);
-                  } else if (target === "subscriptions") {
-                    setLocation("/mis-suscripciones");
-                  } else if (target === "admin_payments") {
-                    setActiveTab("pagos");
-                  } else if (target === "reminders") {
-                    setGastosInitialSubTab("recordatorios");
-                    setShowGastos(true);
-                  }
-                }}
-              />
-              {/* Dinero Libre Estimado - Resumen de Hoy (Commit A) */}
-              <DineroLibreCard />
-              {/* Bolsillos (Modo Esposa Fase A - Wallets-2) */}
-              <WalletsPanel />
-              {/* KPI Strip (Commit 6) */}
-              <AdminKPIStrip />
-              {/* Tiles de navegacion a sub-modulos (Commit 7) */}
-              <AdminQuickTiles
-                onOpenModule={(subTab) => {
-                  setGastosInitialSubTab(subTab);
-                  setShowGastos(true);
-                }}
-              />
-              <FlujoGeneralPanel onOpenMisGastos={() => setShowGastos(true)} />
-              {/* Calendario visual de pagos (Commit 8) */}
-              <PaymentCalendarPanel />
-              <OperationsView showHeader={false} />
-            </div>
-          ))}
+        {/* Tab content: Operaciones - entra DIRECTO a la vista con barra de
+            areas. El panel general (flujo, calendario, KPIs, bolsillos) vive
+            en la pestana "Resumen" (resumenPanel). Sin piso intermedio: todo
+            se navega con un toque desde la barra de areas. */}
+        {activeTab === "operaciones" && (
+          <PersonalExpensesView
+            key={gastosViewKey}
+            initialSubTab={gastosInitialSubTab}
+            resumenSlot={resumenPanel}
+          />
+        )}
       </div>
 
       {/* Modal "Welcome email": helpers para copiar/abrir mailto */}
