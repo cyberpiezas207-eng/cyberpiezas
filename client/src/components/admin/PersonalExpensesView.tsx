@@ -286,12 +286,16 @@ interface Props {
   // Panel general (flujo, calendario, KPIs, bolsillos) inyectado por el padre.
   // Se muestra en la pestana "Resumen". Si no viene, esa pestana no aparece.
   resumenSlot?: ReactNode;
+  // Hero "resumen de hoy" (dinero libre + proximo pago) inyectado por el
+  // padre. Se muestra SIEMPRE arriba de la barra de areas, visible al entrar.
+  topSlot?: ReactNode;
 }
 
 export default function PersonalExpensesView({
   onBack,
   initialSubTab,
   resumenSlot,
+  topSlot,
 }: Props) {
   const today = nowMexico();
 
@@ -535,6 +539,10 @@ export default function PersonalExpensesView({
           )}
         </div>
       </div>
+
+      {/* Hero "resumen de hoy" inyectado por el padre. Siempre arriba, lo
+          primero que se ve al entrar (antes de la barra de areas). */}
+      {topSlot != null && <div>{topSlot}</div>}
 
       {/* Sub-pestanas internas + boton gestionar - PREMIUM
           Fila deslizable horizontal (estilo app de banco): en celular se
