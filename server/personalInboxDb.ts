@@ -30,6 +30,7 @@ import {
 import { createPersonalExpense } from "./personalExpensesDb";
 import { normalizeText } from "./personalExpensesEngine";
 import { createWishFromSubmission } from "./personalWishesDb";
+import { getDefaultVehicle, createFuelLog } from "./personalVehicleDb";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -86,6 +87,7 @@ function readMeta(rawText: any): {
     return {
       kind,
       odometer: o.odometer != null ? Number(o.odometer) : null,
+      pricePerLiter: o.pricePerLiter != null ? Number(o.pricePerLiter) : null,
       incomeDate: o.incomeDate ?? null,
       wishWhen: o.wishWhen ?? null,
       note: o.note ?? null,
@@ -247,7 +249,17 @@ export async function countPending(userId: number): Promise<number> {
 // Confirma un pendiente: lo materializa segun su tipo y lo marca confirmado.
 //   - deseo  -> crea un DESEO (pestana Deseos)
 //   - otros  -> crea un GASTO real (como antes)
-export async function confirmSubmission(userId: number, id: number) {
+export interface ConfirmOptions {
+  // Para gasolina: si countAsExpense=true, ademas del fuelLog crea un gasto
+  // (dinero nuevo). Si false, solo registra la carga (dinero que ya se dio).
+  countAsExpense?: boolean;
+}
+
+export async function confirmSubmission(
+  userId: number,
+  id: number,
+  options: ConfirmOptions = {},
+) {
   const conn = await getDbOrThrow();
   const rows = await conn
     .select()
@@ -295,7 +307,82 @@ export async function confirmSubmission(userId: number, id: number) {
   }
 
   // -------------------------------------------------------------------------
-  // CASO GASTO (y por ahora tambien gasolina/ingreso): crea gasto, como antes.
+  // CASO GASOLINA: entra al modulo Vehiculo como una carga (fuel log).
+  //   - Siempre registra la carga en el carro default (con odometro y litros).
+  //   - El switch options.countAsExpense decide si ADEMAS cuenta como gasto:
+  //       true  -> dinero nuevo: crea gasto y lo liga al fuel log.
+  //       false -> del que ya le di: solo la carga, sin gasto (no duplica).
+  //   - Si no hay carro registrado, cae al flujo de gasto normal (no se pierde).
+  // -------------------------------------------------------------------------
+  if (meta && meta.kind === "gasolina" && amount > 0) {
+    const vehicle = await getDefaultVehicle(userId);
+    if (vehicle) {
+      // pricePerLiter: lo que mando la esposa; si no vino, se estima despues
+      // dejandolo en 1 para no romper (litros saldra raro, pero el monto y el
+      // odometro -lo importante- quedan bien). Idealmente siempre lo manda.
+      const ppl =
+        meta.pricePerLiter != null && meta.pricePerLiter > 0
+          ? meta.pricePerLiter
+          : 1;
+
+      // Si es dinero nuevo, primero creamos el gasto para ligarlo.
+      let linkedExpenseId: number | null = null;
+      if (options.countAsExpense) {
+        const gas = await createPersonalExpense(userId, {
+          amount,
+          description: sub.description || "Gasolina",
+          normalizedDescription: normalizeText(sub.description || "Gasolina"),
+          categoryId: null,
+          detectedCategoryId: null,
+          storeId: null,
+          storeName: sub.storeName ?? null,
+          purchaseType: "otro",
+          autoDetected: false,
+          detectionConfidence: 0,
+          detectionSource: "manual",
+          paymentMethod: "cash",
+          expenseDate: todayMexicoYmd(),
+          notes: sub.senderName
+            ? `Gasolina capturada por ${sub.senderName}`
+            : "Gasolina del buzon",
+        });
+        linkedExpenseId = gas.id;
+      }
+
+      const fuelLog = await createFuelLog(userId, {
+        vehicleId: vehicle.id,
+        amountPaid: amount,
+        pricePerLiter: ppl,
+        odometerReading: meta.odometer ?? null,
+        paymentMethod: "cash",
+        linkedExpenseId,
+        notes: sub.senderName ? `Carga de ${sub.senderName}` : null,
+      });
+
+      await conn
+        .update(personalInboxSubmissions)
+        .set({
+          status: "confirmed",
+          confirmedExpenseId: linkedExpenseId,
+          confirmedAt: nowMexico(),
+          notes: options.countAsExpense
+            ? "Gasolina (dinero nuevo, contada como gasto)"
+            : "Gasolina (del dinero ya entregado)",
+        })
+        .where(eq(personalInboxSubmissions.id, id));
+
+      return {
+        ok: true,
+        kind: "gasolina" as const,
+        fuelLogId: fuelLog.id,
+        expenseId: linkedExpenseId,
+      };
+    }
+    // Si no hay carro, sigue al flujo de gasto normal de abajo.
+  }
+
+  // -------------------------------------------------------------------------
+  // CASO GASTO (y por ahora tambien ingreso): crea gasto, como antes.
   // Si el envio trae datos extra (odometro, fecha de pago), los dejamos en la
   // nota del gasto para no perderlos hasta que conectemos esos tipos.
   // -------------------------------------------------------------------------
