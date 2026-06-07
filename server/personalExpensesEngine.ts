@@ -1,3 +1,4 @@
+// >>> ESTE ARCHIVO VA EN: server/personalExpensesEngine.ts <<<
 // ============================================================================
 // MOTOR DE CATEGORIZACION - Gastos personales
 // ----------------------------------------------------------------------------
@@ -11,6 +12,10 @@
 //   3. Detecta CATEGORIA por reglas aprendidas o keywords, con un puntaje
 //   4. Detecta TIENDA por keywords, con su puntaje
 //   5. Calcula una confianza 0-100 y de donde salio la deteccion
+//
+// AMPLIACION (clasificador): mas categorias y mas keywords para que adivine
+// mejor desde el dia 1 (religioso, telefonia en servicios, comida fuera,
+// salud, hogar, auto, ropa, diversion, mascotas, educacion).
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -87,28 +92,91 @@ export const DEFAULT_CATEGORIES: SeedCategory[] = [
     name: "Despensa",
     icon: "\uD83D\uDED2",
     color: "#378ADD",
-    keywords: ["despensa", "super", "mercado", "abarrotes", "leche", "huevo", "pan", "azucar", "arroz", "frijol"],
+    keywords: ["despensa", "super", "mercado", "abarrotes", "leche", "huevo", "pan", "azucar", "arroz", "frijol", "tortilla", "tortillas", "aceite", "sal", "cafe", "harina", "pasta", "sopa"],
   },
   {
     slug: "verduleria",
     name: "Verduleria",
     icon: "\uD83E\uDD6C",
     color: "#639922",
-    keywords: ["verdura", "verduleria", "fruta", "frutas", "tomate", "jitomate", "cebolla", "papa", "lechuga", "aguacate", "chile"],
+    keywords: ["verdura", "verduleria", "fruta", "frutas", "tomate", "jitomate", "cebolla", "papa", "lechuga", "aguacate", "chile", "limon", "zanahoria", "platano", "manzana", "naranja"],
   },
   {
     slug: "carne",
     name: "Carne",
     icon: "\uD83E\uDD69",
     color: "#D85A30",
-    keywords: ["carne", "pollo", "res", "puerco", "cerdo", "carniceria", "bistec", "milanesa", "pescado", "chuleta"],
+    keywords: ["carne", "pollo", "res", "puerco", "cerdo", "carniceria", "bistec", "milanesa", "pescado", "chuleta", "chorizo", "jamon", "salchicha", "tocino"],
   },
   {
     slug: "servicios",
     name: "Servicios",
     icon: "\uD83D\uDCA1",
     color: "#7F77DD",
-    keywords: ["luz", "cfe", "agua", "internet", "telmex", "izzi", "totalplay", "telefono", "recibo", "servicio"],
+    keywords: ["luz", "cfe", "agua", "internet", "telmex", "izzi", "totalplay", "telefono", "recibo", "servicio", "telcel", "att", "movistar", "unefon", "bait", "recarga", "tiempo aire", "datos", "plan", "megacable", "dish", "sky", "netflix", "spotify", "predial", "gas natural", "gas estacionario"],
+  },
+  {
+    slug: "religioso",
+    name: "Religioso",
+    icon: "\u26EA",
+    color: "#534AB7",
+    keywords: ["misa", "iglesia", "rosario", "ofrenda", "limosna", "diezmo", "templo", "capilla", "bautizo", "comunion", "novena", "veladora", "santo"],
+  },
+  {
+    slug: "comida-fuera",
+    name: "Comida fuera",
+    icon: "\uD83C\uDF54",
+    color: "#993C1D",
+    keywords: ["taqueria", "tacos", "restaurante", "fonda", "cocina", "antojitos", "comida", "torta", "tortas", "pizza", "hamburguesa", "pollo asado", "barbacoa", "carnitas", "birria", "elotes", "starbucks"],
+  },
+  {
+    slug: "salud",
+    name: "Salud",
+    icon: "\uD83D\uDC8A",
+    color: "#1D9E75",
+    keywords: ["farmacia", "doctor", "medicina", "medicamento", "consulta", "similares", "benavides", "analisis", "laboratorio", "dentista", "hospital", "pastillas", "jarabe", "inyeccion"],
+  },
+  {
+    slug: "hogar",
+    name: "Hogar",
+    icon: "\uD83C\uDFE0",
+    color: "#0F6E56",
+    keywords: ["ferreteria", "limpieza", "jabon", "cloro", "fabuloso", "pinol", "detergente", "muebles", "foco", "pintura", "escoba", "trapeador", "papel higienico", "servilletas", "bolsas"],
+  },
+  {
+    slug: "auto",
+    name: "Auto",
+    icon: "\uD83D\uDD27",
+    color: "#888780",
+    keywords: ["taller", "llanta", "llantas", "aceite", "verificacion", "mecanico", "refaccion", "refacciones", "afinacion", "bateria", "frenos", "alineacion", "balanceo", "tenencia"],
+  },
+  {
+    slug: "ropa",
+    name: "Ropa",
+    icon: "\uD83D\uDC55",
+    color: "#D4537E",
+    keywords: ["ropa", "zapatos", "tenis", "playera", "pantalon", "vestido", "camisa", "blusa", "calcetines", "chamarra", "boutique"],
+  },
+  {
+    slug: "diversion",
+    name: "Diversion",
+    icon: "\uD83C\uDF89",
+    color: "#D85A30",
+    keywords: ["cine", "salida", "fiesta", "regalo", "juguete", "videojuego", "concierto", "feria", "boliche", "parque", "viaje", "paseo", "cumpleanos", "pastel"],
+  },
+  {
+    slug: "mascotas",
+    name: "Mascotas",
+    icon: "\uD83D\uDC3E",
+    color: "#85B7EB",
+    keywords: ["croquetas", "veterinario", "perro", "gato", "mascota", "arena gato", "desparasitante"],
+  },
+  {
+    slug: "educacion",
+    name: "Educacion",
+    icon: "\uD83D\uDCDA",
+    color: "#185FA5",
+    keywords: ["colegiatura", "escuela", "utiles", "papeleria", "cuaderno", "libro", "libros", "inscripcion", "uniforme", "curso", "clases"],
   },
   {
     slug: "sin-clasificar",
@@ -159,6 +227,14 @@ export const DEFAULT_STORES: SeedStore[] = [
     icon: "\uD83E\uDD55",
     color: "#3B6D11",
     keywords: ["central", "abastos", "central de abastos", "central de abasto"],
+  },
+  {
+    slug: "oxxo",
+    name: "Oxxo",
+    type: "conveniencia",
+    icon: "\uD83C\uDFEA",
+    color: "#A32D2D",
+    keywords: ["oxxo"],
   },
   {
     slug: "otro",
