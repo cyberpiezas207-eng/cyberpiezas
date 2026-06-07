@@ -826,7 +826,8 @@ export async function getMonthSummary(
     0,
   );
 
-  // paymentsThisMonth: suma de pagos del mes
+  // paymentsThisMonth: suma de pagos del mes (informativo, para mostrar
+  // "ya pagaste X"). Incluye pagos a CUALQUIER deuda este mes.
   const monthPayments = await db
     .select()
     .from(personalDebtPayments)
@@ -841,6 +842,15 @@ export async function getMonthSummary(
     (acc, p) => acc + toNum(p.amount),
     0,
   );
+
+  // Pagos del mes agrupados POR DEUDA (para descontar a cada deuda lo suyo).
+  // Asi una deuda viva solo descuenta lo que SE LE abono a ella, no pagos
+  // de otras deudas (ni de deudas ya liquidadas que ya no estan vivas).
+  const paidByDebt = new Map<number, number>();
+  for (const p of monthPayments) {
+    const prev = paidByDebt.get(p.debtId) ?? 0;
+    paidByDebt.set(p.debtId, prev + toNum(p.amount));
+  }
 
   // Proximo pago: deuda activa con nextDueDate mas cercana
   const debtsWithDate = activeDebts.filter((d) => d.nextDueDate);
