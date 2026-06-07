@@ -536,12 +536,16 @@ export default function PersonalExpensesView({
         </div>
       </div>
 
-      {/* Sub-pestanas internas + boton gestionar - PREMIUM */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Sub-pestanas internas + boton gestionar - PREMIUM
+          Fila deslizable horizontal (estilo app de banco): en celular se
+          desliza con el dedo en vez de amontonarse en varias filas; en
+          escritorio la fila cabe completa. Los botones no se aplastan
+          (shrink-0) y el texto no se parte (whitespace-nowrap). */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1 [scrollbar-width:thin]">
         {resumenSlot != null && (
           <button
             onClick={() => setActiveTab("resumen")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeTab === "resumen"
                 ? "bg-gradient-to-br from-indigo-500/25 to-cyan-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
                 : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -553,7 +557,7 @@ export default function PersonalExpensesView({
         )}
         <button
           onClick={() => setActiveTab("gastos")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "gastos"
               ? "bg-gradient-to-br from-orange-500/25 to-orange-600/15 border border-orange-400/60 text-orange-100 shadow-lg shadow-orange-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -564,7 +568,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("alacena")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "alacena"
               ? "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-400/60 text-emerald-100 shadow-lg shadow-emerald-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -575,7 +579,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("vehiculo")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "vehiculo"
               ? "bg-gradient-to-br from-indigo-500/25 to-indigo-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -586,7 +590,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("deudas")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "deudas"
               ? "bg-gradient-to-br from-rose-500/25 to-red-600/15 border border-rose-400/60 text-rose-100 shadow-lg shadow-rose-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -597,7 +601,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("recordatorios")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "recordatorios"
               ? "bg-gradient-to-br from-indigo-500/25 to-cyan-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -608,7 +612,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("servicios")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "servicios"
               ? "bg-gradient-to-br from-violet-500/25 to-purple-600/15 border border-violet-400/60 text-violet-100 shadow-lg shadow-violet-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -619,7 +623,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("precios")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "precios"
               ? "bg-gradient-to-br from-sky-500/25 to-cyan-600/15 border border-sky-400/60 text-sky-100 shadow-lg shadow-sky-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -630,7 +634,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setActiveTab("animales")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "animales"
               ? "bg-gradient-to-br from-amber-500/25 to-orange-600/15 border border-amber-400/60 text-amber-100 shadow-lg shadow-amber-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -641,7 +645,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setShowExports(true)}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-emerald-200 hover:bg-slate-800 hover:border-emerald-500/40 transition-all ml-auto"
+          className="flex shrink-0 whitespace-nowrap items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-emerald-200 hover:bg-slate-800 hover:border-emerald-500/40 transition-all ml-auto"
           title="Exportar datos a CSV"
         >
           <Download className="w-4 h-4" />
@@ -649,7 +653,7 @@ export default function PersonalExpensesView({
         </button>
         <button
           onClick={() => setShowManager(true)}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-indigo-200 hover:bg-slate-800 hover:border-indigo-500/40 transition-all"
+          className="flex shrink-0 whitespace-nowrap items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-indigo-200 hover:bg-slate-800 hover:border-indigo-500/40 transition-all"
           title="Gestionar categorias y tiendas"
         >
           <Settings className="w-4 h-4" />
