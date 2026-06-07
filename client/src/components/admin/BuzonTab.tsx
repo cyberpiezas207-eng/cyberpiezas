@@ -214,12 +214,40 @@ export default function BuzonTab() {
   });
 
   const confirmM = trpc.personalInbox.submissions.confirm.useMutation({
-    onSuccess: () => {
-      toast.success("Confirmado. Ya es un gasto del mes.");
+    onSuccess: (res: any) => {
+      const k = res?.kind;
+      if (k === "deseo") {
+        toast.success("Confirmado. Lo agregue a tus Deseos.");
+      } else if (k === "gasolina") {
+        toast.success(
+          res?.expenseId
+            ? "Carga registrada en tu Vehiculo y contada como gasto."
+            : "Carga registrada en tu Vehiculo.",
+        );
+      } else {
+        toast.success("Confirmado. Ya es un gasto del mes.");
+      }
       refreshAll();
     },
     onError: (e: any) => toast.error(e.message || "No se pudo confirmar"),
   });
+
+  // Decide como confirmar segun el tipo del envio.
+  // Para gasolina pregunta el switch: dinero nuevo (cuenta como gasto) o del
+  // que ya le di (solo registro en el Vehiculo). Para lo demas, confirma directo.
+  function handleConfirm(s: any) {
+    const meta = readMeta(s);
+    if (meta.kind === "gasolina") {
+      const esNuevo = window.confirm(
+        "Esta gasolina:\n\n" +
+          "Aceptar = dinero NUEVO (entra al carro Y cuenta como gasto del mes)\n" +
+          "Cancelar = del dinero que YA le diste (solo entra al carro, no se cuenta de nuevo)",
+      );
+      confirmM.mutate({ id: s.id, countAsExpense: esNuevo });
+    } else {
+      confirmM.mutate({ id: s.id });
+    }
+  }
 
   const rejectM = trpc.personalInbox.submissions.reject.useMutation({
     onSuccess: () => {
@@ -430,7 +458,7 @@ export default function BuzonTab() {
                     </div>
                     <div className="flex items-center gap-2 mt-3">
                       <button
-                        onClick={() => confirmM.mutate({ id: s.id })}
+                        onClick={() => handleConfirm(s)}
                         disabled={confirmM.isPending}
                         className="flex items-center gap-1 text-[12px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
                       >
