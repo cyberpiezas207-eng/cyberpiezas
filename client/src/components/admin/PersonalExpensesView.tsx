@@ -3,6 +3,8 @@
 // VISTA "Mis Gastos" - contenedor con sub-pestanas (Gastos / Alacena)
 // ----------------------------------------------------------------------------
 // Sub-pestanas internas:
+//   - Resumen        : panel general (flujo, calendario, KPIs, bolsillos) que
+//                      se inyecta desde el padre via la prop resumenSlot
 //   - Gastos / Flujo : navegador de mes, captura rapida + detallada,
 //                      sugerencia de alacena, tarjetas, graficas, filtros y lista
 //   - Alacena        : productos del hogar con niveles y lista de compra
@@ -12,7 +14,7 @@
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,7 @@ import {
   CreditCard,
   Bell,
   PawPrint,
+  LayoutDashboard,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -257,7 +260,16 @@ function MonthPieCard({
   );
 }
 
-type SubTab = "gastos" | "alacena" | "vehiculo" | "servicios" | "precios" | "animales" | "deudas" | "recordatorios";
+type SubTab =
+  | "resumen"
+  | "gastos"
+  | "alacena"
+  | "vehiculo"
+  | "servicios"
+  | "precios"
+  | "animales"
+  | "deudas"
+  | "recordatorios";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -271,9 +283,16 @@ interface PendingSuggestion {
 interface Props {
   onBack?: () => void;
   initialSubTab?: SubTab;
+  // Panel general (flujo, calendario, KPIs, bolsillos) inyectado por el padre.
+  // Se muestra en la pestana "Resumen". Si no viene, esa pestana no aparece.
+  resumenSlot?: ReactNode;
 }
 
-export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
+export default function PersonalExpensesView({
+  onBack,
+  initialSubTab,
+  resumenSlot,
+}: Props) {
   const today = nowMexico();
 
   const [activeTab, setActiveTab] = useState<SubTab>(initialSubTab ?? "gastos");
@@ -519,6 +538,19 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
 
       {/* Sub-pestanas internas + boton gestionar - PREMIUM */}
       <div className="flex items-center gap-2 flex-wrap">
+        {resumenSlot != null && (
+          <button
+            onClick={() => setActiveTab("resumen")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "resumen"
+                ? "bg-gradient-to-br from-indigo-500/25 to-cyan-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
+                : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Resumen
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("gastos")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
@@ -624,6 +656,11 @@ export default function PersonalExpensesView({ onBack, initialSubTab }: Props) {
           Gestionar
         </button>
       </div>
+
+      {/* ====== TAB: RESUMEN (panel general inyectado por el padre) ====== */}
+      {activeTab === "resumen" && resumenSlot != null && (
+        <div>{resumenSlot}</div>
+      )}
 
       {/* ====== TAB: GASTOS / FLUJO ====== */}
       {activeTab === "gastos" && (
