@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
+import InboxAgenda from "@/pages/InboxAgenda";
 import {
   Inbox,
   Send,
@@ -559,6 +560,9 @@ function InboxForm({ token, label }: { token: string; label: string | null }) {
             Mandar otra cosa
           </button>
         )}
+
+        {/* CALENDARIO DE ELLA */}
+        <InboxAgenda token={token} />
 
         {/* FOOTER */}
         <footer className="pt-2 text-center">
