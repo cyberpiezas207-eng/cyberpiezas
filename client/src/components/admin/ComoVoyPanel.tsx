@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   Bug,
   LifeBuoy,
+  Trophy,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -221,6 +222,17 @@ export default function ComoVoyPanel() {
   const hormigaTotal = hormigas.reduce((s, g) => s + g.sum, 0);
   const topHormigas = hormigas.slice(0, 4);
 
+  // ----- Racha: meses seguidos en verde (balance positivo) -----
+  // Usa el historial mensual (trend). Cuenta hacia atras desde el mas reciente.
+  const trendBalances = (overview?.trend ?? []).map((t: any) =>
+    toNum(t.balance),
+  );
+  let racha = 0;
+  for (let i = trendBalances.length - 1; i >= 0; i--) {
+    if (trendBalances[i] >= 0) racha += 1;
+    else break;
+  }
+
   // ----- Colchon de meses (cuanto aguantas sin que entre dinero) -----
   const totalGuardado = wallets.reduce(
     (acc, w) => acc + toNum(w.balance),
@@ -261,11 +273,19 @@ export default function ComoVoyPanel() {
     <Card className="bg-slate-800 border border-slate-700">
       <CardContent className="p-5">
         {/* Header */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-slate-700/60 ring-1 ring-slate-600 flex items-center justify-center">
-            <Gauge className="w-4 h-4 text-slate-300" />
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-slate-700/60 ring-1 ring-slate-600 flex items-center justify-center">
+              <Gauge className="w-4 h-4 text-slate-300" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-200">Como voy este mes</h3>
           </div>
-          <h3 className="text-sm font-bold text-slate-200">Como voy este mes</h3>
+          {racha >= 1 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200 text-[11px] font-bold">
+              <Trophy className="w-3 h-3" />
+              {racha} mes{racha === 1 ? "" : "es"} en verde
+            </span>
+          )}
         </div>
 
         {/* Semaforo */}
