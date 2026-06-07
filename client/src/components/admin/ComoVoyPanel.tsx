@@ -61,13 +61,20 @@ export default function ComoVoyPanel() {
     year,
     month,
   });
+  const debtsQuery = trpc.personalDebts.debts.list.useQuery({
+    status: "active",
+  });
 
   const overview = overviewQuery.data;
   const sum = sumQuery.data;
   const dash = dashQuery.data;
+  const debts = (debtsQuery.data ?? []) as any[];
 
   const isLoading =
-    overviewQuery.isLoading || sumQuery.isLoading || dashQuery.isLoading;
+    overviewQuery.isLoading ||
+    sumQuery.isLoading ||
+    dashQuery.isLoading ||
+    debtsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -151,6 +158,28 @@ export default function ComoVoyPanel() {
   const projVsPrev =
     prevTotal > 0 ? projected - prevTotal : null;
 
+  // ----- Que paso este mes (lo que mas peso) -----
+  const topCat = dash?.topCategory ?? null;
+  const topStore = dash?.topStore ?? null;
+
+  // ----- Que no (compromisos que vencieron sin cubrir este mes) -----
+  function todayYmdMx(): string {
+    const d = nowMexico();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  const todayYmd = todayYmdMx();
+  const overdue = debts.filter((d) => {
+    if (typeof d.nextDueDate !== "string" || d.nextDueDate.length < 10)
+      return false;
+    const [y, m] = d.nextDueDate.split("-").map(Number);
+    return y === year && m === month && d.nextDueDate < todayYmd;
+  });
+  const overdueSum = overdue.reduce(
+    (acc, d) => acc + toNum(d.installmentAmount),
+    0,
+  );
+  const todoEnOrden = falta <= 0 && overdue.length === 0;
+
   return (
     <Card className="bg-slate-800 border border-slate-700">
       <CardContent className="p-5">
@@ -209,6 +238,89 @@ export default function ComoVoyPanel() {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Que paso / que no */}
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+          {/* Que paso */}
+          <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-700/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Que paso este mes
+            </p>
+            {topCat || topStore ? (
+              <div className="space-y-1.5">
+                {topCat && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-300 truncate">
+                      Mas gastaste en{" "}
+                      <span className="font-bold text-slate-100">
+                        {topCat.name}
+                      </span>
+                    </span>
+                    <span className="text-xs font-black tabular-nums text-slate-200 shrink-0">
+                      {fmt(toNum(topCat.total))}
+                    </span>
+                  </div>
+                )}
+                {topStore && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-300 truncate">
+                      Tienda top{" "}
+                      <span className="font-bold text-slate-100">
+                        {topStore.name}
+                      </span>
+                    </span>
+                    <span className="text-xs font-black tabular-nums text-slate-200 shrink-0">
+                      {fmt(toNum(topStore.total))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">Aun sin gastos este mes.</p>
+            )}
+          </div>
+
+          {/* Que no */}
+          <div
+            className={`p-3 rounded-xl border ${
+              todoEnOrden
+                ? "bg-emerald-500/[0.06] border-emerald-500/25"
+                : "bg-rose-500/[0.06] border-rose-500/25"
+            }`}
+          >
+            <p
+              className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${
+                todoEnOrden ? "text-emerald-300/80" : "text-rose-300/80"
+              }`}
+            >
+              Que no
+            </p>
+            {todoEnOrden ? (
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                <p className="text-xs text-emerald-200">
+                  Todo en orden, nada pendiente.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {overdue.length > 0 && (
+                  <p className="text-xs text-rose-200">
+                    <span className="font-black">{overdue.length}</span> pago
+                    {overdue.length === 1 ? "" : "s"} vencido
+                    {overdue.length === 1 ? "" : "s"} ({fmt(overdueSum)}).
+                  </p>
+                )}
+                {falta > 0 && (
+                  <p className="text-xs text-slate-300">
+                    Faltan <span className="font-bold">{fmt(falta)}</span> de
+                    compromisos por cubrir.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
