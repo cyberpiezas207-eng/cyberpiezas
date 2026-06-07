@@ -32,6 +32,10 @@ import {
   confirmSubmission,
   rejectSubmission,
 } from "../personalInboxDb";
+import {
+  listAgenda,
+  listAgendaUpcoming,
+} from "../personalAgendaDb";
 // Solo el dueno principal maneja su buzon.
 const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.openId !== ENV.ownerOpenId) {
@@ -105,6 +109,35 @@ export const personalInboxRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         return await rejectSubmission(ctx.user.id, input.id);
+      }),
+  }),
+
+  // --------------------------------------------------------------------------
+  // AGENDA: el dueno VE (solo lectura) lo que su esposa agenda.
+  // --------------------------------------------------------------------------
+  agenda: router({
+    // Lista eventos en un rango (para una vista de mes si la quieres).
+    list: ownerOnlyProcedure
+      .input(
+        z
+          .object({
+            from: z.string().max(10).optional(),
+            to: z.string().max(10).optional(),
+          })
+          .optional(),
+      )
+      .query(async ({ input, ctx }) => {
+        return await listAgenda(ctx.user.id, {
+          from: input?.from,
+          to: input?.to,
+        });
+      }),
+
+    // Proximos N dias (para mostrar "lo que viene" en el Buzon).
+    upcoming: ownerOnlyProcedure
+      .input(z.object({ days: z.number().min(0).max(60).optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        return await listAgendaUpcoming(ctx.user.id, input?.days ?? 30);
       }),
   }),
 });
