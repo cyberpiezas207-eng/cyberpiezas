@@ -85,18 +85,20 @@ export function CyberpiezasHome() {
         isAuthenticated={isAuthenticated}
         onDemo={() => setShowDemoModal(true)}
       />
+      {/* VENDER PRIMERO: los POS y precios arriba */}
+      <Industries setLocation={setLocation} />
+      <Pricing setLocation={setLocation} isAuthenticated={isAuthenticated} />
+      <Features />
+      {/* LA FILOSOFIA, DISCRETA Y ABAJO */}
       <WhatIsThis />
       <Houses setLocation={setLocation} />
-      <Industries setLocation={setLocation} />
+      <Hardware />
+      <Services />
       <TrustLayer />
       <Communities />
       <WhyDifferent />
-      <Hardware />
-      <Services />
-      <Features />
       <Story />
       <Referrals isAuthenticated={isAuthenticated} user={user} setLocation={setLocation} />
-      <Pricing setLocation={setLocation} isAuthenticated={isAuthenticated} />
       <FinalCTA
         setLocation={setLocation}
         isAuthenticated={isAuthenticated}
