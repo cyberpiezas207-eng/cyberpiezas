@@ -5,8 +5,15 @@
 //   - Acreedor, concepto, notas
 //   - Montos (original, cuota, balance)
 //   - Avance (cuotas pagadas / total)
-//   - Fechas (startDate "desde cuando estoy pagando", dueDay)
+//   - Fechas (startDate "desde cuando estoy pagando", dueDay, nextDueDate)
 //   - Estilo (color, icono, prioridad)
+//
+// MEJORA DE FECHAS (claridad):
+//   - El "dia del mes" (1-31) AHORA muestra en vivo la proxima fecha real
+//     que va a generar (ej: dia 25 -> "Proximo: 25 jun 2026").
+//   - Boton de un toque para usar esa fecha calculada.
+//   - El usuario puede sobreescribir la fecha exacta a mano si quiere.
+//   - Se envia nextDueDate al backend para que la deuda cuente en el mes.
 //
 // REGLA CLAVE - SIN CONTAMINAR:
 //   - Cambiar "cuotas pagadas" NO crea pagos retroactivos en la BD
@@ -20,7 +27,15 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { X, Edit3, AlertCircle, Calendar, DollarSign, Tag } from "lucide-react";
+import {
+  X,
+  Edit3,
+  AlertCircle,
+  Calendar,
+  DollarSign,
+  Tag,
+  CalendarCheck,
+} from "lucide-react";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -33,6 +48,49 @@ const fmt = (n: number) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(n);
+
+const MONTHS_SHORT = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+function nowMexico(): Date {
+  return new Date(Date.now() - 6 * 60 * 60 * 1000);
+}
+
+// Calcula la proxima ocurrencia de un dia del mes (dueDay) desde hoy.
+// Mismo algoritmo que el backend: si el dia ya paso este mes, salta al
+// siguiente; respeta meses cortos (dia 31 en un mes de 30 usa el ultimo dia).
+// Devuelve YYYY-MM-DD o null.
+function resolveNextDueFromDueDay(dueDay: number | null): string | null {
+  if (dueDay == null || dueDay < 1 || dueDay > 31) return null;
+  const now = nowMexico();
+  const todayDay = now.getDate();
+  const clampDay = (y: number, mo: number, day: number): number => {
+    const last = new Date(y, mo + 1, 0).getDate();
+    return Math.min(day, last);
+  };
+  let y = now.getFullYear();
+  let mo = now.getMonth(); // 0-based
+  let day = clampDay(y, mo, dueDay);
+  if (day < todayDay) {
+    mo += 1;
+    if (mo > 11) {
+      mo = 0;
+      y += 1;
+    }
+    day = clampDay(y, mo, dueDay);
+  }
+  return `${y}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// Convierte YYYY-MM-DD a etiqueta legible "25 jun 2026". Null-safe.
+function ymdToLabel(ymd: string | null): string {
+  if (!ymd || ymd.length < 10) return "—";
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return "—";
+  return `${d} ${MONTHS_SHORT[m - 1]} ${y}`;
+}
 
 // Catalogos visuales
 const COLOR_PRESETS = [
@@ -86,6 +144,7 @@ export default function EditDebtModal({
   const [totalInstallments, setTotalInstallments] = useState("");
   const [currentInstallment, setCurrentInstallment] = useState("0");
   const [dueDay, setDueDay] = useState("");
+  const [nextDueDate, setNextDueDate] = useState("");
   const [startDate, setStartDate] = useState("");
   const [notes, setNotes] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
@@ -107,6 +166,7 @@ export default function EditDebtModal({
       );
       setCurrentInstallment(String(debt.currentInstallment ?? 0));
       setDueDay(debt.dueDay ? String(debt.dueDay) : "");
+      setNextDueDate(debt.nextDueDate || "");
       setStartDate(debt.startDate || "");
       setNotes(debt.notes || "");
       setPriority(debt.priority || "medium");
@@ -139,6 +199,22 @@ export default function EditDebtModal({
 
   const tooManyInstallments = currentNum > totalNum && totalNum > 0;
 
+  // ----- Logica de fecha (la mejora pedida) -----
+  const dueDayNum = dueDay ? parseInt(dueDay) : null;
+  const dueDayValid =
+    dueDayNum != null && dueDayNum >= 1 && dueDayNum <= 31;
+  // Fecha que GENERARIA el dia del mes elegido (preview en vivo)
+  const previewFromDueDay = dueDayValid
+    ? resolveNextDueFromDueDay(dueDayNum)
+    : null;
+  // La fecha que realmente se enviara: la manual si existe, si no la del dia
+  const effectiveNextDue = nextDueDate || previewFromDueDay || null;
+  // Si la fecha manual no coincide con lo que daria el dia, avisamos (no es error)
+  const manualDiffersFromDay =
+    nextDueDate &&
+    previewFromDueDay &&
+    nextDueDate !== previewFromDueDay;
+
   function handleClose() {
     if (updateMutation.isPending) return;
     onClose();
@@ -169,7 +245,10 @@ export default function EditDebtModal({
       installmentAmount: installmentNum > 0 ? installmentNum : null,
       totalInstallments: totalNum > 0 ? totalNum : null,
       currentInstallment: currentNum,
-      dueDay: dueDay ? parseInt(dueDay) : null,
+      dueDay: dueDayNum,
+      // Enviar la fecha efectiva: manual si la pusiste, o la calculada del dia.
+      // Asi la deuda SI cuenta en "Por pagar este mes".
+      nextDueDate: effectiveNextDue,
       startDate: startDate || null,
       notes: notes.trim() || null,
       priority,
@@ -366,6 +445,75 @@ export default function EditDebtModal({
               )}
             </div>
 
+            {/* ============ DIA DEL MES + PROXIMA FECHA (mejora) ============ */}
+            <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700 space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                  Dia del mes que pagas (1-31)
+                </label>
+                <input
+                  type="number"
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  min="1"
+                  max="31"
+                  placeholder="Ej: 25 (el dia 25 de cada mes)"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white tabular-nums focus:outline-none focus:border-rose-500"
+                />
+                {/* Preview en vivo de la fecha que genera el dia */}
+                {dueDay && !dueDayValid && (
+                  <p className="text-[11px] text-rose-300 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    El dia debe estar entre 1 y 31
+                  </p>
+                )}
+                {previewFromDueDay && (
+                  <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-[11px] text-emerald-300 flex items-center gap-1.5">
+                      <CalendarCheck className="w-3.5 h-3.5" />
+                      Proximo pago:{" "}
+                      <span className="font-bold">
+                        {ymdToLabel(previewFromDueDay)}
+                      </span>
+                    </p>
+                    {nextDueDate !== previewFromDueDay && (
+                      <button
+                        type="button"
+                        onClick={() => setNextDueDate(previewFromDueDay)}
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/25 transition-colors"
+                      >
+                        Usar esta fecha
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                  Proxima fecha exacta de pago
+                </label>
+                <input
+                  type="date"
+                  value={nextDueDate}
+                  onChange={(e) => setNextDueDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-rose-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1 italic">
+                  {effectiveNextDue
+                    ? `Esta deuda contara en "Por pagar" del mes de ${ymdToLabel(effectiveNextDue)}.`
+                    : "Pon el dia del mes arriba y se calcula sola, o elige la fecha aqui."}
+                </p>
+                {manualDiffersFromDay && (
+                  <p className="text-[11px] text-amber-300 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Esta fecha es distinta al dia {dueDayNum} que pusiste arriba.
+                    Se usara esta fecha exacta.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="text-[11px] font-bold text-slate-400 mb-1 block">
                 Fecha de inicio (cuando empezaste a pagarla)
@@ -379,21 +527,6 @@ export default function EditDebtModal({
               <p className="text-[10px] text-slate-500 mt-1 italic">
                 💡 Informativo. No afecta las graficas del presente.
               </p>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 mb-1 block">
-                Dia del mes que pagas (1-31)
-              </label>
-              <input
-                type="number"
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                min="1"
-                max="31"
-                placeholder="Ej: 4 (el dia 4 de cada mes)"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white tabular-nums focus:outline-none focus:border-rose-500"
-              />
             </div>
 
             {/* Preview del saldo calculado */}
