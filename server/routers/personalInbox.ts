@@ -1,120 +1,110 @@
-// >>> ESTE ARCHIVO VA EN: server/routers/personalInboxPublic.ts <<<
+// >>> ESTE ARCHIVO VA EN: server/routers/personalInbox.ts <<<
 // ============================================================================
-// ROUTER PUBLICO BUZON (formato esposa) - Paso 2b + tipos (Paso 1 ampliacion)
+// ROUTER BUZON (formato esposa) - lado del dueno
 // ----------------------------------------------------------------------------
-// Endpoints SIN login (publicProcedure). Los usa quien tenga el link secreto
-// (token) para mandar algo. NO crea gastos reales: solo deja un PENDIENTE
-// que el dueno revisa despues en su panel (router ownerOnly).
+// Blindado solo para el dueno (ownerOnlyProcedure). Expone:
+//   tokens.list / tokens.ensure / tokens.regenerate / tokens.revoke
+//   submissions.list / submissions.pendingCount
+//   submissions.confirm / submissions.reject
 //
-// AMPLIACION (tipos): ahora el envio puede traer un campo "meta" opcional con
-// el tipo (gasto/gasolina/ingreso/deseo) y datos extra (odometro, fecha de
-// pago, fecha del deseo). Se serializa a JSON y se guarda en rawText, SIN
-// tocar la tabla. Si no viene meta, es un gasto normal (compatible con lo
-// que ya existia).
+// El endpoint PUBLICO (que ella usa para mandar) va aparte (Paso 2b),
+// porque necesita un procedimiento sin login.
 //
-// SEGURIDAD:
-//   - El token viaja en el body (no en la URL) para no filtrarse en logs.
-//   - Si el token no existe o esta revocado -> UNAUTHORIZED. No se filtra
-//     ninguna pista de a quien pertenece.
-//   - Limites de longitud en todos los campos para evitar payloads gigantes.
-//   - check: solo dice si el link sirve. NO devuelve el userId ni datos del
-//     dueno.
+// AMPLIACION (gasolina D2b): submissions.confirm ahora acepta un switch
+// opcional countAsExpense. Solo aplica a envios de gasolina:
+//   - true  -> dinero nuevo: la carga entra al Vehiculo Y cuenta como gasto.
+//   - false -> del dinero ya entregado: solo entra al Vehiculo (no duplica).
+// Para los demas tipos (gasto/deseo/ingreso) el switch se ignora.
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, publicProcedure } from "../_core/trpc";
+import { router, protectedProcedure } from "../_core/trpc";
+import { ENV } from "../_core/env";
 import {
-  getActiveTokenByString,
-  createSubmission,
+  listTokens,
+  ensureToken,
+  regenerateToken,
+  revokeToken,
+  listSubmissions,
+  countPending,
+  confirmSubmission,
+  rejectSubmission,
 } from "../personalInboxDb";
-
-// ----------------------------------------------------------------------------
-// Schemas de entrada
-// ----------------------------------------------------------------------------
-const tokenSchema = z.string().min(10).max(200);
-
-const checkSchema = z.object({
-  token: tokenSchema,
-});
-
-// meta: datos del tipo de envio. Todo opcional para mantener compatibilidad.
-// kind decide que es; los demas campos aplican segun el kind.
-const metaSchema = z
-  .object({
-    kind: z.enum(["gasto", "gasolina", "ingreso", "deseo"]).optional(),
-    // gasolina
-    odometer: z.number().nonnegative().max(99999999).nullable().optional(),
-    liters: z.number().nonnegative().max(9999).nullable().optional(),
-    pricePerLiter: z.number().nonnegative().max(999).nullable().optional(),
-    // ingreso
-    incomeDate: z.string().max(10).nullable().optional(),
-    // deseo
-    wishWhen: z.string().max(10).nullable().optional(),
-    wishNote: z.string().max(255).nullable().optional(),
-  })
-  .optional();
-
-const submitSchema = z.object({
-  token: tokenSchema,
-  senderName: z.string().max(80).nullable().optional(),
-  description: z.string().min(1).max(255),
-  amount: z.number().nonnegative().max(9999999).nullable().optional(),
-  storeName: z.string().max(120).nullable().optional(),
-  rawText: z.string().max(500).nullable().optional(),
-  meta: metaSchema,
-});
-
-// ----------------------------------------------------------------------------
-// Router publico (sin auth)
-// ----------------------------------------------------------------------------
-export const personalInboxPublicRouter = router({
-  // Verifica si el link secreto sirve. Lo usa la pagina publica para decidir
-  // si muestra el formulario o un mensaje de "link invalido".
-  // Responde SOLO con { valid, label }. Nunca expone el userId.
-  check: publicProcedure.input(checkSchema).query(async ({ input }) => {
-    const tk = await getActiveTokenByString(input.token);
-    if (!tk) {
-      return { valid: false as const, label: null };
-    }
-    return { valid: true as const, label: tk.label ?? null };
-  }),
-
-  // Recibe un envio de quien tenga el link. Crea un PENDIENTE (no un gasto).
-  submit: publicProcedure.input(submitSchema).mutation(async ({ input }) => {
-    const tk = await getActiveTokenByString(input.token);
-    if (!tk) {
-      // Mismo mensaje generico: no revelamos si el token existio antes.
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "El enlace no es valido o fue desactivado.",
-      });
-    }
-
-    // Si viene meta, la guardamos como JSON en rawText (sin tocar la tabla).
-    // Si el remitente tambien mando rawText libre, lo conservamos dentro del
-    // JSON bajo "note" para no perderlo.
-    let rawToStore: string | null = input.rawText ?? null;
-    if (input.meta && input.meta.kind) {
-      const metaObj: Record<string, any> = { ...input.meta };
-      if (input.rawText) metaObj.note = input.rawText;
-      try {
-        rawToStore = JSON.stringify(metaObj).slice(0, 500);
-      } catch {
-        rawToStore = input.rawText ?? null;
-      }
-    }
-
-    const result = await createSubmission(tk.userId, tk.id, {
-      senderName: input.senderName ?? null,
-      description: input.description.trim(),
-      amount: input.amount ?? null,
-      storeName: input.storeName ?? null,
-      rawText: rawToStore,
+// Solo el dueno principal maneja su buzon.
+const ownerOnlyProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.openId !== ENV.ownerOpenId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Esta seccion es privada del propietario.",
     });
-
-    // Respuesta minima: confirmacion de que llego, sin datos internos.
-    return { ok: true as const, id: result.id };
+  }
+  return next({ ctx });
+});
+export const personalInboxRouter = router({
+  tokens: router({
+    // Lista todos los tokens (activos e historicos)
+    list: ownerOnlyProcedure.query(async ({ ctx }) => {
+      return await listTokens(ctx.user.id);
+    }),
+    // Devuelve el token activo; si no hay, lo crea
+    ensure: ownerOnlyProcedure
+      .input(z.object({ label: z.string().max(80).optional() }).optional())
+      .mutation(async ({ input, ctx }) => {
+        return await ensureToken(ctx.user.id, input?.label ?? "Esposa");
+      }),
+    // Revoca el actual y crea uno nuevo (cambia el link secreto)
+    regenerate: ownerOnlyProcedure
+      .input(z.object({ label: z.string().max(80).optional() }).optional())
+      .mutation(async ({ input, ctx }) => {
+        return await regenerateToken(ctx.user.id, input?.label ?? "Esposa");
+      }),
+    // Revoca un token por id
+    revoke: ownerOnlyProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return await revokeToken(ctx.user.id, input.id);
+      }),
+  }),
+  submissions: router({
+    // Lista los envios (filtrable por estado)
+    list: ownerOnlyProcedure
+      .input(
+        z
+          .object({
+            status: z.enum(["pending", "confirmed", "rejected"]).optional(),
+          })
+          .optional(),
+      )
+      .query(async ({ input, ctx }) => {
+        return await listSubmissions(ctx.user.id, input?.status);
+      }),
+    // Cuantos pendientes hay (para un badge)
+    pendingCount: ownerOnlyProcedure.query(async ({ ctx }) => {
+      const n = await countPending(ctx.user.id);
+      return { count: n };
+    }),
+    // Confirma un pendiente -> lo materializa segun su tipo.
+    // countAsExpense (opcional) solo afecta a gasolina: si true, ademas de
+    // entrar al Vehiculo, cuenta como gasto (dinero nuevo).
+    confirm: ownerOnlyProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          countAsExpense: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        return await confirmSubmission(ctx.user.id, input.id, {
+          countAsExpense: input.countAsExpense ?? false,
+        });
+      }),
+    // Rechaza un pendiente
+    reject: ownerOnlyProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return await rejectSubmission(ctx.user.id, input.id);
+      }),
   }),
 });
