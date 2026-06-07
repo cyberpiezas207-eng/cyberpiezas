@@ -80,9 +80,55 @@ function monthRange(year: number, month: number): { first: string; last: string 
   };
 }
 
-// Suma N dias a una fecha YYYY-MM-DD y retorna YYYY-MM-DD
-function addDaysYMD(ymd: string, days: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
+// DEFENSIVO: normaliza un valor de fecha a string YYYY-MM-DD o null.
+// Esta funcion es la UNICA fuente de verdad para convertir fechas. Acepta
+// strings, Date objects, numeros (timestamps) y cualquier basura, y SIEMPRE
+// devuelve un string YYYY-MM-DD valido o null. Asi ningun .split() ni
+// new Date() posterior puede tronar con "t.split is not a function".
+function toYMD(v: any): string | null {
+  if (v == null) return null;
+  // String: validar formato y recortar
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) {
+      return s.slice(0, 10);
+    }
+    // Intentar parsear strings tipo ISO completos u otros
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const d = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return null;
+  }
+  // Date object
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, "0");
+    const d = String(v.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  // Numero (timestamp)
+  if (typeof v === "number" && isFinite(v)) {
+    const parsed = new Date(v);
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const d = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return null;
+}
+
+// Suma N dias a una fecha YYYY-MM-DD y retorna YYYY-MM-DD.
+// Blindado: si la fecha no es valida, parte de hoy.
+function addDaysYMD(ymd: string | null, days: number): string {
+  const safe = toYMD(ymd) ?? todayYMD();
+  const [y, m, d] = safe.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   dt.setDate(dt.getDate() + days);
   const yyyy = dt.getFullYear();
@@ -92,16 +138,19 @@ function addDaysYMD(ymd: string, days: number): string {
 }
 
 // Calcula proximo dueDate avanzando UN MES desde la fecha actual de vencimiento
-// Maneja meses con menos dias (dia 31 en febrero usa ultimo dia)
-function nextMonthSameDayYMD(currentYMD: string, dueDay: number | null): string {
-  const [y, m] = currentYMD.split("-").map(Number);
+// Maneja meses con menos dias (dia 31 en febrero usa ultimo dia).
+// Blindado: si currentYMD no es valido, usa hoy como base.
+function nextMonthSameDayYMD(currentYMD: string | null, dueDay: number | null): string {
+  const safe = toYMD(currentYMD) ?? todayYMD();
+  const [y, m] = safe.split("-").map(Number);
   const nextMonth = m === 12 ? 1 : m + 1;
   const nextYear = m === 12 ? y + 1 : y;
-  const day = dueDay ?? Number(currentYMD.split("-")[2]);
+  const day = dueDay ?? Number(safe.split("-")[2]);
   const lastDay = new Date(nextYear, nextMonth, 0).getDate();
   const useDay = Math.min(day, lastDay);
   return `${nextYear}-${String(nextMonth).padStart(2, "0")}-${String(useDay).padStart(2, "0")}`;
 }
+
 // Calcula la proxima ocurrencia de un dia del mes (dueDay) desde hoy.
 // Si el dia ya paso este mes, salta al proximo mes. Respeta meses cortos
 // (ej: dia 31 en un mes de 30 usa el ultimo dia real).
@@ -144,28 +193,6 @@ function dueAmountFor(d: any): number {
   const inst = toNum(d.installmentAmount);
   if (inst > 0) return inst;
   return toNum(d.currentBalance);
-}
-
-// DEFENSIVO: normaliza un valor de fecha a string YYYY-MM-DD o null
-// Drizzle DEBERIA devolver strings (mode: "string" en schema) pero por
-// las dudas, si llega un Date object lo convertimos.
-function toYMD(v: any): string | null {
-  if (v == null) return null;
-  if (typeof v === "string") {
-    // Validar formato basico antes de retornar
-    if (v.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(v)) {
-      return v.slice(0, 10);
-    }
-    return null;
-  }
-  if (v instanceof Date) {
-    if (isNaN(v.getTime())) return null;
-    const y = v.getFullYear();
-    const m = String(v.getMonth() + 1).padStart(2, "0");
-    const d = String(v.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-  return null;
 }
 
 // DEFENSIVO: normaliza un row de personalDebts asegurando que las fechas
@@ -283,9 +310,9 @@ export async function createDebt(
     // Si no viene nextDueDate pero si dueDay, calcular la proxima fecha
     // automaticamente. Asi una deuda con "dia 25" nunca queda "sin fecha".
     nextDueDate:
-      data.nextDueDate ?? resolveNextDueFromDueDay(data.dueDay ?? null),
-    startDate: data.startDate ?? null,
-    endDate: data.endDate ?? null,
+      toYMD(data.nextDueDate) ?? resolveNextDueFromDueDay(data.dueDay ?? null),
+    startDate: toYMD(data.startDate),
+    endDate: toYMD(data.endDate),
     status: data.status ?? "active",
     priority: data.priority ?? "medium",
     isInstallmentPurchase: data.isInstallmentPurchase ?? false,
@@ -367,15 +394,15 @@ export async function updateDebt(
     updateData.totalInstallments = data.totalInstallments;
   }
   if (data.dueDay !== undefined) updateData.dueDay = data.dueDay;
+  // nextDueDate: si viene explicito, usarlo (normalizado). Si NO viene pero
+  // cambiaste el dia, recalcular la proxima fecha desde el dia. Una sola vez.
   if (data.nextDueDate !== undefined) {
-    updateData.nextDueDate = data.nextDueDate;
+    updateData.nextDueDate = toYMD(data.nextDueDate);
   } else if (data.dueDay !== undefined && data.dueDay != null) {
-    // Si cambiaste el dia pero no diste fecha exacta, recalcular la proxima.
     updateData.nextDueDate = resolveNextDueFromDueDay(data.dueDay);
   }
-  if (data.nextDueDate !== undefined) updateData.nextDueDate = data.nextDueDate;
-  if (data.startDate !== undefined) updateData.startDate = data.startDate;
-  if (data.endDate !== undefined) updateData.endDate = data.endDate;
+  if (data.startDate !== undefined) updateData.startDate = toYMD(data.startDate);
+  if (data.endDate !== undefined) updateData.endDate = toYMD(data.endDate);
   if (data.status !== undefined) updateData.status = data.status;
   if (data.priority !== undefined) updateData.priority = data.priority;
   if (data.isInstallmentPurchase !== undefined) {
@@ -481,7 +508,7 @@ export async function recordPayment(
     throw new Error("Deuda no encontrada");
   }
 
-  const paymentDate = data.paymentDate ?? todayYMD();
+  const paymentDate = toYMD(data.paymentDate) ?? todayYMD();
   const amount = Number(data.amount);
   const isPartial = data.isPartial ?? false;
 
@@ -532,17 +559,18 @@ export async function recordPayment(
   // Calcular siguiente nextDueDate si no esta liquidada y no es parcial.
   // V3: si la deuda tiene frequencyDays (quincenal/semanal), avanzar esos
   // dias; si no, avanzar un mes manteniendo el dia (comportamiento clasico).
-  let newNextDueDate: string | null = debt.nextDueDate ?? null;
+  const currentNextDue = toYMD(debt.nextDueDate);
+  let newNextDueDate: string | null = currentNextDue;
   if (
     !isPartial &&
     newStatus === "active" &&
-    debt.nextDueDate != null
+    currentNextDue != null
   ) {
     const freq = Number((debt as any).frequencyDays ?? 0);
     if (freq > 0) {
-      newNextDueDate = addDaysYMD(debt.nextDueDate, freq);
+      newNextDueDate = addDaysYMD(currentNextDue, freq);
     } else {
-      newNextDueDate = nextMonthSameDayYMD(debt.nextDueDate, debt.dueDay);
+      newNextDueDate = nextMonthSameDayYMD(currentNextDue, debt.dueDay);
     }
   }
 
@@ -711,7 +739,7 @@ export async function markAssetSold(
     .update(personalDebts)
     .set({
       assetStatus: "sold",
-      assetSoldAt: data.soldAt ?? todayYMD(),
+      assetSoldAt: toYMD(data.soldAt) ?? todayYMD(),
       assetSoldPrice: String(data.soldPrice),
       assetSoldBuyer: data.soldBuyer ?? null,
       assetSoldNotes: data.soldNotes ?? null,
@@ -785,6 +813,7 @@ export async function getMonthSummary(
   activeDebtsCount: number;
   expectedThisMonth: number;
   paymentsThisMonth: number;
+  pendingThisMonth: number;
   nextDueDate: string | null;
   nextDueCreditor: string | null;
   nextDueAmount: number | null;
@@ -816,9 +845,10 @@ export async function getMonthSummary(
   // expectedThisMonth: suma de lo que se debe pagar de deudas con nextDueDate
   // dentro del mes. Usa la cuota si hay, o el saldo completo si es de un solo
   // pago (asi una deuda "unico" tambien cuenta).
+  // toYMD blinda: si nextDueDate es null o invalido, la deuda no entra.
   const monthDebts = activeDebts.filter((d) => {
-    if (!d.nextDueDate) return false;
-    const ymd = d.nextDueDate as string;
+    const ymd = toYMD(d.nextDueDate);
+    if (!ymd) return false;
     return ymd >= first && ymd <= last;
   });
   const expectedThisMonth = monthDebts.reduce(
@@ -852,11 +882,12 @@ export async function getMonthSummary(
     paidByDebt.set(p.debtId, prev + toNum(p.amount));
   }
 
-  // Proximo pago: deuda activa con nextDueDate mas cercana
-  const debtsWithDate = activeDebts.filter((d) => d.nextDueDate);
+  // Proximo pago: deuda activa con nextDueDate mas cercana.
+  // toYMD blinda el sort (localeCompare necesita strings, no Date).
+  const debtsWithDate = activeDebts.filter((d) => toYMD(d.nextDueDate) != null);
   debtsWithDate.sort((a, b) => {
-    const ad = a.nextDueDate as string;
-    const bd = b.nextDueDate as string;
+    const ad = toYMD(a.nextDueDate) ?? "9999-12-31";
+    const bd = toYMD(b.nextDueDate) ?? "9999-12-31";
     return ad.localeCompare(bd);
   });
   const upcomingDebt = debtsWithDate[0] ?? null;
@@ -870,12 +901,12 @@ export async function getMonthSummary(
     ? Math.max(1, daysInMonth - today.getDate() + 1)
     : daysInMonth;
 
- // Por pagar este mes: suma de lo que le falta a CADA deuda viva que vence
+  // Por pagar este mes: suma de lo que le falta a CADA deuda viva que vence
   // este mes (su cuota menos lo que ya se le abono a ESA deuda este mes).
   // Las deudas liquidadas (status paid) ya no estan en monthDebts, asi que
   // sus pagos no inflan ni desinflan este numero. Esto evita que pagar una
   // deuda de un solo pago "descuente" de otras deudas distintas.
-const pendingThisMonth = monthDebts.reduce((acc, d) => {
+  const pendingThisMonth = monthDebts.reduce((acc, d) => {
     const cuota = dueAmountFor(d);
     const yaAbonado = paidByDebt.get(d.id) ?? 0;
     return acc + Math.max(0, cuota - yaAbonado);
@@ -887,12 +918,14 @@ const pendingThisMonth = monthDebts.reduce((acc, d) => {
     remainingDaysInMonth > 0
       ? Math.ceil(pendingThisMonth / remainingDaysInMonth)
       : pendingThisMonth;
+
   return {
     totalCurrentBalance,
     activeDebtsCount: activeDebts.length,
     expectedThisMonth,
     paymentsThisMonth,
-    nextDueDate: upcomingDebt?.nextDueDate ?? null,
+    pendingThisMonth,
+    nextDueDate: toYMD(upcomingDebt?.nextDueDate) ?? null,
     nextDueCreditor: upcomingDebt?.creditorName ?? null,
     nextDueAmount: upcomingDebt ? dueAmountFor(upcomingDebt) : null,
     ahorroDiarioSugerido,
@@ -936,15 +969,13 @@ export async function getUpcomingPayments(
     );
   const rows = rawRows.map(normalizeDebtRow);
 
-  // Filtrar por rango y mapear
+  // Filtrar por rango y mapear. toYMD blinda cada fecha antes de split.
   const result = rows
-    .filter((d) => {
-      const ymd = d.nextDueDate as string;
-      return ymd <= limit;
-    })
-    .map((d) => {
-      const ymd = d.nextDueDate as string;
-      const [y, m, dd] = ymd.split("-").map(Number);
+    .map((d) => ({ d, ymd: toYMD(d.nextDueDate) }))
+    .filter((x) => x.ymd != null && (x.ymd as string) <= limit)
+    .map(({ d, ymd }) => {
+      const safeYmd = ymd as string;
+      const [y, m, dd] = safeYmd.split("-").map(Number);
       const target = new Date(y, m - 1, dd);
       const nowD = nowMexico();
       nowD.setHours(0, 0, 0, 0);
@@ -957,7 +988,7 @@ export async function getUpcomingPayments(
         creditorName: d.creditorName,
         title: d.title,
         amount: dueAmountFor(d),
-        dueDate: ymd,
+        dueDate: safeYmd,
         daysUntil: days,
         currentInstallment: d.currentInstallment ?? null,
         totalInstallments: d.totalInstallments ?? null,
