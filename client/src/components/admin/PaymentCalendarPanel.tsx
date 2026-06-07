@@ -1,8 +1,9 @@
+// >>> ESTE ARCHIVO VA EN (REEMPLAZA EL EXISTENTE): client/src/components/admin/PaymentCalendarPanel.tsx <<<
 // ============================================================================
 // CALENDARIO DE PAGOS VISUAL
 // ----------------------------------------------------------------------------
 // Grid mensual estilo Google Calendar con dots coloreados por urgencia.
-// Click en un dia → muestra lista de pagos que vencen ese dia.
+// Click en un dia -> muestra lista de pagos que vencen ese dia.
 // Header con total del mes y count de pagos.
 // Se auto-oculta si no hay deudas activas (similar a DebtsFlowSection).
 //
@@ -200,8 +201,8 @@ export default function PaymentCalendarPanel() {
           </div>
         </div>
 
-        {/* Grid del calendario */}
-        <div className="rounded-xl bg-slate-900/40 border border-slate-700/40 p-3">
+        {/* Grid del calendario - compacto: ancho limitado + celdas de altura fija */}
+        <div className="rounded-xl bg-slate-900/40 border border-slate-700/40 p-3 max-w-2xl mx-auto">
           {/* Header de dias de la semana */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {WEEKDAYS.map((d) => (
@@ -218,7 +219,7 @@ export default function PaymentCalendarPanel() {
           <div className="grid grid-cols-7 gap-1">
             {cells.map((day, i) => {
               if (day == null) {
-                return <div key={i} className="aspect-square" />;
+                return <div key={i} className="h-11" />;
               }
               const payments = byDay.get(day) ?? [];
               const hasPayments = payments.length > 0;
@@ -244,7 +245,7 @@ export default function PaymentCalendarPanel() {
                 <button
                   key={i}
                   onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`relative aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
+                  className={`relative h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
                     isSelected
                       ? "bg-indigo-500/25 ring-1 ring-indigo-400/60 text-white"
                       : isToday
@@ -282,7 +283,7 @@ export default function PaymentCalendarPanel() {
 
         {/* Detalle del dia seleccionado */}
         {selectedDay != null && selectedDebts.length > 0 && (
-          <div className="mt-4 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/20 p-3">
+          <div className="mt-4 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/20 p-3 max-w-2xl mx-auto">
             <div className="flex items-center gap-2 mb-2.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
                 Dia {selectedDay} de {MONTHS_ES[month - 1]}
@@ -322,7 +323,7 @@ export default function PaymentCalendarPanel() {
 
         {/* Empty state si no hay pagos en el mes seleccionado */}
         {monthTotal.count === 0 && !debtsQuery.isLoading && (
-          <div className="mt-4 text-center py-5 text-slate-500 text-sm border border-dashed border-slate-700/40 rounded-xl">
+          <div className="mt-4 text-center py-5 text-slate-500 text-sm border border-dashed border-slate-700/40 rounded-xl max-w-2xl mx-auto">
             <Check className="w-5 h-5 mx-auto mb-1.5 text-emerald-400/60" />
             <p>Sin pagos en {MONTHS_ES[month - 1]}.</p>
           </div>
