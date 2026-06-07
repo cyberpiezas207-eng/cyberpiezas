@@ -33,6 +33,10 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  ShoppingCart,
+  Fuel,
+  Banknote,
+  Heart,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -87,6 +91,73 @@ function subWhen(s: any): string {
 function tokenSecret(t: any): string | null {
   return pick(t, ["token", "secret", "value", "code", "slug"], null);
 }
+
+// Lee el meta (tipo + datos extra) que viene en rawText como JSON.
+// Si no es JSON valido o no tiene kind, lo trata como gasto normal.
+function readMeta(s: any): {
+  kind: "gasto" | "gasolina" | "ingreso" | "deseo";
+  odometer: number | null;
+  incomeDate: string | null;
+  wishWhen: string | null;
+  note: string | null;
+} {
+  const raw = pick(s, ["rawText", "raw_text", "raw"], null);
+  const def = {
+    kind: "gasto" as const,
+    odometer: null,
+    incomeDate: null,
+    wishWhen: null,
+    note: null,
+  };
+  if (!raw || typeof raw !== "string") return def;
+  try {
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== "object" || !o.kind) return def;
+    return {
+      kind: ["gasto", "gasolina", "ingreso", "deseo"].includes(o.kind)
+        ? o.kind
+        : "gasto",
+      odometer: o.odometer != null ? Number(o.odometer) : null,
+      incomeDate: o.incomeDate ?? null,
+      wishWhen: o.wishWhen ?? null,
+      note: o.note ?? null,
+    };
+  } catch {
+    return def;
+  }
+}
+
+// Estilo visual por tipo (icono + color + etiqueta)
+const KIND_UI: Record<
+  string,
+  { label: string; icon: any; cls: string; chip: string }
+> = {
+  gasto: {
+    label: "Gasto",
+    icon: ShoppingCart,
+    cls: "text-orange-300",
+    chip: "bg-orange-500/15 text-orange-200 border-orange-500/40",
+  },
+  gasolina: {
+    label: "Gasolina",
+    icon: Fuel,
+    cls: "text-sky-300",
+    chip: "bg-sky-500/15 text-sky-200 border-sky-500/40",
+  },
+  ingreso: {
+    label: "Ingreso",
+    icon: Banknote,
+    cls: "text-emerald-300",
+    chip: "bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
+  },
+  deseo: {
+    label: "Deseo",
+    icon: Heart,
+    cls: "text-pink-300",
+    chip: "bg-pink-500/15 text-pink-200 border-pink-500/40",
+  },
+};
+
 
 // ----------------------------------------------------------------------------
 // Componente
@@ -299,6 +370,8 @@ export default function BuzonTab() {
                 const texto = subText(s);
                 const quien = subSender(s);
                 const cuando = subWhen(s);
+                const meta = readMeta(s);
+                const ui = KIND_UI[meta.kind] ?? KIND_UI.gasto;
                 return (
                   <div
                     key={s.id}
@@ -306,6 +379,14 @@ export default function BuzonTab() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${ui.chip}`}
+                          >
+                            <ui.icon className="w-2.5 h-2.5" />
+                            {ui.label}
+                          </span>
+                        </div>
                         <p className="text-sm font-bold text-white truncate">
                           {texto}
                         </p>
@@ -317,6 +398,30 @@ export default function BuzonTab() {
                             </>
                           )}
                           {cuando && <span>{cuando}</span>}
+                          {meta.odometer != null && (
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <span className="text-sky-300">
+                                odometro {meta.odometer.toLocaleString("es-MX")}
+                              </span>
+                            </>
+                          )}
+                          {meta.incomeDate && (
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <span className="text-emerald-300">
+                                pagan {meta.incomeDate}
+                              </span>
+                            </>
+                          )}
+                          {meta.wishWhen && (
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <span className="text-pink-300">
+                                para {meta.wishWhen}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <span className="text-base font-black text-cyan-200 tabular-nums shrink-0">
