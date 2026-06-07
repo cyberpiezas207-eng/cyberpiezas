@@ -870,12 +870,16 @@ export async function getMonthSummary(
     ? Math.max(1, daysInMonth - today.getDate() + 1)
     : daysInMonth;
 
-  // Ahorro diario sugerido
-  const pendingThisMonth = Math.max(0, expectedThisMonth - paymentsThisMonth);
-  const ahorroDiarioSugerido =
-    pendingThisMonth > 0 && remainingDaysInMonth > 0
-      ? Math.ceil(pendingThisMonth / remainingDaysInMonth)
-      : 0;
+ // Por pagar este mes: suma de lo que le falta a CADA deuda viva que vence
+  // este mes (su cuota menos lo que ya se le abono a ESA deuda este mes).
+  // Las deudas liquidadas (status paid) ya no estan en monthDebts, asi que
+  // sus pagos no inflan ni desinflan este numero. Esto evita que pagar una
+  // deuda de un solo pago "descuente" de otras deudas distintas.
+  const pendingThisMonth = monthDebts.reduce((acc, d) => {
+    const cuota = dueAmountFor(d);
+    const yaAbonado = paidByDebt.get(d.id) ?? 0;
+    return acc + Math.max(0, cuota - yaAbonado);
+  }, 0);
 
   return {
     totalCurrentBalance,
