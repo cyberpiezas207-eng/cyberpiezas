@@ -29,6 +29,14 @@ import {
   getActiveTokenByString,
   createSubmission,
 } from "../personalInboxDb";
+import {
+  listAgenda,
+  listAgendaUpcoming,
+  createAgendaEvent,
+  updateAgendaEvent,
+  setAgendaDone,
+  deleteAgendaEvent,
+} from "../personalAgendaDb";
 
 // ----------------------------------------------------------------------------
 // Schemas de entrada
@@ -117,4 +125,144 @@ export const personalInboxPublicRouter = router({
     // Respuesta minima: confirmacion de que llego, sin datos internos.
     return { ok: true as const, id: result.id };
   }),
+
+  // --------------------------------------------------------------------------
+  // AGENDA de la esposa (calendario propio). Todo con el token como credencial.
+  // --------------------------------------------------------------------------
+
+  // Lista los eventos del mes (o rango) para pintar el calendario.
+  agendaList: publicProcedure
+    .input(
+      z.object({
+        token: tokenSchema,
+        from: z.string().max(10).optional(),
+        to: z.string().max(10).optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      return await listAgenda(tk.userId, {
+        from: input.from,
+        to: input.to,
+      });
+    }),
+
+  // Proximos dias (para el aviso visual "manana tienes...").
+  agendaUpcoming: publicProcedure
+    .input(z.object({ token: tokenSchema, days: z.number().min(0).max(31).optional() }))
+    .query(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      return await listAgendaUpcoming(tk.userId, input.days ?? 2);
+    }),
+
+  // Crea un evento en su calendario.
+  agendaCreate: publicProcedure
+    .input(
+      z.object({
+        token: tokenSchema,
+        title: z.string().min(1).max(160),
+        eventDate: z.string().min(10).max(10),
+        note: z.string().max(500).nullable().optional(),
+        kind: z.enum(["income", "reminder", "task"]).optional(),
+        amount: z.number().nonnegative().max(9999999).nullable().optional(),
+        createdBy: z.string().max(80).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      const ev = await createAgendaEvent(tk.userId, {
+        title: input.title.trim(),
+        eventDate: input.eventDate,
+        note: input.note ?? null,
+        kind: input.kind ?? "reminder",
+        amount: input.amount ?? null,
+        createdBy: input.createdBy ?? null,
+        source: "inbox",
+        tokenId: tk.id,
+      });
+      return { ok: true as const, id: ev.id };
+    }),
+
+  // Edita un evento suyo.
+  agendaUpdate: publicProcedure
+    .input(
+      z.object({
+        token: tokenSchema,
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(160).optional(),
+        eventDate: z.string().min(10).max(10).optional(),
+        note: z.string().max(500).nullable().optional(),
+        kind: z.enum(["income", "reminder", "task"]).optional(),
+        amount: z.number().nonnegative().max(9999999).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      await updateAgendaEvent(tk.userId, input.id, {
+        title: input.title,
+        eventDate: input.eventDate,
+        note: input.note,
+        kind: input.kind,
+        amount: input.amount,
+      });
+      return { ok: true as const };
+    }),
+
+  // Marca un evento como hecho / no hecho.
+  agendaSetDone: publicProcedure
+    .input(
+      z.object({
+        token: tokenSchema,
+        id: z.number().int().positive(),
+        done: z.boolean(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      return await setAgendaDone(tk.userId, input.id, input.done);
+    }),
+
+  // Borra un evento suyo.
+  agendaDelete: publicProcedure
+    .input(z.object({ token: tokenSchema, id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const tk = await getActiveTokenByString(input.token);
+      if (!tk) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "El enlace no es valido o fue desactivado.",
+        });
+      }
+      return await deleteAgendaEvent(tk.userId, input.id);
+    }),
 });
