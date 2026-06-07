@@ -88,7 +88,6 @@ import { personalVehicleMigrations } from "./personalVehicleSchema";
 import { personalDebtsMigrations } from "./personalDebtsSchema";
 import { personalServicesMigrations } from "./personalServicesSchema";
 import { personalAnimalsMigrations } from "./personalAnimalsSchema";
-import { personalRemindersMigrations } from "./personalRemindersSchema";
 import { personalInboxMigrations } from "./personalInboxSchema";
 import { TRPCError } from "@trpc/server";
 
