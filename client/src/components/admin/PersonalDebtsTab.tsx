@@ -342,8 +342,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
             {fmt(remainingToCover)}
           </div>
           <p className="text-[10px] text-slate-500 mt-1.5">
-            pagado {fmt(s?.paymentsThisMonth ?? 0)} de{" "}
-            {fmt(s?.expectedThisMonth ?? 0)}
+            falta de {fmt(s?.expectedThisMonth ?? 0)} del mes · ya pagaste{" "}
+            {fmt(s?.paymentsThisMonth ?? 0)}
           </p>
         </CardContent>
       </Card>
