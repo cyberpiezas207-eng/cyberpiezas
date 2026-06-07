@@ -575,17 +575,6 @@ export default function PersonalExpensesView({
           Gastos / Flujo
         </button>
         <button
-          onClick={() => setActiveTab("alacena")}
-          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === "alacena"
-              ? "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-400/60 text-emerald-100 shadow-lg shadow-emerald-500/10"
-              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-          }`}
-        >
-          <Package className="w-4 h-4" />
-          Alacena
-        </button>
-        <button
           onClick={() => setActiveTab("vehiculo")}
           className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === "vehiculo"
@@ -608,15 +597,15 @@ export default function PersonalExpensesView({
           Deudas
         </button>
         <button
-          onClick={() => setActiveTab("recordatorios")}
+          onClick={() => setActiveTab("alacena")}
           className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === "recordatorios"
-              ? "bg-gradient-to-br from-indigo-500/25 to-cyan-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
+            activeTab === "alacena"
+              ? "bg-gradient-to-br from-emerald-500/25 to-emerald-600/15 border border-emerald-400/60 text-emerald-100 shadow-lg shadow-emerald-500/10"
               : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
           }`}
         >
-          <Bell className="w-4 h-4" />
-          Recordatorios
+          <Package className="w-4 h-4" />
+          Alacena
         </button>
         <button
           onClick={() => setActiveTab("servicios")}
@@ -628,6 +617,17 @@ export default function PersonalExpensesView({
         >
           <FileText className="w-4 h-4" />
           Servicios
+        </button>
+        <button
+          onClick={() => setActiveTab("recordatorios")}
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "recordatorios"
+              ? "bg-gradient-to-br from-indigo-500/25 to-cyan-600/15 border border-indigo-400/60 text-indigo-100 shadow-lg shadow-indigo-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <Bell className="w-4 h-4" />
+          Recordatorios
         </button>
         <button
           onClick={() => setActiveTab("precios")}
