@@ -102,6 +102,32 @@ function nextMonthSameDayYMD(currentYMD: string, dueDay: number | null): string 
   const useDay = Math.min(day, lastDay);
   return `${nextYear}-${String(nextMonth).padStart(2, "0")}-${String(useDay).padStart(2, "0")}`;
 }
+// Calcula la proxima ocurrencia de un dia del mes (dueDay) desde hoy.
+// Si el dia ya paso este mes, salta al proximo mes. Respeta meses cortos
+// (ej: dia 31 en un mes de 30 usa el ultimo dia real).
+// Se usa para que una deuda con "dia 25" tenga su nextDueDate calculado
+// automaticamente y aparezca en "Por pagar este mes".
+function resolveNextDueFromDueDay(dueDay: number | null): string | null {
+  if (dueDay == null || dueDay < 1 || dueDay > 31) return null;
+  const now = nowMexico();
+  const todayDay = now.getDate();
+  const clampDay = (y: number, mo: number, day: number): number => {
+    const last = new Date(y, mo + 1, 0).getDate();
+    return Math.min(day, last);
+  };
+  let y = now.getFullYear();
+  let mo = now.getMonth(); // 0-based
+  let day = clampDay(y, mo, dueDay);
+  if (day < todayDay) {
+    mo += 1;
+    if (mo > 11) {
+      mo = 0;
+      y += 1;
+    }
+    day = clampDay(y, mo, dueDay);
+  }
+  return `${y}-${String(mo + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 // Convierte decimal de BD a number JS
 function toNum(v: any): number {
@@ -254,7 +280,10 @@ export async function createDebt(
     currentInstallment: data.currentInstallment ?? 0,
     totalInstallments: data.totalInstallments ?? null,
     dueDay: data.dueDay ?? null,
-    nextDueDate: data.nextDueDate ?? null,
+    // Si no viene nextDueDate pero si dueDay, calcular la proxima fecha
+    // automaticamente. Asi una deuda con "dia 25" nunca queda "sin fecha".
+    nextDueDate:
+      data.nextDueDate ?? resolveNextDueFromDueDay(data.dueDay ?? null),
     startDate: data.startDate ?? null,
     endDate: data.endDate ?? null,
     status: data.status ?? "active",
@@ -338,6 +367,12 @@ export async function updateDebt(
     updateData.totalInstallments = data.totalInstallments;
   }
   if (data.dueDay !== undefined) updateData.dueDay = data.dueDay;
+  if (data.nextDueDate !== undefined) {
+    updateData.nextDueDate = data.nextDueDate;
+  } else if (data.dueDay !== undefined && data.dueDay != null) {
+    // Si cambiaste el dia pero no diste fecha exacta, recalcular la proxima.
+    updateData.nextDueDate = resolveNextDueFromDueDay(data.dueDay);
+  }
   if (data.nextDueDate !== undefined) updateData.nextDueDate = data.nextDueDate;
   if (data.startDate !== undefined) updateData.startDate = data.startDate;
   if (data.endDate !== undefined) updateData.endDate = data.endDate;
