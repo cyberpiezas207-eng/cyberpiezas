@@ -1,8 +1,9 @@
+// >>> ESTE ARCHIVO VA EN (REEMPLAZA EL EXISTENTE): client/src/components/admin/FlujoGeneralPanel.tsx <<<
 // ============================================================================
 // PANEL "Flujo General" - vista combinada PREMIUM (solo lectura)
 // ----------------------------------------------------------------------------
 // Cruza visualmente negocio + gastos personales SIN MEZCLAR tablas.
-// Diseño premium: gradientes por card, iconos en circulos tinted,
+// Diseno premium: gradientes por card, iconos en circulos tinted,
 // agrupacion negocio | personal con sutil divider, orbs blur en header.
 //
 // Verde   = ingresos (entra al negocio)
@@ -16,6 +17,7 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import DebtsFlowSection from "@/components/admin/DebtsFlowSection";
+import ComoVoyPanel from "@/components/admin/ComoVoyPanel";
 import {
   TrendingUp,
   Wallet,
@@ -281,13 +283,18 @@ export default function FlujoGeneralPanel({ onOpenMisGastos }: Props) {
                   {fmt(current?.balanceAfterExpenses ?? 0)}
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1.5">
-                  Utilidad − gastos
+                  Utilidad - gastos
                 </p>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* ============================================================
+           COMO VOY ESTE MES (semaforo + proyeccion + que paso + hormiga + colchon)
+           ============================================================ */}
+      <ComoVoyPanel />
 
       {/* ============================================================
            MICROCOPY INTELIGENTE (insight del mes)
@@ -321,7 +328,7 @@ export default function FlujoGeneralPanel({ onOpenMisGastos }: Props) {
                   Flujo mensual
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Últimos 6 meses · Ingresos · Utilidad · Gastos · Balance
+                  Ultimos 6 meses - Ingresos - Utilidad - Gastos - Balance
                 </p>
               </div>
             </div>
@@ -418,7 +425,7 @@ export default function FlujoGeneralPanel({ onOpenMisGastos }: Props) {
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-300 font-semibold">
-                Todavía no hay suficiente historial
+                Todavia no hay suficiente historial
               </p>
               <p className="text-slate-500 text-sm mt-1">
                 Captura operaciones y gastos para ver tu flujo mensual.
