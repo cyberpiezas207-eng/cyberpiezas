@@ -47,6 +47,7 @@ const metaSchema = z
     // gasolina
     odometer: z.number().nonnegative().max(99999999).nullable().optional(),
     liters: z.number().nonnegative().max(9999).nullable().optional(),
+    pricePerLiter: z.number().nonnegative().max(999).nullable().optional(),
     // ingreso
     incomeDate: z.string().max(10).nullable().optional(),
     // deseo
