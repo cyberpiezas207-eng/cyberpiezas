@@ -25,6 +25,7 @@ import {
   TrendingDown,
   CheckCircle2,
   AlertTriangle,
+  Bug,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -64,17 +65,24 @@ export default function ComoVoyPanel() {
   const debtsQuery = trpc.personalDebts.debts.list.useQuery({
     status: "active",
   });
+  const listQuery = trpc.personalExpenses.expenses.list.useQuery({
+    year,
+    month,
+    limit: 200,
+  });
 
   const overview = overviewQuery.data;
   const sum = sumQuery.data;
   const dash = dashQuery.data;
   const debts = (debtsQuery.data ?? []) as any[];
+  const expenses = (listQuery.data ?? []) as any[];
 
   const isLoading =
     overviewQuery.isLoading ||
     sumQuery.isLoading ||
     dashQuery.isLoading ||
-    debtsQuery.isLoading;
+    debtsQuery.isLoading ||
+    listQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -179,6 +187,35 @@ export default function ComoVoyPanel() {
     0,
   );
   const todoEnOrden = falta <= 0 && overdue.length === 0;
+
+  // ----- Gasto hormiga (compras chicas que se repiten) -----
+  const HORMIGA_MAX = 120; // monto maximo por compra para contar como hormiga
+  const HORMIGA_MIN_VECES = 3; // minimo de repeticiones
+  const hormigaGroups = new Map<
+    string,
+    { label: string; count: number; sum: number }
+  >();
+  for (const e of expenses) {
+    const amt = toNum(e.amount);
+    if (amt <= 0 || amt > HORMIGA_MAX) continue;
+    const key = String(e.normalizedDescription || e.description || "")
+      .trim()
+      .toLowerCase();
+    if (!key) continue;
+    const g = hormigaGroups.get(key) ?? {
+      label: e.description || key,
+      count: 0,
+      sum: 0,
+    };
+    g.count += 1;
+    g.sum += amt;
+    hormigaGroups.set(key, g);
+  }
+  const hormigas = [...hormigaGroups.values()]
+    .filter((g) => g.count >= HORMIGA_MIN_VECES)
+    .sort((a, b) => b.sum - a.sum);
+  const hormigaTotal = hormigas.reduce((s, g) => s + g.sum, 0);
+  const topHormigas = hormigas.slice(0, 4);
 
   return (
     <Card className="bg-slate-800 border border-slate-700">
@@ -323,6 +360,45 @@ export default function ComoVoyPanel() {
             )}
           </div>
         </div>
+
+        {/* Gasto hormiga */}
+        {hormigas.length > 0 && (
+          <div className="mt-3 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/25">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Bug className="w-4 h-4 text-amber-300" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                  Gasto hormiga
+                </span>
+              </div>
+              <span className="text-sm font-black tabular-nums text-amber-200">
+                {fmt(hormigaTotal)}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mb-2">
+              Compras chicas que repites y sumadas pesan:
+            </p>
+            <div className="space-y-1">
+              {topHormigas.map((g, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-2 text-xs"
+                >
+                  <span className="text-slate-300 truncate capitalize">
+                    {g.label}
+                    <span className="text-slate-500">
+                      {" "}
+                      · {g.count} veces
+                    </span>
+                  </span>
+                  <span className="font-bold tabular-nums text-slate-200 shrink-0">
+                    {fmt(g.sum)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
