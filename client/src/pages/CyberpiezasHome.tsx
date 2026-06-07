@@ -490,6 +490,84 @@ function NavBar({ isAuthenticated, isAdmin, setLocation, onSupport, onCollab, on
 // ============================================================================
 
 function Hero({ setLocation, isAuthenticated, onDemo }: { setLocation: (p: string) => void; isAuthenticated: boolean; onDemo: () => void }) {
+  const goToSistemas = () => {
+    if (isAuthenticated) {
+      setLocation("/sistemas");
+    } else {
+      window.location.href = getLoginUrl();
+    }
+  };
+  const scrollToPOS = () => {
+    const el = document.getElementById("sistemas");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <section className="relative overflow-hidden bg-white">
+      {/* Orbes decorativos */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-20 -right-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-teal-200/20 rounded-full blur-3xl" />
+        <div className="absolute top-40 -left-20 w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-emerald-200/20 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8 pt-14 sm:pt-20 lg:pt-24 pb-12 sm:pb-16 text-center">
+        {/* Eyebrow */}
+        <div className="inline-flex items-center gap-2.5 mb-6 sm:mb-7">
+          <span className="w-6 sm:w-8 h-px bg-slate-300" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-[0.25em] sm:tracking-[0.3em]">
+            Hecho en Morelos - Para Morelos
+          </p>
+          <span className="w-6 sm:w-8 h-px bg-slate-300" />
+        </div>
+
+        {/* H1 - directo al negocio */}
+        <h1 className="text-[2.5rem] leading-[1.02] sm:text-6xl sm:leading-[0.98] lg:text-7xl font-bold tracking-tighter text-slate-900 max-w-4xl mx-auto">
+          Tu negocio,
+          <br className="hidden sm:block" />
+          <span className="sm:hidden"> </span>
+          <span className="bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 bg-clip-text text-transparent italic font-medium">
+            en orden y creciendo.
+          </span>
+        </h1>
+
+        {/* Subhead corto */}
+        <p className="mt-5 sm:mt-7 text-lg sm:text-xl lg:text-2xl text-slate-600 max-w-2xl mx-auto font-light leading-relaxed tracking-tight px-2">
+          Sistemas de punto de venta hechos a la medida de tu giro.
+          <span className="text-slate-900 font-normal"> Cobra, controla tu inventario y crece desde tu celular.</span>
+        </p>
+
+        {/* CTAs grandes y claros */}
+        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 px-4 sm:px-0">
+          <Button
+            onClick={goToSistemas}
+            className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white rounded-full h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-bold shadow-xl shadow-slate-900/20 hover:scale-[1.02] hover:-translate-y-0.5 transition-all"
+          >
+            <LayoutDashboard className="w-5 h-5 mr-2" />
+            Entrar a mi sistema
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+          <Button
+            onClick={scrollToPOS}
+            variant="outline"
+            className="w-full sm:w-auto border-2 border-slate-300 hover:bg-slate-50 text-slate-900 rounded-full h-14 sm:h-16 px-8 sm:px-10 text-base sm:text-lg font-bold"
+          >
+            <Store className="w-5 h-5 mr-2" />
+            Ver puntos de venta
+          </Button>
+        </div>
+
+        {/* Trust badges */}
+        <div className="flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-7 gap-y-2 mt-8 sm:mt-10 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Sin contratos</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Funciona sin internet</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Soporte humano</span>
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-500" /> Desde $150/mes</span>
+        </div>
+      </div>
+    </section>
+  );
+}: { setLocation: (p: string) => void; isAuthenticated: boolean; onDemo: () => void }) {
   return (
     <section className="relative overflow-hidden bg-white">
       {/* Orbes decorativos */}
