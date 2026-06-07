@@ -1,7 +1,9 @@
+// >>> ESTE ARCHIVO VA EN (REEMPLAZA EL EXISTENTE): client/src/components/admin/MonthPaymentPlan.tsx <<<
 // ============================================================================
 // MONTH PAYMENT PLAN - "Plan de pago del mes"
 // ----------------------------------------------------------------------------
 // Panel asesor que muestra:
+//   - Bola de nieve: deudas ordenadas de menor a mayor saldo + fecha libertad
 //   - Resumen numerico: por cubrir, ya pagado, dias restantes, separar diario
 //   - Alerta si hay deudas vencidas en el mes
 //   - Lista de deudas vencidas (prioridad maxima)
@@ -16,6 +18,7 @@
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,9 @@ import {
   Clock,
   Receipt,
   Calendar as CalendarIcon,
+  Snowflake,
+  Flag,
+  Zap,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -63,6 +69,21 @@ function daysUntil(ymd: string | null): number | null {
 function formatDayShort(ymd: string): string {
   const [, m, d] = ymd.split("-").map(Number);
   return `${d} ${MONTHS_ES[(m ?? 1) - 1].slice(0, 3)}`;
+}
+
+function toNum(v: any): number {
+  if (v == null) return 0;
+  if (typeof v === "number") return v;
+  return parseFloat(v) || 0;
+}
+
+// Etiqueta de mes/anio sumando N meses a hoy (para la fecha de libertad)
+function freedomLabel(monthsAhead: number | null): string {
+  if (monthsAhead == null || !Number.isFinite(monthsAhead)) return "—";
+  const base = nowMexico();
+  const d = new Date(base.getFullYear(), base.getMonth() + monthsAhead, 1);
+  const label = MONTHS_ES[d.getMonth()];
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)} ${d.getFullYear()}`;
 }
 
 // ----------------------------------------------------------------------------
@@ -218,6 +239,186 @@ function PaymentRow({
 }
 
 // ----------------------------------------------------------------------------
+// Sub-panel: Bola de nieve (orden + proxima en caer + fecha libertad + simulador)
+// ----------------------------------------------------------------------------
+
+function SnowballPanel({ debts }: { debts: any[] }) {
+  const [extra, setExtra] = useState("");
+
+  // Deudas activas con saldo, ordenadas de menor a mayor (orden bola de nieve)
+  const ordered = debts
+    .map((d) => ({
+      id: d.id,
+      creditorName: d.creditorName,
+      title: d.title,
+      bal: toNum(d.currentBalance),
+      inst: toNum(d.installmentAmount),
+    }))
+    .filter((d) => d.bal > 0)
+    .sort((a, b) => a.bal - b.bal);
+
+  if (ordered.length === 0) return null;
+
+  const totalBalance = ordered.reduce((s, d) => s + d.bal, 0);
+  // Ritmo de pago mensual = suma de las cuotas mensuales
+  const monthlyThroughput = ordered.reduce((s, d) => s + d.inst, 0);
+
+  const extraNum = extra.trim() ? Math.max(0, Number(extra) || 0) : 0;
+
+  const baseMonths =
+    monthlyThroughput > 0 ? Math.ceil(totalBalance / monthlyThroughput) : null;
+  const withExtraMonths =
+    monthlyThroughput + extraNum > 0
+      ? Math.ceil(totalBalance / (monthlyThroughput + extraNum))
+      : null;
+  const mesesAhorrados =
+    baseMonths != null && withExtraMonths != null
+      ? Math.max(0, baseMonths - withExtraMonths)
+      : 0;
+
+  // La proxima en caer = la de menor saldo
+  const next = ordered[0];
+  const nextMonths =
+    next.inst > 0 ? Math.ceil(next.bal / next.inst) : null;
+
+  const topList = ordered.slice(0, 5);
+
+  return (
+    <Card className="bg-slate-800 border border-sky-500/30">
+      <CardContent className="p-5">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/15 ring-1 ring-sky-400/25 flex items-center justify-center">
+            <Snowflake className="w-4 h-4 text-sky-300" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-100">Bola de nieve</h3>
+            <p className="text-[11px] text-slate-400">
+              Tumba primero la mas chica; su pago rueda a la siguiente.
+            </p>
+          </div>
+        </div>
+
+        {/* Proxima en caer */}
+        <div className="mt-3 p-3 rounded-xl bg-sky-500/[0.07] border border-sky-500/25">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Flag className="w-3.5 h-3.5 text-sky-300" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300">
+              La proxima en caer
+            </span>
+          </div>
+          <p className="text-sm font-bold text-white truncate">
+            {next.creditorName} · {next.title}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            Saldo {fmt(next.bal)}
+            {nextMonths != null
+              ? ` · la liquidas en ~${nextMonths} mes${nextMonths === 1 ? "" : "es"}`
+              : ""}
+          </p>
+        </div>
+
+        {/* Orden bola de nieve */}
+        <div className="mt-3 space-y-1.5">
+          {topList.map((d, i) => (
+            <div
+              key={d.id}
+              className="flex items-center gap-2.5 p-2 rounded-lg bg-slate-900/40 border border-slate-700/50"
+            >
+              <span
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-black shrink-0 ${
+                  i === 0
+                    ? "bg-sky-500/25 text-sky-200 ring-1 ring-sky-400/40"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-100 truncate">
+                  {d.creditorName} · {d.title}
+                </p>
+              </div>
+              <span className="text-sm font-black tabular-nums text-slate-200 shrink-0">
+                {fmt(d.bal)}
+              </span>
+            </div>
+          ))}
+          {ordered.length > topList.length && (
+            <p className="text-[10px] text-slate-500 text-center pt-1">
+              + {ordered.length - topList.length} deuda
+              {ordered.length - topList.length === 1 ? "" : "s"} mas
+            </p>
+          )}
+        </div>
+
+        {/* Fecha de libertad */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+              Deuda total
+            </p>
+            <p className="text-sm font-black tabular-nums text-slate-100">
+              {fmt(totalBalance)}
+            </p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80 mb-0.5">
+              Fecha de libertad
+            </p>
+            <p className="text-sm font-black tabular-nums text-emerald-300">
+              {baseMonths != null ? freedomLabel(baseMonths) : "—"}
+            </p>
+          </div>
+        </div>
+        {baseMonths == null && (
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            Agrega la cuota mensual a tus deudas para calcular tu fecha de
+            libertad.
+          </p>
+        )}
+
+        {/* Simulador */}
+        {baseMonths != null && (
+          <div className="mt-3 p-3 rounded-xl bg-amber-500/[0.07] border border-amber-500/25">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                Simulador: que pasa si le metes extra
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-slate-400">Extra al mes $</span>
+              <input
+                value={extra}
+                onChange={(e) => setExtra(e.target.value)}
+                placeholder="0"
+                inputMode="decimal"
+                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-1.5 w-28 text-sm"
+              />
+            </div>
+            {extraNum > 0 && withExtraMonths != null && (
+              <p className="text-xs text-amber-100 mt-2 leading-relaxed">
+                Sales en{" "}
+                <span className="font-black">{freedomLabel(withExtraMonths)}</span>
+                {mesesAhorrados > 0 ? (
+                  <>
+                    {" "}· te ahorras{" "}
+                    <span className="font-black">
+                      {mesesAhorrados} mes{mesesAhorrados === 1 ? "" : "es"}
+                    </span>
+                  </>
+                ) : null}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Componente principal
 // ----------------------------------------------------------------------------
 
@@ -313,160 +514,168 @@ export default function MonthPaymentPlan({
   // Empty state: no hay deudas en el mes
   if (!isLoading && debtsThisMonth.length === 0) {
     return (
-      <Card className="bg-slate-800 border border-slate-700">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <ClipboardList className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-slate-200">
-              Plan de pago · {MONTHS_ES[month - 1]} {year}
-            </h3>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mt-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Sin compromisos de deuda este mes</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <SnowballPanel debts={debts} />
+        <Card className="bg-slate-800 border border-slate-700">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardList className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-slate-200">
+                Plan de pago · {MONTHS_ES[month - 1]} {year}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400 mt-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Sin compromisos de deuda este mes</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="bg-slate-800 border border-slate-700">
-      <CardContent className="p-5">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-amber-300" />
-            <h3 className="text-sm font-bold text-slate-200">
-              Plan de pago · {MONTHS_ES[month - 1]} {year}
-            </h3>
+    <div className="space-y-4">
+      {/* Bola de nieve arriba del plan */}
+      <SnowballPanel debts={debts} />
+
+      <Card className="bg-slate-800 border border-slate-700">
+        <CardContent className="p-5">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-amber-300" />
+              <h3 className="text-sm font-bold text-slate-200">
+                Plan de pago · {MONTHS_ES[month - 1]} {year}
+              </h3>
+            </div>
+            {overdue.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-500/50">
+                <AlertTriangle className="w-3 h-3" />
+                {overdue.length} vencida{overdue.length === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
+
+          {/* Resumen numerico */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+            <MiniStat
+              label="Por cubrir"
+              value={fmt(remaining)}
+              emphasis
+              color={remaining > 0 ? "amber" : "emerald"}
+            />
+            <MiniStat
+              label="Ya pagaste"
+              value={fmt(totalPaid)}
+              color="emerald"
+            />
+            <MiniStat
+              label="Dias restantes"
+              value={daysRemaining}
+              color="slate"
+            />
+            <MiniStat
+              label="Separar diario"
+              value={fmt(dailyRequired)}
+              emphasis
+              color={dailyRequired > 0 ? "amber" : "emerald"}
+            />
+          </div>
+
+          {/* Microcopy contextual */}
+          {overdue.length > 0 ? (
+            <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 mb-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-300 shrink-0 mt-0.5" />
+              <p className="text-xs text-rose-200">
+                <span className="font-bold">Tienes pagos vencidos.</span>{" "}
+                Cubre estos primero antes de abonar extra a otras deudas.
+              </p>
+            </div>
+          ) : dailyRequired > 0 && isCurrentMonth ? (
+            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 mb-3 flex items-start gap-2">
+              <CalendarIcon className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-100">
+                Para llegar al fin de mes sin atrasos, separa{" "}
+                <span className="font-bold">{fmt(dailyRequired)}</span> diarios
+                durante {daysRemaining} dias.
+              </p>
+            </div>
+          ) : null}
+
+          {/* Lista vencidas */}
           {overdue.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-500/50">
-              <AlertTriangle className="w-3 h-3" />
-              {overdue.length} vencida{overdue.length === 1 ? "" : "s"}
-            </span>
+            <div className="mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400 mb-1.5">
+                Vencidas
+              </p>
+              <div className="space-y-1.5">
+                {overdue.map((d) => (
+                  <PaymentRow
+                    key={d.id}
+                    debt={d}
+                    variant="overdue"
+                    onPay={onPay}
+                    onEdit={onEdit}
+                  />
+                ))}
+              </div>
+            </div>
           )}
-        </div>
 
-        {/* Resumen numerico */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-          <MiniStat
-            label="Por cubrir"
-            value={fmt(remaining)}
-            emphasis
-            color={remaining > 0 ? "amber" : "emerald"}
-          />
-          <MiniStat
-            label="Ya pagaste"
-            value={fmt(totalPaid)}
-            color="emerald"
-          />
-          <MiniStat
-            label="Dias restantes"
-            value={daysRemaining}
-            color="slate"
-          />
-          <MiniStat
-            label="Separar diario"
-            value={fmt(dailyRequired)}
-            emphasis
-            color={dailyRequired > 0 ? "amber" : "emerald"}
-          />
-        </div>
+          {/* Lista proximas */}
+          {upcoming.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Proximas a vencer
+              </p>
+              <div className="space-y-1.5">
+                {upcoming.map((d) => (
+                  <PaymentRow
+                    key={d.id}
+                    debt={d}
+                    variant="upcoming"
+                    onPay={onPay}
+                    onEdit={onEdit}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Microcopy contextual */}
-        {overdue.length > 0 ? (
-          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 mb-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-300 shrink-0 mt-0.5" />
-            <p className="text-xs text-rose-200">
-              <span className="font-bold">Tienes pagos vencidos.</span>{" "}
-              Cubre estos primero antes de abonar extra a otras deudas.
-            </p>
-          </div>
-        ) : dailyRequired > 0 && isCurrentMonth ? (
-          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 mb-3 flex items-start gap-2">
-            <CalendarIcon className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-100">
-              Para llegar al fin de mes sin atrasos, separa{" "}
-              <span className="font-bold">{fmt(dailyRequired)}</span> diarios
-              durante {daysRemaining} dias.
-            </p>
-          </div>
-        ) : null}
+          {/* Lista ya pagadas */}
+          {paidThisMonth.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1.5">
+                Ya cubiertas este mes
+              </p>
+              <div className="space-y-1.5">
+                {paidThisMonth.map((d) => (
+                  <PaymentRow
+                    key={d.id}
+                    debt={d}
+                    variant="paid"
+                    onPay={onPay}
+                    onEdit={onEdit}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Lista vencidas */}
-        {overdue.length > 0 && (
-          <div className="mb-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-400 mb-1.5">
-              Vencidas
-            </p>
-            <div className="space-y-1.5">
-              {overdue.map((d) => (
-                <PaymentRow
-                  key={d.id}
-                  debt={d}
-                  variant="overdue"
-                  onPay={onPay}
-                  onEdit={onEdit}
+          {/* Loading skeleton */}
+          {isLoading && (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-12 rounded-lg bg-slate-700/40 animate-pulse"
                 />
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Lista proximas */}
-        {upcoming.length > 0 && (
-          <div className="mb-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-              Proximas a vencer
-            </p>
-            <div className="space-y-1.5">
-              {upcoming.map((d) => (
-                <PaymentRow
-                  key={d.id}
-                  debt={d}
-                  variant="upcoming"
-                  onPay={onPay}
-                  onEdit={onEdit}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Lista ya pagadas */}
-        {paidThisMonth.length > 0 && (
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1.5">
-              Ya cubiertas este mes
-            </p>
-            <div className="space-y-1.5">
-              {paidThisMonth.map((d) => (
-                <PaymentRow
-                  key={d.id}
-                  debt={d}
-                  variant="paid"
-                  onPay={onPay}
-                  onEdit={onEdit}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Loading skeleton */}
-        {isLoading && (
-          <div className="space-y-2">
-            {[...Array(2)].map((_, i) => (
-              <div
-                key={i}
-                className="h-12 rounded-lg bg-slate-700/40 animate-pulse"
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
