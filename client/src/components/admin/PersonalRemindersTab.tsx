@@ -8,13 +8,19 @@
 //   - Filter tabs: Hoy | Proximos | Atrasados | Todos | Completados
 //   - Lista de recordatorios con acciones inline:
 //     - Hecho (markDone, maneja recurrencia automatica)
-//     - Posponer (popover con presets: mañana / 3 dias / 1 semana / 1 mes)
+//     - Posponer (popover con presets: manana / 3 dias / 1 semana / 1 mes)
 //     - Eliminar (softDelete con confirmacion)
 //
 // Endpoints usados (todos del Commit 13):
 //   - personalReminders.reminders.list/quickCreate/previewCapture/markDone
 //   - personalReminders.reminders.snoozeQuick/dismiss/softDelete
 //   - personalReminders.stats.dashboard
+//
+// BLINDAJE DE FECHAS:
+//   - toYMDsafe convierte cualquier valor (string, Date, numero, basura) a
+//     YYYY-MM-DD o null. daysUntil y formatDueLabel lo usan ANTES de .split()
+//     para que la pagina nunca truene con "t.split is not a function" cuando
+//     un recordatorio o item de deuda trae la fecha en un tipo inesperado.
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
@@ -47,6 +53,33 @@ import {
 // Helpers
 // ----------------------------------------------------------------------------
 
+// Colador defensivo: convierte CUALQUIER valor (string, Date, numero, basura)
+// a un string YYYY-MM-DD valido o null. Evita que .split() truene la pagina
+// con "t.split is not a function" cuando una fecha llega como Date u otro tipo.
+function toYMDsafe(v: any): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const p = new Date(s);
+    if (!isNaN(p.getTime())) {
+      return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, "0")}-${String(p.getDate()).padStart(2, "0")}`;
+    }
+    return null;
+  }
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  }
+  if (typeof v === "number" && isFinite(v)) {
+    const p = new Date(v);
+    if (!isNaN(p.getTime())) {
+      return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, "0")}-${String(p.getDate()).padStart(2, "0")}`;
+    }
+  }
+  return null;
+}
+
 function nowMexico(): Date {
   return new Date(Date.now() - 6 * 60 * 60 * 1000);
 }
@@ -56,7 +89,8 @@ function todayYMD(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function daysUntil(ymd: string | null | undefined): number | null {
+function daysUntil(ymdRaw: string | null | undefined | unknown): number | null {
+  const ymd = toYMDsafe(ymdRaw);
   if (!ymd) return null;
   const parts = ymd.split("-").map(Number);
   if (parts.length !== 3) return null;
@@ -66,11 +100,16 @@ function daysUntil(ymd: string | null | undefined): number | null {
   return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatDueLabel(ymd: string | null | undefined, time: string | null | undefined): string {
-  if (!ymd) return time ? `a las ${time.slice(0, 5)}` : "sin fecha";
+function formatDueLabel(
+  ymdRaw: string | null | undefined | unknown,
+  time: string | null | undefined,
+): string {
+  const ymd = toYMDsafe(ymdRaw);
+  const timeStr = typeof time === "string" ? time : null;
+  if (!ymd) return timeStr ? `a las ${timeStr.slice(0, 5)}` : "sin fecha";
   const days = daysUntil(ymd);
   if (days == null) return ymd;
-  const timeLabel = time ? ` · ${time.slice(0, 5)}` : "";
+  const timeLabel = timeStr ? ` · ${timeStr.slice(0, 5)}` : "";
   if (days === 0) return `hoy${timeLabel}`;
   if (days === 1) return `mañana${timeLabel}`;
   if (days === -1) return `ayer${timeLabel}`;
