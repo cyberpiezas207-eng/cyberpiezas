@@ -90,6 +90,7 @@ import { personalServicesMigrations } from "./personalServicesSchema";
 import { personalAnimalsMigrations } from "./personalAnimalsSchema";
 import { personalInboxMigrations } from "./personalInboxSchema";
 import { personalWishesMigrations } from "./personalWishesSchema";
+import { personalAgendaMigrations } from "./personalAgendaSchema";
 import { TRPCError } from "@trpc/server";
 
 // ============================================================================
@@ -224,6 +225,7 @@ export async function runStartupMigrations(): Promise<void> {
     ...personalAnimalsMigrations,
     ...personalInboxMigrations,
     ...personalWishesMigrations,
+    ...personalAgendaMigrations,
     
     // Columna para persistir aceptación de términos y condiciones por usuario
     // Nota: IF NOT EXISTS no es compatible con MySQL — el catch maneja errno 1060 (columna ya existe)
