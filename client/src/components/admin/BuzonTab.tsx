@@ -37,6 +37,7 @@ import {
   Fuel,
   Banknote,
   Heart,
+  CalendarDays,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -182,9 +183,13 @@ export default function BuzonTab() {
     { enabled: showHistory },
   );
 
+  // Agenda de la esposa: lo que tiene proximo (solo lectura para el dueno).
+  const agendaQuery = trpc.personalInbox.agenda.upcoming.useQuery({ days: 30 });
+
   function refreshAll() {
     utils.personalInbox.submissions.list.invalidate();
     utils.personalInbox.submissions.pendingCount.invalidate();
+    utils.personalInbox.agenda.upcoming.invalidate();
     // Confirmar crea un gasto: refrescar gastos y pastel
     utils.personalExpenses.expenses.list.invalidate();
     utils.personalExpenses.stats.dashboard.invalidate();
@@ -367,6 +372,62 @@ export default function BuzonTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Agenda de la esposa (lo que viene) */}
+      {(() => {
+        const eventos = (agendaQuery.data ?? []) as any[];
+        if (eventos.length === 0) return null;
+        const fmtAg = (n: number) =>
+          new Intl.NumberFormat("es-MX", {
+            style: "currency",
+            currency: "MXN",
+            maximumFractionDigits: 0,
+          }).format(n);
+        const kindLabel: Record<string, string> = {
+          income: "Ingreso",
+          reminder: "Recordatorio",
+          task: "Pendiente",
+        };
+        return (
+          <Card className="bg-slate-800/40 border-slate-700">
+            <CardContent className="p-5">
+              <h3 className="text-sm font-bold text-slate-100 mb-1 flex items-center gap-1.5">
+                <CalendarDays className="w-4 h-4 text-violet-300" />
+                Lo que tu esposa tiene agendado
+              </h3>
+              <p className="text-[11px] text-slate-500 mb-3">
+                Proximos dias en su calendario
+              </p>
+              <div className="space-y-2">
+                {eventos.map((e: any) => (
+                  <div
+                    key={e.id}
+                    className="flex items-center gap-3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5"
+                  >
+                    <span className="text-[11px] font-bold text-violet-200 bg-violet-500/15 border border-violet-500/30 rounded-lg px-2 py-1 shrink-0 tabular-nums">
+                      {e.eventDate?.slice(5)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-white truncate">
+                        {e.title}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {kindLabel[e.kind] ?? "Evento"}
+                        {e.createdBy ? ` · ${e.createdBy}` : ""}
+                      </p>
+                    </div>
+                    {e.amount != null && e.amount > 0 && (
+                      <span className="text-sm font-black text-emerald-300 tabular-nums shrink-0">
+                        {fmtAg(e.amount)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Pendientes */}
       <Card className="bg-slate-800/40 border-slate-700">
