@@ -187,8 +187,8 @@ export default function AdminCyberpiezas() {
           }
         }}
       />
-      {/* Dinero Libre Estimado - Resumen de Hoy */}
-      <DineroLibreCard />
+      {/* Dinero Libre Estimado: ahora vive arriba de todo (topSlot), no aqui,
+          para no duplicarlo. */}
       {/* Bolsillos (Wallets) */}
       <WalletsPanel />
       {/* KPI Strip */}
@@ -278,6 +278,7 @@ export default function AdminCyberpiezas() {
             key={gastosViewKey}
             initialSubTab={gastosInitialSubTab}
             resumenSlot={resumenPanel}
+            topSlot={<DineroLibreCard />}
           />
         )}
       </div>
