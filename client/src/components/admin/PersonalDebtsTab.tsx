@@ -24,6 +24,7 @@ import PaidDebtsSection from "@/components/admin/PaidDebtsSection";
 import CompleteDebtModal from "@/components/admin/CompleteDebtModal";
 import EditDebtModal from "@/components/admin/EditDebtModal";
 import MonthPaymentPlan from "@/components/admin/MonthPaymentPlan";
+import ProgresoMesCard from "@/components/admin/ProgresoMesCard";
 import DebtKPIsPanel from "@/components/admin/DebtKPIsPanel";
 import TodayActionCard from "@/components/admin/TodayActionCard";
 import {
@@ -229,6 +230,8 @@ export default function PersonalDebtsTab() {
 
       {/* Stats */}
       <StatsCards year={year} month={month} />
+      {/* Progreso del mes (dinero cubierto + los grandes) */}
+      <ProgresoMesCard year={year} month={month} debts={debts} />
 
       {/* Plan de pago del mes (panel asesor) */}
       <MonthPaymentPlan
