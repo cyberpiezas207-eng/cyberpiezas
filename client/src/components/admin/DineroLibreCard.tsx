@@ -1,20 +1,21 @@
 // ============================================================================
-// DINERO LIBRE ESTIMADO - Card destacada de Resumen de Hoy
+// DINERO LIBRE ESTIMADO - Card destacada de Resumen de Hoy (HERO)
 // ----------------------------------------------------------------------------
 // La metrica MAS importante del dashboard: responde "cuanto me queda libre
-// este mes despues de cubrir TODO lo que tengo que cubrir".
+// este mes despues de cubrir TODO lo que tengo que cubrir", y ademas muestra
+// el proximo pago que se acerca (para responder "que pago pronto").
 //
 // Formula:
 //   Dinero libre = utilidadNegocio - gastosPersonales - deudasMes -
 //                  suscripciones - ahorroDiarioMes
 //
-// Microcopy narrativa para humanizar el numero:
-//   "Tus gastos consumen X% de tu utilidad este mes"
-//   "Te queda Y dias para llegar al limite"
-//   "Vas en buen camino: tu balance crecio Z%"
+// NOTA: deudasMes usa pendingThisMonth (lo que falta por pagar este mes de
+// las deudas vivas), que es el campo correcto de getMonthSummary. Antes se
+// usaba totalMonthlyPayments, que NO existe en el summary y dejaba las deudas
+// en 0 dentro del calculo de dinero libre.
 //
-// Tema: card grande arriba del KPI strip, color verde/amber/rojo segun el
-// estado. Hover muestra detalle del calculo.
+// Tema: card grande arriba, color verde/amber/rojo segun el estado.
+// Hover/expand muestra detalle del calculo.
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // ============================================================================
 
@@ -28,6 +29,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  CalendarClock,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------------
@@ -61,6 +63,47 @@ function daysRemainingInMonth(): number {
   return total - d.getDate() + 1;
 }
 
+// Colador de fecha: cualquier valor -> YYYY-MM-DD o null (evita .split sobre
+// algo que no sea string).
+function toYMDsafe(v: any): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const p = new Date(s);
+    if (!isNaN(p.getTime())) {
+      return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, "0")}-${String(p.getDate()).padStart(2, "0")}`;
+    }
+    return null;
+  }
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  }
+  return null;
+}
+
+// Dias hasta una fecha YMD (negativo si ya paso). Null si no hay fecha.
+function daysUntilYMD(ymdRaw: any): number | null {
+  const ymd = toYMDsafe(ymdRaw);
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split("-").map(Number);
+  const target = new Date(y, m - 1, d, 12, 0, 0);
+  const today = nowMexico();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+// Etiqueta humana del proximo vencimiento
+function dueLabel(days: number | null): string {
+  if (days == null) return "sin fecha";
+  if (days < 0) return `hace ${Math.abs(days)} d`;
+  if (days === 0) return "hoy";
+  if (days === 1) return "manana";
+  if (days <= 7) return `en ${days} dias`;
+  return `en ${days} dias`;
+}
+
 // ----------------------------------------------------------------------------
 // Componente
 // ----------------------------------------------------------------------------
@@ -88,8 +131,10 @@ export default function DineroLibreCard() {
   const businessProfit = overview?.currentMonth?.businessProfit ?? 0;
   const personalExpenses = overview?.currentMonth?.personalExpenses ?? 0;
 
-  // Deudas del mes: suma de los pagos que tocan este mes
-  const deudasMes = Number(debtSum?.totalMonthlyPayments ?? 0);
+  // Deudas del mes: lo que FALTA por pagar este mes de las deudas vivas.
+  // Campo correcto de getMonthSummary (antes se usaba totalMonthlyPayments,
+  // que no existe y dejaba esto en 0).
+  const deudasMes = Number(debtSum?.pendingThisMonth ?? 0);
 
   // Suscripciones activas: suma de pagos mensuales
   const suscripcionesMes = mySubs.reduce((acc: number, sub: any) => {
@@ -116,10 +161,14 @@ export default function DineroLibreCard() {
       ? Math.round((totalComprometido / businessProfit) * 100)
       : null;
 
+  // --- Proximo pago (responde "que se acerca") ---
+  const nextCreditor = debtSum?.nextDueCreditor ?? null;
+  const nextAmount = debtSum?.nextDueAmount ?? null;
+  const nextDays = daysUntilYMD(debtSum?.nextDueDate ?? null);
+  const hasNextDue = nextCreditor != null && nextAmount != null;
+  const nextIsUrgent = nextDays != null && nextDays <= 3;
+
   // --- Logica de estado ---
-  // verde: dineroLibre > 0 y utilidadConsumida < 70%
-  // amber: dineroLibre > 0 pero utilidad >= 70%
-  // rosa: dineroLibre <= 0
   let stateKind: "good" | "warning" | "danger" = "good";
   if (dineroLibre <= 0) {
     stateKind = "danger";
@@ -245,6 +294,46 @@ export default function DineroLibreCard() {
           </p>
         </div>
 
+        {/* Proximo pago: responde "que se acerca" de un vistazo */}
+        {hasNextDue && (
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 border ${
+              nextIsUrgent
+                ? "bg-rose-500/10 border-rose-500/30"
+                : "bg-slate-800/50 border-slate-700/50"
+            }`}
+          >
+            <CalendarClock
+              className={`w-4 h-4 shrink-0 ${
+                nextIsUrgent ? "text-rose-300" : "text-slate-400"
+              }`}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold leading-none">
+                Proximo pago
+              </p>
+              <p className="text-xs text-slate-200 font-semibold truncate mt-0.5">
+                {nextCreditor}
+                <span
+                  className={`font-normal ${
+                    nextIsUrgent ? "text-rose-300" : "text-slate-400"
+                  }`}
+                >
+                  {" "}
+                  · {dueLabel(nextDays)}
+                </span>
+              </p>
+            </div>
+            <span
+              className={`text-sm font-black tabular-nums shrink-0 ${
+                nextIsUrgent ? "text-rose-300" : "text-slate-200"
+              }`}
+            >
+              {fmt(Number(nextAmount))}
+            </span>
+          </div>
+        )}
+
         {/* Footer rapido */}
         <div className="flex items-center gap-4 text-[11px] text-slate-400 mt-3">
           {utilidadConsumidaPct != null && (
@@ -284,7 +373,7 @@ export default function DineroLibreCard() {
             <div className="flex items-center justify-between">
               <span className="text-slate-400 inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                Deudas del mes
+                Deudas del mes (lo que falta)
               </span>
               <span className="text-amber-300 font-bold tabular-nums">
                 -{fmt(deudasMes)}
