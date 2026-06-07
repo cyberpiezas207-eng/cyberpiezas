@@ -91,7 +91,7 @@ export async function createPantryItem(
   const insertRes: any = await conn.insert(personalPantryItems).values({
     userId,
     name: data.name.trim(),
-    normalizedName: normalizeText(data.name),
+    normalizedName: normalizeText(data.name) ?? "",
     categoryId: data.categoryId ?? null,
     storeId: data.storeId ?? null,
     unit: data.unit ?? null,
