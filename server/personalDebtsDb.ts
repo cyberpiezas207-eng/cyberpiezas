@@ -875,12 +875,18 @@ export async function getMonthSummary(
   // Las deudas liquidadas (status paid) ya no estan en monthDebts, asi que
   // sus pagos no inflan ni desinflan este numero. Esto evita que pagar una
   // deuda de un solo pago "descuente" de otras deudas distintas.
-  const pendingThisMonth = monthDebts.reduce((acc, d) => {
+const pendingThisMonth = monthDebts.reduce((acc, d) => {
     const cuota = dueAmountFor(d);
     const yaAbonado = paidByDebt.get(d.id) ?? 0;
     return acc + Math.max(0, cuota - yaAbonado);
   }, 0);
 
+  // Ahorro diario sugerido: lo que falta este mes repartido entre los dias
+  // que quedan. Asi sabes cuanto apartar al dia para llegar sin atrasos.
+  const ahorroDiarioSugerido =
+    remainingDaysInMonth > 0
+      ? Math.ceil(pendingThisMonth / remainingDaysInMonth)
+      : pendingThisMonth;
   return {
     totalCurrentBalance,
     activeDebtsCount: activeDebts.length,
