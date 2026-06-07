@@ -41,6 +41,7 @@ import PublicPetPortal from "@/pages/PublicPetPortal";
 import StoreCheckout from "@/pages/StoreCheckout";
 import StoreOrdersPanel from "@/pages/StoreOrdersPanel";
 import SystemsPanel from "@/pages/SystemsPanel";
+import PublicInbox from "@/pages/PublicInbox";
 
 import AbarrotesPOS from "@/pages/AbarrotesPOS";
 import VerduleriaPOS from "@/pages/VerduleriaPOS";
@@ -150,6 +151,8 @@ function Router() {
       <Route path="/tienda/:slug/checkout" component={StoreCheckout} />
       {/* P5 - Portal publico de duenos de mascotas (acceso por token) */}
       <Route path="/mi-mascota/:token" component={PublicPetPortal} />
+      {/* Buzon publico de gastos (formato esposa, acceso por token) */}
+<Route path="/buzon/:token" component={PublicInbox} />
       <Route path="/store-orders" component={StoreOrdersPanel} />
       <Route path="/cameras-store" component={CamerasStore} />
       <Route path="/subscriptions-dashboard">
