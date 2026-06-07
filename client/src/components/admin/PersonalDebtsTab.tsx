@@ -300,12 +300,11 @@ function StatsCards({ year, month }: { year: number; month: number }) {
     year,
     month,
   });
-  const s = sumQuery.data;
+ const s = sumQuery.data;
   const nextDueDays = daysUntil(s?.nextDueDate ?? null);
-  const remainingToCover = Math.max(
-    0,
-    (s?.expectedThisMonth ?? 0) - (s?.paymentsThisMonth ?? 0),
-  );
+  // Usar pendingThisMonth del backend (lo que falta de cada deuda viva),
+  // NO la resta vieja esperado - pagado que mezclaba deudas liquidadas.
+  const remainingToCover = s?.pendingThisMonth ?? 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -342,8 +341,8 @@ function StatsCards({ year, month }: { year: number; month: number }) {
             {fmt(remainingToCover)}
           </div>
           <p className="text-[10px] text-slate-500 mt-1.5">
-            falta de {fmt(s?.expectedThisMonth ?? 0)} del mes · ya pagaste{" "}
-            {fmt(s?.paymentsThisMonth ?? 0)}
+            de {fmt(s?.expectedThisMonth ?? 0)} del mes · ya pagaste{" "}
+            {fmt(s?.paymentsThisMonth ?? 0)} aparte
           </p>
         </CardContent>
       </Card>
