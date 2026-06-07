@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bug,
+  LifeBuoy,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -70,19 +71,22 @@ export default function ComoVoyPanel() {
     month,
     limit: 200,
   });
+  const walletsQuery = trpc.personalWallets.wallets.list.useQuery();
 
   const overview = overviewQuery.data;
   const sum = sumQuery.data;
   const dash = dashQuery.data;
   const debts = (debtsQuery.data ?? []) as any[];
   const expenses = (listQuery.data ?? []) as any[];
+  const wallets = (walletsQuery.data ?? []) as any[];
 
   const isLoading =
     overviewQuery.isLoading ||
     sumQuery.isLoading ||
     dashQuery.isLoading ||
     debtsQuery.isLoading ||
-    listQuery.isLoading;
+    listQuery.isLoading ||
+    walletsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -216,6 +220,42 @@ export default function ComoVoyPanel() {
     .sort((a, b) => b.sum - a.sum);
   const hormigaTotal = hormigas.reduce((s, g) => s + g.sum, 0);
   const topHormigas = hormigas.slice(0, 4);
+
+  // ----- Colchon de meses (cuanto aguantas sin que entre dinero) -----
+  const totalGuardado = wallets.reduce(
+    (acc, w) => acc + toNum(w.balance),
+    0,
+  );
+  // Gasto mensual promedio: promedio de los meses con gasto del historial.
+  // Si no hay historial, usamos el gasto de este mes como referencia.
+  const trendExp = (overview?.trend ?? [])
+    .map((t: any) => toNum(t.personalExpenses))
+    .filter((n: number) => n > 0);
+  const gastoMensualProm =
+    trendExp.length > 0
+      ? trendExp.reduce((a: number, b: number) => a + b, 0) / trendExp.length
+      : toNum(dash?.total);
+  const hayBolsillos = wallets.length > 0;
+  const colchonMeses =
+    gastoMensualProm > 0 ? totalGuardado / gastoMensualProm : null;
+
+  let colchonKind: "good" | "warning" | "danger" = "good";
+  if (colchonMeses != null) {
+    if (colchonMeses < 1) colchonKind = "danger";
+    else if (colchonMeses < 3) colchonKind = "warning";
+  }
+  const colchonStyles = {
+    good: { text: "text-emerald-300", border: "border-emerald-500/25", bg: "bg-emerald-500/[0.06]" },
+    warning: { text: "text-amber-300", border: "border-amber-500/25", bg: "bg-amber-500/[0.06]" },
+    danger: { text: "text-rose-300", border: "border-rose-500/25", bg: "bg-rose-500/[0.06]" },
+  };
+  const cs = colchonStyles[colchonKind];
+  const colchonTexto =
+    colchonMeses == null
+      ? ""
+      : colchonMeses < 1
+        ? `Te alcanza para menos de un mes. Vale la pena engordar el colchon.`
+        : `Aguantas ~${colchonMeses.toFixed(1)} mes${colchonMeses >= 2 ? "es" : ""} sin que entre dinero.`;
 
   return (
     <Card className="bg-slate-800 border border-slate-700">
@@ -399,6 +439,40 @@ export default function ComoVoyPanel() {
             </div>
           </div>
         )}
+        {/* Colchon de meses */}
+        <div className={`mt-3 p-3 rounded-xl ${cs.bg} border ${cs.border}`}>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-1.5">
+              <LifeBuoy className={`w-4 h-4 ${cs.text}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${cs.text}`}>
+                Colchon
+              </span>
+            </div>
+            {hayBolsillos && colchonMeses != null && (
+              <span className={`text-lg font-black tabular-nums ${cs.text}`}>
+                {colchonMeses < 1
+                  ? "< 1 mes"
+                  : `${colchonMeses.toFixed(1)} meses`}
+              </span>
+            )}
+          </div>
+          {!hayBolsillos ? (
+            <p className="text-xs text-slate-400">
+              Crea tu primer bolsillo para activar el colchon.
+            </p>
+          ) : colchonMeses == null ? (
+            <p className="text-xs text-slate-400">
+              Captura gastos para estimar cuanto te dura lo guardado.
+            </p>
+          ) : (
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {colchonTexto}{" "}
+              <span className="text-slate-500">
+                ({fmt(totalGuardado)} guardado / {fmt(gastoMensualProm)} al mes)
+              </span>
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
