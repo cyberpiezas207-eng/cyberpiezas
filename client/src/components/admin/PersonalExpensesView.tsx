@@ -28,6 +28,7 @@ import PersonalRemindersTab from "@/components/admin/PersonalRemindersTab";
 import ServiciosTab from "@/components/admin/ServiciosTab";
 import PreciosTab from "@/components/admin/PreciosTab";
 import AnimalesTab from "@/components/admin/AnimalesTab";
+import BuzonTab from "@/components/admin/BuzonTab";
 import PantrySuggestionPanel from "@/components/admin/PantrySuggestionPanel";
 import CategoriesStoresManager from "@/components/admin/CategoriesStoresManager";
 import DetailedExpenseModal from "@/components/admin/DetailedExpenseModal";
@@ -57,6 +58,7 @@ import {
   Bell,
   PawPrint,
   LayoutDashboard,
+  Inbox,
 } from "lucide-react";
 
 const fmt = (n: number) =>
@@ -269,7 +271,8 @@ type SubTab =
   | "precios"
   | "animales"
   | "deudas"
-  | "recordatorios";
+  | "recordatorios"
+  | "buzon";
 
 interface PendingSuggestion {
   detectedItems: string[];
@@ -650,6 +653,17 @@ export default function PersonalExpensesView({
         >
           <PawPrint className="w-4 h-4" />
           Animales
+        </button>
+        <button
+          onClick={() => setActiveTab("buzon")}
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === "buzon"
+              ? "bg-gradient-to-br from-cyan-500/25 to-sky-600/15 border border-cyan-400/60 text-cyan-100 shadow-lg shadow-cyan-500/10"
+              : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          }`}
+        >
+          <Inbox className="w-4 h-4" />
+          Buzon
         </button>
         <button
           onClick={() => setShowExports(true)}
@@ -1161,6 +1175,8 @@ export default function PersonalExpensesView({
       {activeTab === "precios" && <PreciosTab />}
 
       {activeTab === "animales" && <AnimalesTab />}
+
+      {activeTab === "buzon" && <BuzonTab />}
 
       {/* Modal Gestionar */}
       {showManager && (
