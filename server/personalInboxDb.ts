@@ -1,14 +1,20 @@
-// >>> ESTE ARCHIVO ES NUEVO. CREALO EN: server/personalInboxDb.ts <<<
+// >>> ESTE ARCHIVO VA EN: server/personalInboxDb.ts <<<
 // ============================================================================
 // CAPA DE BD - Buzon (formato esposa)
 // ----------------------------------------------------------------------------
 // Maneja el token de acceso (link secreto) y los envios pendientes.
 // Reusa getDbOrThrow, createPersonalExpense y normalizeText del proyecto.
 //
+// AMPLIACION (Paso D): confirmSubmission ahora mira el tipo del envio (que
+// viaja como JSON en rawText: { kind: "gasto"|"gasolina"|"ingreso"|"deseo" }).
+//   - Si kind === "deseo": crea un DESEO (entra a la pestana Deseos), no gasto.
+//   - Cualquier otro caso (gasto/gasolina/ingreso o sin tipo): crea gasto,
+//     igual que antes (compatibilidad total).
+//
 // SEGURIDAD:
 //   - El token se genera aleatorio y largo.
 //   - createSubmission solo crea un PENDIENTE; no toca gastos.
-//   - confirmSubmission es el unico que crea un gasto real, y solo lo llama
+//   - confirmSubmission es el unico que materializa el envio, y solo lo llama
 //     el dueno desde su router ownerOnly.
 //
 // Comentarios SIN ACENTOS por convencion del proyecto.
@@ -23,6 +29,7 @@ import {
 } from "./personalInboxSchema";
 import { createPersonalExpense } from "./personalExpensesDb";
 import { normalizeText } from "./personalExpensesEngine";
+import { createWishFromSubmission } from "./personalWishesDb";
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -58,6 +65,34 @@ function toNumOrNull(v: any): number | null {
   if (v == null) return null;
   const n = typeof v === "number" ? v : parseFloat(v);
   return Number.isFinite(n) ? n : null;
+}
+
+// Lee el meta (tipo + datos extra) que viaja como JSON en rawText.
+// Devuelve null si no hay JSON valido o no tiene kind (envio clasico).
+function readMeta(rawText: any): {
+  kind: "gasto" | "gasolina" | "ingreso" | "deseo";
+  odometer: number | null;
+  incomeDate: string | null;
+  wishWhen: string | null;
+  note: string | null;
+} | null {
+  if (!rawText || typeof rawText !== "string") return null;
+  try {
+    const o = JSON.parse(rawText);
+    if (!o || typeof o !== "object" || !o.kind) return null;
+    const kind = ["gasto", "gasolina", "ingreso", "deseo"].includes(o.kind)
+      ? o.kind
+      : "gasto";
+    return {
+      kind,
+      odometer: o.odometer != null ? Number(o.odometer) : null,
+      incomeDate: o.incomeDate ?? null,
+      wishWhen: o.wishWhen ?? null,
+      note: o.note ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -209,7 +244,9 @@ export async function countPending(userId: number): Promise<number> {
   return rows.length;
 }
 
-// Confirma un pendiente: lo convierte en gasto real y lo marca confirmado.
+// Confirma un pendiente: lo materializa segun su tipo y lo marca confirmado.
+//   - deseo  -> crea un DESEO (pestana Deseos)
+//   - otros  -> crea un GASTO real (como antes)
 export async function confirmSubmission(userId: number, id: number) {
   const conn = await getDbOrThrow();
   const rows = await conn
@@ -229,6 +266,53 @@ export async function confirmSubmission(userId: number, id: number) {
   }
 
   const amount = toNumOrNull(sub.amount) ?? 0;
+  const meta = readMeta(sub.rawText);
+
+  // -------------------------------------------------------------------------
+  // CASO DESEO: crear un deseo en vez de un gasto.
+  // -------------------------------------------------------------------------
+  if (meta && meta.kind === "deseo") {
+    const wish = await createWishFromSubmission(userId, sub.id, {
+      title: sub.description,
+      estimatedCost: amount > 0 ? amount : 1, // el costo no puede ser 0
+      targetDate: meta.wishWhen ?? null,
+      requestedBy: sub.senderName ?? null,
+      notes: meta.note ?? null,
+    });
+
+    await conn
+      .update(personalInboxSubmissions)
+      .set({
+        status: "confirmed",
+        confirmedAt: nowMexico(),
+        notes: sub.senderName
+          ? `Deseo pedido por ${sub.senderName}`
+          : "Deseo confirmado",
+      })
+      .where(eq(personalInboxSubmissions.id, id));
+
+    return { ok: true, kind: "deseo" as const, wishId: wish.id };
+  }
+
+  // -------------------------------------------------------------------------
+  // CASO GASTO (y por ahora tambien gasolina/ingreso): crea gasto, como antes.
+  // Si el envio trae datos extra (odometro, fecha de pago), los dejamos en la
+  // nota del gasto para no perderlos hasta que conectemos esos tipos.
+  // -------------------------------------------------------------------------
+  let extraNote = "";
+  if (meta) {
+    if (meta.kind === "gasolina" && meta.odometer != null) {
+      extraNote = ` (gasolina, odometro ${meta.odometer})`;
+    } else if (meta.kind === "ingreso" && meta.incomeDate) {
+      extraNote = ` (ingreso, fecha ${meta.incomeDate})`;
+    }
+  }
+
+  const baseNote = sub.senderName ? `Capturado por ${sub.senderName}` : null;
+  const finalNote = baseNote
+    ? `${baseNote}${extraNote}`
+    : extraNote.trim() || null;
+
   const expense = await createPersonalExpense(userId, {
     amount,
     description: sub.description,
@@ -243,7 +327,7 @@ export async function confirmSubmission(userId: number, id: number) {
     detectionSource: "manual",
     paymentMethod: "cash",
     expenseDate: todayMexicoYmd(),
-    notes: sub.senderName ? `Capturado por ${sub.senderName}` : null,
+    notes: finalNote,
   });
 
   await conn
@@ -255,7 +339,7 @@ export async function confirmSubmission(userId: number, id: number) {
     })
     .where(eq(personalInboxSubmissions.id, id));
 
-  return { ok: true, expenseId: expense.id };
+  return { ok: true, kind: "gasto" as const, expenseId: expense.id };
 }
 
 export async function rejectSubmission(userId: number, id: number) {
