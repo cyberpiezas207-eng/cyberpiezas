@@ -15,6 +15,7 @@ import { verduleriaRouter } from "./routers/verduleria";
 import { tarimaRouter } from "./routers/tarima";
 import { pagosRouter } from "./routers/pagos";
 import { taqueriaRouter } from "./routers/taqueria";
+import { papeleriaRouter } from "./routers/papeleria";
 import { mobilityRouter } from "./routers/mobility";
 import { personalExpensesRouter } from "./routers/personalExpenses";
 import { personalPantryRouter } from "./routers/personalPantry";
@@ -204,7 +205,6 @@ export const appRouter = router({
   verduleria: verduleriaRouter,
   tarima: tarimaRouter,
   pagos: pagosRouter,
-  import { papeleriaRouter } from "./routers/papeleria";
   taqueria: taqueriaRouter,
   papeleria: papeleriaRouter,
   mobility: mobilityRouter,
