@@ -26,6 +26,7 @@ import TaqueriaPOS from "@/pages/TaqueriaPOS";
 import TaqueriaMenu from "@/pages/TaqueriaMenu";
 import TaqueriaHistorial from "@/pages/TaqueriaHistorial";
 import TaqueriaCocina from "@/pages/TaqueriaCocina";
+import PapeleriaPOS from "@/pages/PapeleriaPOS";
 import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
 import VeterinariaConfiguracion from "@/pages/VeterinariaConfiguracion";
 import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
