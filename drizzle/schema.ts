@@ -1629,5 +1629,39 @@ export const abarrotesAbonos = mysqlTable("abarrotesAbonos", {
 
 export type AbarrotesAbono = typeof abarrotesAbonos.$inferSelect;
 export type InsertAbarrotesAbono = typeof abarrotesAbonos.$inferInsert;
+// ============================================================================
+// TAQUERIA ORDERS - ventas/ordenes del POS de taqueria (PASO 4)
+// ============================================================================
 
+export const taqueriaOrders = mysqlTable("taqueriaOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  folio: int("folio").notNull().default(0),
+  serviceMode: mysqlEnum("serviceMode", ["aqui", "llevar"]).notNull().default("aqui"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "tarjeta", "transferencia"]).notNull().default("efectivo"),
+  itemCount: int("itemCount").notNull().default(0),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["completed", "cancelled"]).notNull().default("completed"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type TaqueriaOrder = typeof taqueriaOrders.$inferSelect;
+export type InsertTaqueriaOrder = typeof taqueriaOrders.$inferInsert;
+
+export const taqueriaOrderItems = mysqlTable("taqueriaOrderItems", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull().references(() => taqueriaOrders.id),
+  productId: int("productId"),
+  productName: varchar("productName", { length: 200 }).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("lineTotal", { precision: 10, scale: 2 }).notNull(),
+  modifiers: text("modifiers"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type TaqueriaOrderItem = typeof taqueriaOrderItems.$inferSelect;
+export type InsertTaqueriaOrderItem = typeof taqueriaOrderItems.$inferInsert;
 export * from "./mobility-schema";
