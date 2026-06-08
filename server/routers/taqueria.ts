@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDbOrThrow } from "../db";
-import { eq, and, desc, asc, gte } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lt } from "drizzle-orm";
 import {
   taqueriaCategories,
   taqueriaProducts,
