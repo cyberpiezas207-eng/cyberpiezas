@@ -1669,15 +1669,7 @@ export type InsertTaqueriaOrderItem = typeof taqueriaOrderItems.$inferInsert;
 // PAPELERIA POS - 5 tablas (config, categorias, productos, ventas, items)
 // ============================================================================
 
-export const papeleriaSettings = mysqlTable("papeleriaSettings", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().references(() => users.id),
-  businessName: varchar("businessName", { length: 120 }).notNull().default("Mi Papeleria"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
-}, (table) => ({
-  papeleriaSettingsUserUnique: unique("papeleria_settings_user_unique").on(table.userId),
-}));
+
 
 export const papeleriaSettings = mysqlTable("papeleriaSettings", {
   id: int("id").autoincrement().primaryKey(),
@@ -1699,8 +1691,6 @@ export const papeleriaSettings = mysqlTable("papeleriaSettings", {
   papeleriaSettingsSlugUnique: unique("papeleria_settings_slug_unique").on(table.slug),
 }));
 
-export type PapeleriaSettings = typeof papeleriaSettings.$inferSelect;
-export type InsertPapeleriaSettings = typeof papeleriaSettings.$inferInsert;
 
 export const papeleriaProducts = mysqlTable("papeleriaProducts", {
   id: int("id").autoincrement().primaryKey(),
