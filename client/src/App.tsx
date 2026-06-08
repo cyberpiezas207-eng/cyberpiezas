@@ -22,6 +22,7 @@ import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
 import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
+import PapeleriaPOS from "@/pages/PapeleriaPOS";
 import TaqueriaPOS from "@/pages/TaqueriaPOS";
 import TaqueriaMenu from "@/pages/TaqueriaMenu";
 import TaqueriaHistorial from "@/pages/TaqueriaHistorial";
@@ -373,6 +374,12 @@ function Router() {
       <Route path="/taqueria-historial">
         <ProtectedRoute>
           <TaqueriaHistorial />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/papeleria">
+        <ProtectedRoute>
+          <PapeleriaPOS />
         </ProtectedRoute>
       </Route>
 
