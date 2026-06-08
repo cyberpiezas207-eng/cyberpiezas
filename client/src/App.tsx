@@ -25,6 +25,7 @@ import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
 import TaqueriaPOS from "@/pages/TaqueriaPOS";
 import TaqueriaMenu from "@/pages/TaqueriaMenu";
 import TaqueriaHistorial from "@/pages/TaqueriaHistorial";
+import TaqueriaCocina from "@/pages/TaqueriaCocina";
 import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
 import VeterinariaConfiguracion from "@/pages/VeterinariaConfiguracion";
 import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
@@ -372,6 +373,12 @@ function Router() {
       <Route path="/taqueria-historial">
         <ProtectedRoute>
           <TaqueriaHistorial />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/taqueria-cocina">
+        <ProtectedRoute>
+          <TaqueriaCocina />
         </ProtectedRoute>
       </Route>
 
