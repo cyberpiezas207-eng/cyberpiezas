@@ -21,6 +21,8 @@ import { OfflineSyncSettings } from "@/pages/OfflineSyncSettings";
 import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
+import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
+import TaqueriaPOS from "@/pages/TaqueriaPOS";
 import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
 import VeterinariaConfiguracion from "@/pages/VeterinariaConfiguracion";
 import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
@@ -352,6 +354,11 @@ function Router() {
       <Route path="/admin-taqueria-setup">
         <ProtectedRoute requiredRole="admin">
           <AdminTaqueriaSetup />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/taqueria">
+        <ProtectedRoute>
+          <TaqueriaPOS />
         </ProtectedRoute>
       </Route>
 
