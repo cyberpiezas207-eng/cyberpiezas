@@ -103,6 +103,76 @@ export const taqueriaRouter = router({
     }
   }),
 
+  // Listar ordenes activas de cocina (preparando o listo, no entregadas)
+    // Trae cada orden con sus items para pintar la comanda en pantalla
+    listKitchen: protectedProcedure.query(async ({ ctx }) => {
+      await requireTaqueriaAccess(ctx.user.id);
+      const db = await getDbOrThrow();
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      // Ordenes de hoy que NO esten entregadas
+      const activeOrders = await db
+        .select()
+        .from(taqueriaOrders)
+        .where(
+          and(
+            eq(taqueriaOrders.userId, ctx.user.id),
+            gte(taqueriaOrders.createdAt, startOfDay)
+          )
+        )
+        .orderBy(asc(taqueriaOrders.createdAt));
+
+      const pending = activeOrders.filter((o) => o.kitchenStatus !== "entregado");
+
+      // Adjuntar items a cada orden
+      const result = [];
+      for (const o of pending) {
+        const items = await db
+          .select()
+          .from(taqueriaOrderItems)
+          .where(eq(taqueriaOrderItems.orderId, o.id))
+          .orderBy(asc(taqueriaOrderItems.id));
+        result.push({ ...o, items });
+      }
+
+      return result;
+    }),
+
+    // Cambiar el estado de cocina de una orden
+    setKitchenStatus: protectedProcedure
+      .input(
+        z.object({
+          orderId: z.number().int().positive(),
+          kitchenStatus: z.enum(["preparando", "listo", "entregado"]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireTaqueriaAccess(ctx.user.id);
+        const db = await getDbOrThrow();
+
+        // Verificar ownership
+        const orders = await db
+          .select()
+          .from(taqueriaOrders)
+          .where(
+            and(
+              eq(taqueriaOrders.id, input.orderId),
+              eq(taqueriaOrders.userId, ctx.user.id)
+            )
+          );
+        if (orders.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Orden no encontrada" });
+        }
+
+        await db
+          .update(taqueriaOrders)
+          .set({ kitchenStatus: input.kitchenStatus })
+          .where(eq(taqueriaOrders.id, input.orderId));
+
+        return { success: true };
+      }),
   // ===========================================================================
   // CATEGORIAS
   // ===========================================================================
