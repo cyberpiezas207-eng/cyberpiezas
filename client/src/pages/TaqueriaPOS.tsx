@@ -40,6 +40,7 @@ import {
   Receipt,
   Settings,
   Printer,
+  ChefHat,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -560,6 +561,10 @@ export default function TaqueriaPOS() {
           <button className="taq-nav-btn" onClick={() => setLocation("/taqueria-historial")} title="Historial">
             <Receipt className="w-4 h-4" />
             <span className="hidden md:inline">Historial</span>
+          </button>
+          <button className="taq-nav-btn" onClick={() => setLocation("/taqueria-cocina")} title="Cocina">
+            <ChefHat className="w-4 h-4" />
+            <span className="hidden md:inline">Cocina</span>
           </button>
           <button className="taq-nav-btn" onClick={() => setShowConfig(true)} title="Configuracion de impresion">
             <Settings className="w-4 h-4" />
