@@ -52,7 +52,6 @@ import TarimaPublic from "@/pages/TarimaPublic";
 import MiTarima from "@/pages/MiTarima";
 import AdminPagosPanel from "@/pages/AdminPagosPanel";
 import MisSuscripciones from "@/pages/MisSuscripciones";
-import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
 import DVRQuotation from "@/pages/DVRQuotation";
 import AbarrotesProductsManagement from "@/pages/AbarrotesProductsManagement";
 import CELINE from "@/pages/CELINE";
