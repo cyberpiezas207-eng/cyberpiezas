@@ -1679,22 +1679,28 @@ export const papeleriaSettings = mysqlTable("papeleriaSettings", {
   papeleriaSettingsUserUnique: unique("papeleria_settings_user_unique").on(table.userId),
 }));
 
-export type PapeleriaSettings = typeof papeleriaSettings.$inferSelect;
-export type InsertPapeleriaSettings = typeof papeleriaSettings.$inferInsert;
-
-export const papeleriaCategories = mysqlTable("papeleriaCategories", {
+export const papeleriaSettings = mysqlTable("papeleriaSettings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id),
-  name: varchar("name", { length: 100 }).notNull(),
-  icon: varchar("icon", { length: 20 }),
-  displayOrder: int("displayOrder").notNull().default(0),
-  isActive: boolean("isActive").notNull().default(true),
+  businessName: varchar("businessName", { length: 120 }).notNull().default("Mi Papeleria"),
+  slug: varchar("slug", { length: 120 }),
+  storeEnabled: boolean("storeEnabled").notNull().default(false),
+  whatsapp: varchar("whatsapp", { length: 30 }),
+  address: varchar("address", { length: 300 }),
+  acceptCashOnDelivery: boolean("acceptCashOnDelivery").notNull().default(true),
+  acceptDeposit: boolean("acceptDeposit").notNull().default(false),
+  depositInfo: text("depositInfo"),
+  logoUrl: varchar("logoUrl", { length: 1000 }),
+  logoStorageKey: varchar("logoStorageKey", { length: 255 }),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
-});
+}, (table) => ({
+  papeleriaSettingsUserUnique: unique("papeleria_settings_user_unique").on(table.userId),
+  papeleriaSettingsSlugUnique: unique("papeleria_settings_slug_unique").on(table.slug),
+}));
 
-export type PapeleriaCategory = typeof papeleriaCategories.$inferSelect;
-export type InsertPapeleriaCategory = typeof papeleriaCategories.$inferInsert;
+export type PapeleriaSettings = typeof papeleriaSettings.$inferSelect;
+export type InsertPapeleriaSettings = typeof papeleriaSettings.$inferInsert;
 
 export const papeleriaProducts = mysqlTable("papeleriaProducts", {
   id: int("id").autoincrement().primaryKey(),
@@ -1711,6 +1717,7 @@ export const papeleriaProducts = mysqlTable("papeleriaProducts", {
   salesCount: int("salesCount").notNull().default(0),
   isActive: boolean("isActive").notNull().default(true),
   displayOrder: int("displayOrder").notNull().default(0),
+  showInStore: boolean("showInStore").notNull().default(true),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
