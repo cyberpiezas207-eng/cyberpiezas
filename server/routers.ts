@@ -204,7 +204,9 @@ export const appRouter = router({
   verduleria: verduleriaRouter,
   tarima: tarimaRouter,
   pagos: pagosRouter,
+  import { papeleriaRouter } from "./routers/papeleria";
   taqueria: taqueriaRouter,
+  papeleria: papeleriaRouter,
   mobility: mobilityRouter,
   personalExpenses: personalExpensesRouter,
   personalPantry: personalPantryRouter,
