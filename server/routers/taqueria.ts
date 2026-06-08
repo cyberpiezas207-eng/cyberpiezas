@@ -62,7 +62,7 @@ const productInputSchema = z.object({
   name: z.string().min(1, "Nombre requerido").max(200),
   description: z.string().optional(),
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Precio invalido"),
-  imageUrl: z.string().url("Foto obligatoria - debe ser URL valida"),
+  imageUrl: z.string().url("URL de foto invalida").optional().or(z.literal("")),
   prepTimeMinutes: z.number().int().min(1).max(120).default(5),
   displayOrder: z.number().int().min(0).default(0),
 });
