@@ -23,6 +23,7 @@ import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
 import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
 import TaqueriaPOS from "@/pages/TaqueriaPOS";
+import TaqueriaMenu from "@/pages/TaqueriaMenu";
 import VeterinariaCajeros from "@/pages/VeterinariaCajeros";
 import VeterinariaConfiguracion from "@/pages/VeterinariaConfiguracion";
 import VeterinariaSubscription from "@/pages/VeterinariaSubscription";
@@ -359,6 +360,12 @@ function Router() {
       <Route path="/taqueria">
         <ProtectedRoute>
           <TaqueriaPOS />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/taqueria-menu">
+        <ProtectedRoute>
+          <TaqueriaMenu />
         </ProtectedRoute>
       </Route>
 
