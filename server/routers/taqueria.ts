@@ -729,6 +729,30 @@ export const taqueriaRouter = router({
           )
           .orderBy(asc(taqueriaModifierOptions.displayOrder));
       }),
+    // Listar ordenes de una fecha especifica (formato YYYY-MM-DD)
+    listByDate: protectedProcedure
+      .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha invalida") }))
+      .query(async ({ input, ctx }) => {
+        await requireTaqueriaAccess(ctx.user.id);
+        const db = await getDbOrThrow();
+
+        // Inicio y fin del dia solicitado (hora local del server)
+        const start = new Date(input.date + "T00:00:00");
+        const end = new Date(input.date + "T00:00:00");
+        end.setDate(end.getDate() + 1);
+
+        return db
+          .select()
+          .from(taqueriaOrders)
+          .where(
+            and(
+              eq(taqueriaOrders.userId, ctx.user.id),
+              gte(taqueriaOrders.createdAt, start),
+              lt(taqueriaOrders.createdAt, end)
+            )
+          )
+          .orderBy(desc(taqueriaOrders.createdAt));
+      }),
 
     create: protectedProcedure
       .input(modifierOptionInputSchema)
