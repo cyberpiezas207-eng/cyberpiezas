@@ -16,7 +16,7 @@
 // Comentarios SIN ACENTOS por convencion del proyecto.
 // =============================================================================
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -38,6 +38,8 @@ import {
   Landmark,
   SlidersHorizontal,
   Receipt,
+  Settings,
+  Printer,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -72,6 +74,186 @@ const PESO = (n: number) =>
   }).format(n);
 
 // -----------------------------------------------------------------------------
+// Config de impresion (guardada en el navegador, no en base de datos)
+// -----------------------------------------------------------------------------
+
+interface PrintConfig {
+  businessName: string;
+  printTicket: boolean;
+  printComanda: boolean;
+}
+
+const PRINT_CONFIG_KEY = "taqueria_print_config";
+
+const DEFAULT_PRINT_CONFIG: PrintConfig = {
+  businessName: "Mi Taqueria",
+  printTicket: true,
+  printComanda: true,
+};
+
+function loadPrintConfig(): PrintConfig {
+  try {
+    const raw = localStorage.getItem(PRINT_CONFIG_KEY);
+    if (!raw) return DEFAULT_PRINT_CONFIG;
+    return { ...DEFAULT_PRINT_CONFIG, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_PRINT_CONFIG;
+  }
+}
+
+function savePrintConfig(cfg: PrintConfig) {
+  try {
+    localStorage.setItem(PRINT_CONFIG_KEY, JSON.stringify(cfg));
+  } catch {
+    // ignorar si el navegador bloquea storage
+  }
+}
+
+// Escapa texto para insertarlo en HTML de impresion
+function esc(s: string) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Datos que necesita la impresion
+interface PrintData {
+  businessName: string;
+  folio: number;
+  serviceMode: ServiceMode;
+  paymentMethod: string;
+  items: CartLine[];
+  total: number;
+}
+
+// Genera el HTML de ticket + comanda y manda a imprimir en una ventana nueva.
+// Formato pensado para papel termico angosto (58/80mm).
+function printOrder(data: PrintData, cfg: PrintConfig) {
+  const wantTicket = cfg.printTicket;
+  const wantComanda = cfg.printComanda;
+  if (!wantTicket && !wantComanda) return;
+
+  const fecha = new Date().toLocaleString("es-MX", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+  const modoTxt = data.serviceMode === "aqui" ? "PARA AQUI" : "PARA LLEVAR";
+  const pagoTxt =
+    data.paymentMethod === "efectivo" ? "Efectivo" :
+    data.paymentMethod === "tarjeta" ? "Tarjeta" : "Transferencia";
+
+  // --- Ticket del cliente (con precios) ---
+  const ticketItems = data.items
+    .map((l) => {
+      const mods = l.options.length > 0
+        ? `<div class="mods">${esc(l.options.map((o) => o.name).join(", "))}</div>`
+        : "";
+      return `
+        <div class="row">
+          <span class="qty">${l.quantity}x</span>
+          <span class="name">${esc(l.name)}${mods}</span>
+          <span class="price">${PESO(l.lineTotal)}</span>
+        </div>`;
+    })
+    .join("");
+
+  const ticketHtml = wantTicket ? `
+    <div class="doc">
+      <div class="center title">${esc(data.businessName)}</div>
+      <div class="center small">${fecha}</div>
+      <div class="center folio">Orden #${data.folio}</div>
+      <div class="center small">${modoTxt}</div>
+      <div class="sep"></div>
+      ${ticketItems}
+      <div class="sep"></div>
+      <div class="row total">
+        <span class="name">TOTAL</span>
+        <span class="price">${PESO(data.total)}</span>
+      </div>
+      <div class="center small">Pago: ${pagoTxt}</div>
+      <div class="sep"></div>
+      <div class="center small">Gracias por su compra!</div>
+    </div>` : "";
+
+  // --- Comanda de cocina (sin precios) ---
+  const comandaItems = data.items
+    .map((l) => {
+      const mods = l.options.length > 0
+        ? `<div class="mods big">${esc(l.options.map((o) => o.name).join(", "))}</div>`
+        : "";
+      return `
+        <div class="crow">
+          <span class="cqty">${l.quantity}</span>
+          <span class="cname">${esc(l.name)}${mods}</span>
+        </div>`;
+    })
+    .join("");
+
+  const comandaHtml = wantComanda ? `
+    <div class="doc comanda ${wantTicket ? "pagebreak" : ""}">
+      <div class="center folio big">#${data.folio}</div>
+      <div class="center modo">${modoTxt}</div>
+      <div class="center small">${fecha}</div>
+      <div class="sep"></div>
+      ${comandaItems}
+      <div class="sep"></div>
+      <div class="center small">COCINA</div>
+    </div>` : "";
+
+  const win = window.open("", "_blank", "width=380,height=600");
+  if (!win) {
+    toast.error("El navegador bloqueo la impresion. Permite ventanas emergentes.");
+    return;
+  }
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Orden ${data.folio}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 13px; color: #000; padding: 8px; }
+        .doc { width: 100%; max-width: 280px; margin: 0 auto 16px; }
+        .pagebreak { page-break-before: always; }
+        .center { text-align: center; }
+        .title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+        .small { font-size: 11px; }
+        .folio { font-size: 20px; font-weight: bold; margin: 6px 0; }
+        .folio.big { font-size: 40px; }
+        .modo { font-size: 16px; font-weight: bold; margin: 4px 0; }
+        .sep { border-top: 1px dashed #000; margin: 8px 0; }
+        .row { display: flex; align-items: flex-start; margin: 4px 0; }
+        .row .qty { width: 32px; font-weight: bold; }
+        .row .name { flex: 1; }
+        .row .price { text-align: right; white-space: nowrap; padding-left: 6px; }
+        .row.total { font-size: 16px; font-weight: bold; }
+        .mods { font-size: 11px; color: #333; }
+        .crow { display: flex; align-items: flex-start; margin: 8px 0; }
+        .crow .cqty { width: 36px; font-size: 22px; font-weight: bold; }
+        .crow .cname { flex: 1; font-size: 18px; font-weight: bold; padding-top: 2px; }
+        .mods.big { font-size: 14px; font-weight: normal; color: #000; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      ${ticketHtml}
+      ${comandaHtml}
+      <script>
+        window.onload = function() {
+          window.print();
+          setTimeout(function() { window.close(); }, 300);
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+// -----------------------------------------------------------------------------
 // Componente principal
 // -----------------------------------------------------------------------------
 
@@ -90,6 +272,8 @@ export default function TaqueriaPOS() {
   const [serviceMode, setServiceMode] = useState<ServiceMode>("aqui");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [modalProduct, setModalProduct] = useState<{ id: number; name: string; price: number } | null>(null);
+  const [printConfig, setPrintConfig] = useState<PrintConfig>(() => loadPrintConfig());
+  const [showConfig, setShowConfig] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   // ---------------------------------------------------------------------------
@@ -140,10 +324,27 @@ export default function TaqueriaPOS() {
   // Cobro: guarda la orden en el backend
   // ---------------------------------------------------------------------------
   const [lastOrder, setLastOrder] = useState<{ folio: number; total: string } | null>(null);
+  // Snapshot del carrito al momento de cobrar, para imprimir despues de guardar
+  const printSnapshotRef = useRef<{ items: CartLine[]; serviceMode: ServiceMode; paymentMethod: string } | null>(null);
 
   const createOrderMut = trpc.taqueria.orders.create.useMutation({
     onSuccess: (data) => {
       setLastOrder({ folio: data.folio, total: data.total });
+      const snap = printSnapshotRef.current;
+      if (snap) {
+        printOrder(
+          {
+            businessName: printConfig.businessName,
+            folio: data.folio,
+            serviceMode: snap.serviceMode,
+            paymentMethod: snap.paymentMethod,
+            items: snap.items,
+            total: parseFloat(data.total),
+          },
+          printConfig,
+        );
+        printSnapshotRef.current = null;
+      }
       setCart([]);
       setMobileCartOpen(false);
     },
@@ -152,6 +353,8 @@ export default function TaqueriaPOS() {
 
   const handleCobrar = (paymentMethod: "efectivo" | "tarjeta" | "transferencia") => {
     if (cart.length === 0) return;
+    // Guardar snapshot del carrito antes de que se limpie al exito
+    printSnapshotRef.current = { items: [...cart], serviceMode, paymentMethod };
     createOrderMut.mutate({
       serviceMode,
       paymentMethod,
@@ -245,6 +448,10 @@ export default function TaqueriaPOS() {
           <button className="taq-nav-btn" onClick={() => setLocation("/taqueria-historial")} title="Historial">
             <Receipt className="w-4 h-4" />
             <span className="hidden md:inline">Historial</span>
+          </button>
+          <button className="taq-nav-btn" onClick={() => setShowConfig(true)} title="Configuracion de impresion">
+            <Settings className="w-4 h-4" />
+            <span className="hidden md:inline">Config</span>
           </button>
         </div>
         {/* Toggle Para aqui / Para llevar */}
@@ -409,6 +616,92 @@ export default function TaqueriaPOS() {
           </div>
         </div>
       )}
+
+      {/* ===================== MODAL CONFIG DE IMPRESION ===================== */}
+      {showConfig && (
+        <ConfigModal
+          config={printConfig}
+          onClose={() => setShowConfig(false)}
+          onSave={(cfg) => {
+            setPrintConfig(cfg);
+            savePrintConfig(cfg);
+            setShowConfig(false);
+            toast.success("Configuracion guardada");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// ConfigModal - configuracion de impresion (nombre negocio + que imprimir)
+// =============================================================================
+
+function ConfigModal({
+  config,
+  onClose,
+  onSave,
+}: {
+  config: PrintConfig;
+  onClose: () => void;
+  onSave: (cfg: PrintConfig) => void;
+}) {
+  const [name, setName] = useState(config.businessName);
+  const [ticket, setTicket] = useState(config.printTicket);
+  const [comanda, setComanda] = useState(config.printComanda);
+
+  return (
+    <div className="taq-modal-backdrop" onClick={onClose}>
+      <div className="taq-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="taq-modal-head">
+          <div>
+            <h3 className="taq-modal-title">Impresion</h3>
+            <p className="taq-modal-price" style={{ color: "var(--taq-muted)" }}>Se guarda en este dispositivo</p>
+          </div>
+          <button onClick={onClose} className="taq-icon-btn" aria-label="Cerrar">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="taq-modal-body">
+          <label className="taq-cfg-label">Nombre del negocio</label>
+          <input
+            className="taq-cfg-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Mi Taqueria"
+            maxLength={60}
+          />
+          <p className="taq-cfg-hint">Aparece en la parte de arriba del ticket del cliente.</p>
+
+          <label className="taq-cfg-label" style={{ marginTop: 18 }}>Que imprimir al cobrar</label>
+
+          <button className={`taq-cfg-toggle ${ticket ? "is-on" : ""}`} onClick={() => setTicket((v) => !v)}>
+            <Receipt className="w-5 h-5" />
+            <div className="taq-cfg-toggle-text">
+              <span className="taq-cfg-toggle-title">Ticket del cliente</span>
+              <span className="taq-cfg-toggle-sub">Con precios y total</span>
+            </div>
+            <span className={`taq-cfg-switch ${ticket ? "is-on" : ""}`} />
+          </button>
+
+          <button className={`taq-cfg-toggle ${comanda ? "is-on" : ""}`} onClick={() => setComanda((v) => !v)}>
+            <Printer className="w-5 h-5" />
+            <div className="taq-cfg-toggle-text">
+              <span className="taq-cfg-toggle-title">Comanda de cocina</span>
+              <span className="taq-cfg-toggle-sub">Productos grandes, sin precios</span>
+            </div>
+            <span className={`taq-cfg-switch ${comanda ? "is-on" : ""}`} />
+          </button>
+        </div>
+
+        <div className="taq-modal-foot">
+          <button className="taq-modal-add" onClick={() => onSave({ businessName: name.trim() || "Mi Taqueria", printTicket: ticket, printComanda: comanda })}>
+            Guardar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -973,6 +1266,36 @@ const TAQ_STYLES = `
   border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 800;
 }
 .taq-success-btn:hover { background: var(--taq-primary-dark); }
+
+/* CONFIG MODAL */
+.taq-cfg-label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--taq-muted); margin-bottom: 6px; }
+.taq-cfg-input {
+  width: 100%; border: 1.5px solid var(--taq-border); background: var(--taq-surface);
+  border-radius: 11px; padding: 12px 14px; font-size: 15px; color: var(--taq-text);
+  outline: none; transition: border-color 0.15s ease;
+}
+.taq-cfg-input:focus { border-color: var(--taq-primary); }
+.taq-cfg-hint { font-size: 12px; color: var(--taq-muted); margin-top: 6px; }
+.taq-cfg-toggle {
+  width: 100%; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  border: 1.5px solid var(--taq-border); background: var(--taq-surface);
+  border-radius: 14px; padding: 14px; margin-bottom: 10px; text-align: left;
+  color: var(--taq-text); transition: all 0.15s ease;
+}
+.taq-cfg-toggle.is-on { border-color: var(--taq-primary); background: var(--taq-primary-soft); }
+.taq-cfg-toggle-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.taq-cfg-toggle-title { font-size: 15px; font-weight: 700; }
+.taq-cfg-toggle-sub { font-size: 12px; color: var(--taq-muted); }
+.taq-cfg-switch {
+  width: 44px; height: 26px; border-radius: 999px; background: #D6D3D1;
+  position: relative; flex-shrink: 0; transition: background 0.2s ease;
+}
+.taq-cfg-switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: white; transition: transform 0.2s ease;
+}
+.taq-cfg-switch.is-on { background: var(--taq-primary); }
+.taq-cfg-switch.is-on::after { transform: translateX(18px); }
 
 /* ICON BTN GENERICO */
 .taq-icon-btn {
