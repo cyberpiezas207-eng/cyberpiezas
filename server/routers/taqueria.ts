@@ -8,6 +8,8 @@ import {
   taqueriaModifierGroups,
   taqueriaModifierOptions,
   taqueriaProductModifierGroups,
+  taqueriaOrders,
+  taqueriaOrderItems,
   transferPaymentRequests,
 } from "../../drizzle/schema";
 import { TRPCError } from "@trpc/server";
@@ -835,6 +837,138 @@ export const taqueriaRouter = router({
           .where(eq(taqueriaModifierOptions.id, input.id));
 
         return { success: true };
+      }),
+ }),
+
+  // ===========================================================================
+  // ORDERS - ventas/ordenes del POS (PASO 4)
+  // ===========================================================================
+  orders: router({
+    // Crear una venta: calcula folio, inserta orden + items
+    create: protectedProcedure
+      .input(
+        z.object({
+          serviceMode: z.enum(["aqui", "llevar"]).default("aqui"),
+          paymentMethod: z.enum(["efectivo", "tarjeta", "transferencia"]).default("efectivo"),
+          notes: z.string().optional(),
+          items: z
+            .array(
+              z.object({
+                productId: z.number().int().positive().optional(),
+                productName: z.string().min(1).max(200),
+                quantity: z.number().int().min(1),
+                unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Precio invalido"),
+                lineTotal: z.string().regex(/^\d+(\.\d{1,2})?$/, "Total invalido"),
+                modifiers: z.string().optional(),
+              })
+            )
+            .min(1, "El pedido no puede ir vacio"),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireTaqueriaAccess(ctx.user.id);
+        const db = await getDbOrThrow();
+
+        // Calcular folio: ultimo folio del usuario + 1
+        const last = await db
+          .select()
+          .from(taqueriaOrders)
+          .where(eq(taqueriaOrders.userId, ctx.user.id))
+          .orderBy(desc(taqueriaOrders.folio))
+          .limit(1);
+        const nextFolio = last.length > 0 ? last[0].folio + 1 : 1;
+
+        // Totales calculados en el server (no confiar en el cliente)
+        let subtotal = 0;
+        let itemCount = 0;
+        for (const it of input.items) {
+          subtotal += parseFloat(it.lineTotal);
+          itemCount += it.quantity;
+        }
+        const total = subtotal; // sin impuestos por ahora
+
+        // Insertar la orden
+        const orderResult = await db.insert(taqueriaOrders).values({
+          userId: ctx.user.id,
+          folio: nextFolio,
+          serviceMode: input.serviceMode,
+          subtotal: subtotal.toFixed(2),
+          total: total.toFixed(2),
+          paymentMethod: input.paymentMethod,
+          itemCount,
+          notes: input.notes,
+          status: "completed",
+        });
+
+        const orderId = orderResult[0].insertId;
+
+        // Insertar los items
+        for (const it of input.items) {
+          await db.insert(taqueriaOrderItems).values({
+            orderId,
+            productId: it.productId,
+            productName: it.productName,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            lineTotal: it.lineTotal,
+            modifiers: it.modifiers,
+          });
+        }
+
+        return {
+          success: true,
+          orderId,
+          folio: nextFolio,
+          total: total.toFixed(2),
+        };
+      }),
+
+    // Listar ordenes del dia (mas recientes primero)
+    listToday: protectedProcedure.query(async ({ ctx }) => {
+      await requireTaqueriaAccess(ctx.user.id);
+      const db = await getDbOrThrow();
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      return db
+        .select()
+        .from(taqueriaOrders)
+        .where(
+          and(
+            eq(taqueriaOrders.userId, ctx.user.id),
+            gte(taqueriaOrders.createdAt, startOfDay)
+          )
+        )
+        .orderBy(desc(taqueriaOrders.createdAt));
+    }),
+
+    // Obtener los items de una orden especifica
+    getItems: protectedProcedure
+      .input(z.object({ orderId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        await requireTaqueriaAccess(ctx.user.id);
+        const db = await getDbOrThrow();
+
+        // Verificar ownership de la orden
+        const orders = await db
+          .select()
+          .from(taqueriaOrders)
+          .where(
+            and(
+              eq(taqueriaOrders.id, input.orderId),
+              eq(taqueriaOrders.userId, ctx.user.id)
+            )
+          );
+        if (orders.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Orden no encontrada" });
+        }
+
+        return db
+          .select()
+          .from(taqueriaOrderItems)
+          .where(eq(taqueriaOrderItems.orderId, input.orderId))
+          .orderBy(asc(taqueriaOrderItems.id));
       }),
   }),
 
