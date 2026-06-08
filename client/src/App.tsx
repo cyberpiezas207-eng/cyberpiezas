@@ -22,7 +22,6 @@ import SubscriberManagement from "@/pages/SubscriberManagement";
 import AdminCyberpiezas from "@/pages/AdminCyberpiezas";
 import VeterinariaPOS from "@/pages/VeterinariaPOS";
 import AdminTaqueriaSetup from "@/pages/AdminTaqueriaSetup";
-import PapeleriaPOS from "@/pages/PapeleriaPOS";
 import TaqueriaPOS from "@/pages/TaqueriaPOS";
 import TaqueriaMenu from "@/pages/TaqueriaMenu";
 import TaqueriaHistorial from "@/pages/TaqueriaHistorial";
@@ -48,7 +47,6 @@ import StoreCheckout from "@/pages/StoreCheckout";
 import StoreOrdersPanel from "@/pages/StoreOrdersPanel";
 import SystemsPanel from "@/pages/SystemsPanel";
 import PublicInbox from "@/pages/PublicInbox";
-
 import AbarrotesPOS from "@/pages/AbarrotesPOS";
 import VerduleriaPOS from "@/pages/VerduleriaPOS";
 import TarimaPublic from "@/pages/TarimaPublic";
