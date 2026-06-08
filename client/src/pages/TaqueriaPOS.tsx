@@ -36,6 +36,8 @@ import {
   Banknote,
   CreditCard,
   Landmark,
+  SlidersHorizontal,
+  Receipt,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -233,6 +235,17 @@ export default function TaqueriaPOS() {
         <div className="taq-title">
           <span className="taq-title-emoji">🌮</span>
           <span className="taq-title-text">Taqueria</span>
+        </div>
+        {/* Accesos rapidos */}
+        <div className="taq-nav">
+          <button className="taq-nav-btn" onClick={() => setLocation("/taqueria-menu")} title="Menu">
+            <SlidersHorizontal className="w-4 h-4" />
+            <span className="hidden md:inline">Menu</span>
+          </button>
+          <button className="taq-nav-btn" onClick={() => setLocation("/taqueria-historial")} title="Historial">
+            <Receipt className="w-4 h-4" />
+            <span className="hidden md:inline">Historial</span>
+          </button>
         </div>
         {/* Toggle Para aqui / Para llevar */}
         <div className="taq-mode">
@@ -735,6 +748,16 @@ const TAQ_STYLES = `
   font-size: 19px; font-weight: 700; color: var(--taq-text);
   font-family: Georgia, "Times New Roman", serif;
 }
+.taq-nav { display: flex; gap: 6px; }
+.taq-nav-btn {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--taq-border); background: var(--taq-surface);
+  cursor: pointer; padding: 8px 12px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; color: var(--taq-muted);
+  transition: all 0.15s ease;
+}
+.taq-nav-btn:hover { border-color: var(--taq-primary); color: var(--taq-primary); background: var(--taq-primary-soft); }
+
 .taq-mode {
   display: flex; gap: 4px; background: var(--taq-bg);
   border-radius: 12px; padding: 4px;
