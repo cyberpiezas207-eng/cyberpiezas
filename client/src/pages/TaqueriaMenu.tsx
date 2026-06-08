@@ -263,6 +263,7 @@ function ProductosTab() {
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [modsFor, setModsFor] = useState<{ id: number; name: string } | null>(null);
   const [form, setForm] = useState({
     categoryId: "",
     name: "",
@@ -388,6 +389,9 @@ function ProductosTab() {
                 <span className="tqm-prod-cat">{catName[p.categoryId] ?? "Sin categoria"}</span>
               </div>
               <span className="tqm-prod-price">{PESO(parseFloat(p.price ?? "0"))}</span>
+              <button className="tqm-icon-btn" title="Modificadores" onClick={() => setModsFor({ id: p.id, name: p.name })}>
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+              </button>
               <button className="tqm-icon-btn" onClick={() => startEdit(p)}><Pencil className="w-3.5 h-3.5" /></button>
               <button className="tqm-icon-btn tqm-del" onClick={() => { if (confirm(`Eliminar "${p.name}"?`)) deleteMut.mutate({ id: p.id }); }}>
                 <Trash2 className="w-3.5 h-3.5" />
@@ -435,6 +439,125 @@ function ProductosTab() {
           </div>
         </div>
       )}
+
+      {/* Modal asignar modificadores */}
+      {modsFor && (
+        <AsignarModificadores product={modsFor} onClose={() => setModsFor(null)} />
+      )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// AsignarModificadores - vincula grupos de modificadores a un producto
+// Usa: getModifierGroups (asignados), modifierGroups.list (todos),
+//      assignModifierGroup / removeModifierGroup
+// -----------------------------------------------------------------------------
+
+function AsignarModificadores({ product, onClose }: { product: { id: number; name: string }; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const assignedQuery = trpc.taqueria.productos.getModifierGroups.useQuery({ productId: product.id });
+  const allGroupsQuery = trpc.taqueria.modifierGroups.list.useQuery();
+
+  const refresh = () => {
+    utils.taqueria.productos.getModifierGroups.invalidate({ productId: product.id });
+  };
+
+  const assignMut = trpc.taqueria.productos.assignModifierGroup.useMutation({
+    onSuccess: () => {
+      toast.success("Grupo asignado");
+      refresh();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const removeMut = trpc.taqueria.productos.removeModifierGroup.useMutation({
+    onSuccess: () => {
+      toast.success("Grupo quitado");
+      refresh();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const assigned = assignedQuery.data ?? [];
+  const allGroups = allGroupsQuery.data ?? [];
+
+  // ids ya asignados (para saber cuales NO mostrar como disponibles)
+  const assignedGroupIds = new Set(assigned.map((a: any) => a.id));
+  const available = allGroups.filter((g: any) => !assignedGroupIds.has(g.id));
+
+  return (
+    <div className="tqm-modal-backdrop" onClick={onClose}>
+      <div className="tqm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="tqm-modal-head">
+          <div>
+            <h3>Modificadores</h3>
+            <p className="tqm-mods-sub">{product.name}</p>
+          </div>
+          <button className="tqm-icon-btn" onClick={onClose}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="tqm-modal-body">
+          {assignedQuery.isLoading || allGroupsQuery.isLoading ? (
+            <div className="tqm-empty"><Loader2 className="w-6 h-6 animate-spin" style={{ color: "#E8590C" }} /></div>
+          ) : (
+            <>
+              {/* Asignados */}
+              <label className="tqm-label">Asignados a este producto</label>
+              {assigned.length === 0 ? (
+                <p className="tqm-mods-empty">Ninguno todavia. Agrega abajo.</p>
+              ) : (
+                <div className="tqm-list" style={{ marginBottom: 8 }}>
+                  {assigned.map((g: any) => (
+                    <div key={g.id} className="tqm-item">
+                      <span className="tqm-item-icon">{g.icon || "⚙️"}</span>
+                      <div className="tqm-group-info">
+                        <span className="tqm-item-name">{g.name}</span>
+                        <span className="tqm-group-meta">
+                          {g.selectionType === "single" ? "Elige 1" : "Elige varios"}
+                          {g.isRequired ? " - Obligatorio" : ""}
+                        </span>
+                      </div>
+                      <button
+                        className="tqm-icon-btn tqm-del"
+                        title="Quitar"
+                        onClick={() => removeMut.mutate({ linkId: g.linkId })}
+                        disabled={removeMut.isPending}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Disponibles para agregar */}
+              <label className="tqm-label">Agregar grupo</label>
+              {allGroups.length === 0 ? (
+                <p className="tqm-mods-empty">No hay grupos. Crealos en la pestana Modificadores.</p>
+              ) : available.length === 0 ? (
+                <p className="tqm-mods-empty">Ya asignaste todos los grupos disponibles.</p>
+              ) : (
+                <div className="tqm-mods-chips">
+                  {available.map((g: any) => (
+                    <button
+                      key={g.id}
+                      className="tqm-mods-add-chip"
+                      onClick={() => assignMut.mutate({ productId: product.id, modifierGroupId: g.id })}
+                      disabled={assignMut.isPending}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {g.icon ? g.icon + " " : ""}{g.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="tqm-modal-foot">
+          <button className="tqm-btn-primary" onClick={onClose}>Listo</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -815,6 +938,17 @@ const TQM_STYLES = `
 @keyframes tqmUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .tqm-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--c-border); }
 .tqm-modal-head h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.tqm-mods-sub { margin: 2px 0 0; font-size: 13px; color: var(--c-muted); font-weight: 600; }
+.tqm-mods-empty { font-size: 13px; color: var(--c-muted); padding: 4px 0 8px; }
+.tqm-mods-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tqm-mods-add-chip {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1.5px dashed var(--c-border); background: var(--c-surface);
+  border-radius: 999px; padding: 9px 14px; font-size: 14px; font-weight: 600;
+  color: var(--c-text); transition: all 0.15s ease;
+}
+.tqm-mods-add-chip:hover:not(:disabled) { border-color: var(--c-primary); color: var(--c-primary-dark); background: var(--c-primary-soft); }
+.tqm-mods-add-chip:disabled { opacity: 0.5; cursor: not-allowed; }
 .tqm-modal-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .tqm-modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--c-border); }
 
