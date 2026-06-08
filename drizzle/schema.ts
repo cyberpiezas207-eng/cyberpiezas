@@ -1754,4 +1754,46 @@ export const papeleriaSaleItems = mysqlTable("papeleriaSaleItems", {
 
 export type PapeleriaSaleItem = typeof papeleriaSaleItems.$inferSelect;
 export type InsertPapeleriaSaleItem = typeof papeleriaSaleItems.$inferInsert;
+// ============================================================================
+// PAPELERIA - pedidos en linea (tienda publica)
+// ============================================================================
+
+export const papeleriaOnlineOrders = mysqlTable("papeleriaOnlineOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  folio: int("folio").notNull().default(0),
+  customerName: varchar("customerName", { length: 200 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 30 }).notNull(),
+  customerAddress: varchar("customerAddress", { length: 300 }),
+  deliveryMode: mysqlEnum("deliveryMode", ["recoger", "entrega"]).notNull().default("recoger"),
+  paymentType: mysqlEnum("paymentType", ["contra_entrega", "deposito"]).notNull().default("contra_entrega"),
+  depositProofUrl: varchar("depositProofUrl", { length: 1000 }),
+  depositProofKey: varchar("depositProofKey", { length: 255 }),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  itemCount: int("itemCount").notNull().default(0),
+  customerNote: text("customerNote"),
+  status: mysqlEnum("status", ["pendiente", "confirmado", "en_preparacion", "listo", "entregado", "rechazado"]).notNull().default("pendiente"),
+  verifyCode: varchar("verifyCode", { length: 8 }),
+  verified: boolean("verified").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type PapeleriaOnlineOrder = typeof papeleriaOnlineOrders.$inferSelect;
+export type InsertPapeleriaOnlineOrder = typeof papeleriaOnlineOrders.$inferInsert;
+
+export const papeleriaOnlineOrderItems = mysqlTable("papeleriaOnlineOrderItems", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull().references(() => papeleriaOnlineOrders.id),
+  productId: int("productId"),
+  productName: varchar("productName", { length: 200 }).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("lineTotal", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type PapeleriaOnlineOrderItem = typeof papeleriaOnlineOrderItems.$inferSelect;
+export type InsertPapeleriaOnlineOrderItem = typeof papeleriaOnlineOrderItems.$inferInsert;
 export * from "./mobility-schema";
