@@ -1665,4 +1665,86 @@ export const taqueriaOrderItems = mysqlTable("taqueriaOrderItems", {
 
 export type TaqueriaOrderItem = typeof taqueriaOrderItems.$inferSelect;
 export type InsertTaqueriaOrderItem = typeof taqueriaOrderItems.$inferInsert;
+// ============================================================================
+// PAPELERIA POS - 5 tablas (config, categorias, productos, ventas, items)
+// ============================================================================
+
+export const papeleriaSettings = mysqlTable("papeleriaSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  businessName: varchar("businessName", { length: 120 }).notNull().default("Mi Papeleria"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+}, (table) => ({
+  papeleriaSettingsUserUnique: unique("papeleria_settings_user_unique").on(table.userId),
+}));
+
+export type PapeleriaSettings = typeof papeleriaSettings.$inferSelect;
+export type InsertPapeleriaSettings = typeof papeleriaSettings.$inferInsert;
+
+export const papeleriaCategories = mysqlTable("papeleriaCategories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  icon: varchar("icon", { length: 20 }),
+  displayOrder: int("displayOrder").notNull().default(0),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type PapeleriaCategory = typeof papeleriaCategories.$inferSelect;
+export type InsertPapeleriaCategory = typeof papeleriaCategories.$inferInsert;
+
+export const papeleriaProducts = mysqlTable("papeleriaProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  categoryId: int("categoryId").notNull().references(() => papeleriaCategories.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  barcode: varchar("barcode", { length: 60 }),
+  imageUrl: varchar("imageUrl", { length: 1000 }),
+  imageStorageKey: varchar("imageStorageKey", { length: 255 }),
+  stock: int("stock").notNull().default(0),
+  trackStock: boolean("trackStock").notNull().default(false),
+  salesCount: int("salesCount").notNull().default(0),
+  isActive: boolean("isActive").notNull().default(true),
+  displayOrder: int("displayOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});
+
+export type PapeleriaProduct = typeof papeleriaProducts.$inferSelect;
+export type InsertPapeleriaProduct = typeof papeleriaProducts.$inferInsert;
+
+export const papeleriaSales = mysqlTable("papeleriaSales", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  folio: int("folio").notNull().default(0),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["efectivo", "tarjeta", "transferencia"]).notNull().default("efectivo"),
+  itemCount: int("itemCount").notNull().default(0),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["completed", "cancelled"]).notNull().default("completed"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type PapeleriaSale = typeof papeleriaSales.$inferSelect;
+export type InsertPapeleriaSale = typeof papeleriaSales.$inferInsert;
+
+export const papeleriaSaleItems = mysqlTable("papeleriaSaleItems", {
+  id: int("id").autoincrement().primaryKey(),
+  saleId: int("saleId").notNull().references(() => papeleriaSales.id),
+  productId: int("productId"),
+  productName: varchar("productName", { length: 200 }).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("lineTotal", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type PapeleriaSaleItem = typeof papeleriaSaleItems.$inferSelect;
+export type InsertPapeleriaSaleItem = typeof papeleriaSaleItems.$inferInsert;
 export * from "./mobility-schema";
