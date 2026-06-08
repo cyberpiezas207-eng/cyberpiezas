@@ -1644,6 +1644,7 @@ export const taqueriaOrders = mysqlTable("taqueriaOrders", {
   itemCount: int("itemCount").notNull().default(0),
   notes: text("notes"),
   status: mysqlEnum("status", ["completed", "cancelled"]).notNull().default("completed"),
+  kitchenStatus: mysqlEnum("kitchenStatus", ["preparando", "listo", "entregado"]).notNull().default("preparando"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
