@@ -33,6 +33,9 @@ import {
   X,
   Check,
   UtensilsCrossed,
+  Banknote,
+  CreditCard,
+  Landmark,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -130,6 +133,36 @@ export default function TaqueriaPOS() {
   };
 
   const clearCart = () => setCart([]);
+
+  // ---------------------------------------------------------------------------
+  // Cobro: guarda la orden en el backend
+  // ---------------------------------------------------------------------------
+  const [lastOrder, setLastOrder] = useState<{ folio: number; total: string } | null>(null);
+
+  const createOrderMut = trpc.taqueria.orders.create.useMutation({
+    onSuccess: (data) => {
+      setLastOrder({ folio: data.folio, total: data.total });
+      setCart([]);
+      setMobileCartOpen(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleCobrar = (paymentMethod: "efectivo" | "tarjeta" | "transferencia") => {
+    if (cart.length === 0) return;
+    createOrderMut.mutate({
+      serviceMode,
+      paymentMethod,
+      items: cart.map((l) => ({
+        productId: l.productId,
+        productName: l.name,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice.toFixed(2),
+        lineTotal: l.lineTotal.toFixed(2),
+        modifiers: l.options.length > 0 ? l.options.map((o) => o.name).join(", ") : undefined,
+      })),
+    });
+  };
 
   // ---------------------------------------------------------------------------
   // Al tocar un producto: si tiene modificadores abre modal, si no, directo
@@ -291,6 +324,8 @@ export default function TaqueriaPOS() {
             onChangeQty={changeQty}
             onRemove={removeLine}
             onClear={clearCart}
+            onCobrar={handleCobrar}
+            cobrando={createOrderMut.isPending}
           />
         </aside>
       </div>
@@ -328,6 +363,8 @@ export default function TaqueriaPOS() {
           onChangeQty={changeQty}
           onRemove={removeLine}
           onClear={clearCart}
+          onCobrar={handleCobrar}
+          cobrando={createOrderMut.isPending}
         />
       </div>
 
@@ -341,6 +378,23 @@ export default function TaqueriaPOS() {
             setModalProduct(null);
           }}
         />
+      )}
+
+      {/* ===================== MODAL VENTA EXITOSA (FOLIO) ===================== */}
+      {lastOrder && (
+        <div className="taq-success-backdrop" onClick={() => setLastOrder(null)}>
+          <div className="taq-success" onClick={(e) => e.stopPropagation()}>
+            <div className="taq-success-check">
+              <Check className="w-9 h-9" />
+            </div>
+            <p className="taq-success-label">Orden cobrada</p>
+            <p className="taq-success-folio">#{lastOrder.folio}</p>
+            <p className="taq-success-total">{PESO(parseFloat(lastOrder.total))}</p>
+            <button className="taq-success-btn" onClick={() => setLastOrder(null)}>
+              Nueva orden
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -358,6 +412,8 @@ function CartPanel({
   onChangeQty,
   onRemove,
   onClear,
+  onCobrar,
+  cobrando,
 }: {
   cart: CartLine[];
   total: number;
@@ -366,7 +422,10 @@ function CartPanel({
   onChangeQty: (lineId: string, delta: number) => void;
   onRemove: (lineId: string) => void;
   onClear: () => void;
+  onCobrar: (paymentMethod: "efectivo" | "tarjeta" | "transferencia") => void;
+  cobrando: boolean;
 }) {
+  const [payMethod, setPayMethod] = useState<"efectivo" | "tarjeta" | "transferencia">("efectivo");
   return (
     <div className="taq-cartpanel">
       <div className="taq-cart-head">
@@ -424,20 +483,43 @@ function CartPanel({
       </div>
 
       <div className="taq-cart-foot">
+        <div className="taq-pay-methods">
+          <button
+            className={`taq-pay-btn ${payMethod === "efectivo" ? "is-active" : ""}`}
+            onClick={() => setPayMethod("efectivo")}
+          >
+            <Banknote className="w-4 h-4" />
+            Efectivo
+          </button>
+          <button
+            className={`taq-pay-btn ${payMethod === "tarjeta" ? "is-active" : ""}`}
+            onClick={() => setPayMethod("tarjeta")}
+          >
+            <CreditCard className="w-4 h-4" />
+            Tarjeta
+          </button>
+          <button
+            className={`taq-pay-btn ${payMethod === "transferencia" ? "is-active" : ""}`}
+            onClick={() => setPayMethod("transferencia")}
+          >
+            <Landmark className="w-4 h-4" />
+            Transfer
+          </button>
+        </div>
         <div className="taq-cart-total-row">
           <span>Total</span>
           <span className="taq-cart-total">{PESO(total)}</span>
         </div>
         <button
           className="taq-cobrar"
-          disabled={cart.length === 0}
-          onClick={() =>
-            toast("El cobro se conecta en el siguiente paso", {
-              description: `${itemCount} articulos - ${PESO(total)}`,
-            })
-          }
+          disabled={cart.length === 0 || cobrando}
+          onClick={() => onCobrar(payMethod)}
         >
-          Cobrar {cart.length > 0 ? PESO(total) : ""}
+          {cobrando ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>Cobrar {cart.length > 0 ? PESO(total) : ""}</>
+          )}
         </button>
       </div>
     </div>
@@ -827,6 +909,47 @@ const TAQ_STYLES = `
   box-shadow: 0 6px 18px rgba(232,89,12,0.35);
 }
 .taq-cobrar:disabled { background: #D6D3D1; color: #A8A29E; cursor: not-allowed; }
+
+/* METODOS DE PAGO */
+.taq-pay-methods { display: flex; gap: 6px; margin-bottom: 12px; }
+.taq-pay-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border: 1.5px solid var(--taq-border); background: var(--taq-surface);
+  cursor: pointer; padding: 9px 4px; border-radius: 11px;
+  font-size: 12px; font-weight: 600; color: var(--taq-muted);
+  transition: all 0.15s ease;
+}
+.taq-pay-btn:hover { border-color: var(--taq-primary); }
+.taq-pay-btn.is-active {
+  border-color: var(--taq-primary); background: var(--taq-primary-soft);
+  color: var(--taq-primary-dark);
+}
+
+/* MODAL VENTA EXITOSA */
+.taq-success-backdrop {
+  position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.taq-success {
+  background: var(--taq-surface); border-radius: 24px; padding: 32px 28px;
+  text-align: center; max-width: 320px; width: 100%;
+  animation: taqPop 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes taqPop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.taq-success-check {
+  width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+  background: #16A34A; color: white;
+  display: flex; align-items: center; justify-content: center;
+}
+.taq-success-label { font-size: 13px; font-weight: 600; color: var(--taq-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.taq-success-folio { font-size: 52px; font-weight: 800; color: var(--taq-text); line-height: 1.1; font-family: Georgia, serif; }
+.taq-success-total { font-size: 20px; font-weight: 700; color: var(--taq-primary); margin-top: 4px; }
+.taq-success-btn {
+  width: 100%; margin-top: 22px; border: none; cursor: pointer;
+  background: var(--taq-primary); color: white;
+  border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 800;
+}
+.taq-success-btn:hover { background: var(--taq-primary-dark); }
 
 /* ICON BTN GENERICO */
 .taq-icon-btn {
