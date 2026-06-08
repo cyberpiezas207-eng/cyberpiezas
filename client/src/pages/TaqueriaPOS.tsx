@@ -81,6 +81,8 @@ interface PrintConfig {
   businessName: string;
   printTicket: boolean;
   printComanda: boolean;
+  mode: "navegador" | "rawbt";
+  paperWidth: 58 | 80;
 }
 
 const PRINT_CONFIG_KEY = "taqueria_print_config";
@@ -89,6 +91,8 @@ const DEFAULT_PRINT_CONFIG: PrintConfig = {
   businessName: "Mi Taqueria",
   printTicket: true,
   printComanda: true,
+  mode: "navegador",
+  paperWidth: 58,
 };
 
 function loadPrintConfig(): PrintConfig {
@@ -127,9 +131,117 @@ interface PrintData {
   total: number;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de texto plano para impresion termica (RawBT)
+// ---------------------------------------------------------------------------
+
+// Caracteres por linea segun ancho de papel
+function charsPerLine(width: 58 | 80) {
+  return width === 58 ? 32 : 48;
+}
+
+// Centra un texto en el ancho dado
+function centerText(s: string, width: number) {
+  if (s.length >= width) return s.slice(0, width);
+  const pad = Math.floor((width - s.length) / 2);
+  return " ".repeat(pad) + s;
+}
+
+// Crea una linea con texto a la izquierda y precio a la derecha
+function lineLR(left: string, right: string, width: number) {
+  const space = width - right.length;
+  let l = left;
+  if (l.length > space - 1) l = l.slice(0, space - 1);
+  const pad = width - l.length - right.length;
+  return l + " ".repeat(Math.max(1, pad)) + right;
+}
+
+function sepLine(width: number) {
+  return "-".repeat(width);
+}
+
+// Genera el TEXTO PLANO del ticket + comanda para RawBT
+function buildPlainText(data: PrintData, cfg: PrintConfig): string {
+  const W = charsPerLine(cfg.paperWidth);
+  const fecha = new Date().toLocaleString("es-MX", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+  const modoTxt = data.serviceMode === "aqui" ? "PARA AQUI" : "PARA LLEVAR";
+  const pagoTxt =
+    data.paymentMethod === "efectivo" ? "Efectivo" :
+    data.paymentMethod === "tarjeta" ? "Tarjeta" : "Transferencia";
+
+  const lines: string[] = [];
+
+  if (cfg.printTicket) {
+    lines.push(centerText(data.businessName, W));
+    lines.push(centerText(fecha, W));
+    lines.push(centerText("Orden #" + data.folio, W));
+    lines.push(centerText(modoTxt, W));
+    lines.push(sepLine(W));
+    for (const l of data.items) {
+      lines.push(lineLR(l.quantity + "x " + l.name, PESO(l.lineTotal), W));
+      if (l.options.length > 0) {
+        lines.push("  " + l.options.map((o) => o.name).join(", "));
+      }
+    }
+    lines.push(sepLine(W));
+    lines.push(lineLR("TOTAL", PESO(data.total), W));
+    lines.push(centerText("Pago: " + pagoTxt, W));
+    lines.push(sepLine(W));
+    lines.push(centerText("Gracias por su compra!", W));
+    lines.push("");
+    lines.push("");
+  }
+
+  if (cfg.printComanda) {
+    lines.push(centerText("** COCINA **", W));
+    lines.push(centerText("ORDEN #" + data.folio, W));
+    lines.push(centerText(modoTxt, W));
+    lines.push(centerText(fecha, W));
+    lines.push(sepLine(W));
+    for (const l of data.items) {
+      lines.push(l.quantity + " x " + l.name);
+      if (l.options.length > 0) {
+        lines.push("  >> " + l.options.map((o) => o.name).join(", "));
+      }
+    }
+    lines.push(sepLine(W));
+    lines.push("");
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+// Manda el texto a RawBT (app puente Bluetooth en Android)
+function printViaRawBT(data: PrintData, cfg: PrintConfig) {
+  const text = buildPlainText(data, cfg);
+  // RawBT intercepta enlaces que empiezan con rawbt:
+  // Formato: rawbt:base64,<texto en base64> o rawbt:<texto>
+  try {
+    const encoded = encodeURIComponent(text);
+    const url = "rawbt:" + encoded;
+    window.location.href = url;
+  } catch {
+    toast.error("No se pudo enviar a RawBT. Revisa que la app este instalada.");
+  }
+}
+
+// Dispatcher: decide el metodo de impresion segun la config
+function printOrder(data: PrintData, cfg: PrintConfig) {
+  if (!cfg.printTicket && !cfg.printComanda) return;
+  if (cfg.mode === "rawbt") {
+    printViaRawBT(data, cfg);
+  } else {
+    printOrderBrowser(data, cfg);
+  }
+}
+
 // Genera el HTML de ticket + comanda y manda a imprimir en una ventana nueva.
 // Formato pensado para papel termico angosto (58/80mm).
-function printOrder(data: PrintData, cfg: PrintConfig) {
+function printOrderBrowser(data: PrintData, cfg: PrintConfig) {
   const wantTicket = cfg.printTicket;
   const wantComanda = cfg.printComanda;
   if (!wantTicket && !wantComanda) return;
@@ -216,7 +328,7 @@ function printOrder(data: PrintData, cfg: PrintConfig) {
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', monospace; font-size: 13px; color: #000; padding: 8px; }
-        .doc { width: 100%; max-width: 280px; margin: 0 auto 16px; }
+        .doc { width: 100%; max-width: ${cfg.paperWidth === 58 ? "210px" : "300px"}; margin: 0 auto 16px; }
         .pagebreak { page-break-before: always; }
         .center { text-align: center; }
         .title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
@@ -650,6 +762,8 @@ function ConfigModal({
   const [name, setName] = useState(config.businessName);
   const [ticket, setTicket] = useState(config.printTicket);
   const [comanda, setComanda] = useState(config.printComanda);
+  const [mode, setMode] = useState<"navegador" | "rawbt">(config.mode);
+  const [paperWidth, setPaperWidth] = useState<58 | 80>(config.paperWidth);
 
   return (
     <div className="taq-modal-backdrop" onClick={onClose}>
@@ -694,10 +808,35 @@ function ConfigModal({
             </div>
             <span className={`taq-cfg-switch ${comanda ? "is-on" : ""}`} />
           </button>
+
+          <label className="taq-cfg-label" style={{ marginTop: 18 }}>Como imprime</label>
+          <div className="taq-cfg-seg">
+            <button className={`taq-cfg-seg-btn ${mode === "navegador" ? "is-active" : ""}`} onClick={() => setMode("navegador")}>
+              Navegador
+            </button>
+            <button className={`taq-cfg-seg-btn ${mode === "rawbt" ? "is-active" : ""}`} onClick={() => setMode("rawbt")}>
+              Bluetooth (RawBT)
+            </button>
+          </div>
+          <p className="taq-cfg-hint">
+            {mode === "navegador"
+              ? "Usa el dialogo de impresion. Ideal para PC o impresora USB."
+              : "Envia a la app RawBT (Android) para impresora Bluetooth. Instala RawBT desde Play Store y empareja tu impresora."}
+          </p>
+
+          <label className="taq-cfg-label" style={{ marginTop: 18 }}>Ancho de papel</label>
+          <div className="taq-cfg-seg">
+            <button className={`taq-cfg-seg-btn ${paperWidth === 58 ? "is-active" : ""}`} onClick={() => setPaperWidth(58)}>
+              58 mm
+            </button>
+            <button className={`taq-cfg-seg-btn ${paperWidth === 80 ? "is-active" : ""}`} onClick={() => setPaperWidth(80)}>
+              80 mm
+            </button>
+          </div>
         </div>
 
         <div className="taq-modal-foot">
-          <button className="taq-modal-add" onClick={() => onSave({ businessName: name.trim() || "Mi Taqueria", printTicket: ticket, printComanda: comanda })}>
+          <button className="taq-modal-add" onClick={() => onSave({ businessName: name.trim() || "Mi Taqueria", printTicket: ticket, printComanda: comanda, mode, paperWidth })}>
             Guardar
           </button>
         </div>
@@ -1296,6 +1435,13 @@ const TAQ_STYLES = `
 }
 .taq-cfg-switch.is-on { background: var(--taq-primary); }
 .taq-cfg-switch.is-on::after { transform: translateX(18px); }
+.taq-cfg-seg { display: flex; gap: 6px; background: var(--taq-bg); border-radius: 11px; padding: 4px; }
+.taq-cfg-seg-btn {
+  flex: 1; border: none; background: none; cursor: pointer; padding: 10px 8px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--taq-muted);
+  transition: all 0.15s ease;
+}
+.taq-cfg-seg-btn.is-active { background: var(--taq-surface); color: var(--taq-primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
 /* ICON BTN GENERICO */
 .taq-icon-btn {
